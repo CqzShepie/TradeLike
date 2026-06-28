@@ -3,12 +3,14 @@ import JobCard from "./JobCard";
 
 type JobListProps = {
   jobs: Job[];
+  onViewJob?: (job: Job) => void;
   onDeleteJob?: (id: number) => void;
   onEditJob?: (job: Job) => void;
 };
 
 function JobList({
   jobs,
+  onViewJob,
   onDeleteJob,
   onEditJob,
 }: JobListProps) {
@@ -23,6 +25,7 @@ function JobList({
           <JobCard
             key={job.id}
             job={job}
+            onViewJob={onViewJob}
             onDeleteJob={onDeleteJob}
             onEditJob={onEditJob}
           />

@@ -1,7 +1,12 @@
 const BASE_URL = "http://localhost:5001/api";
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE_URL}${url}`, {
+  const method = options?.method ?? "GET";
+  const fullUrl = `${BASE_URL}${url}`;
+
+  console.log(`➡️ ${method} ${fullUrl}`);
+
+  const res = await fetch(fullUrl, {
     headers: {
       "Content-Type": "application/json",
       ...options?.headers,
@@ -9,11 +14,25 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
     ...options,
   });
 
+  console.log(`⬅️ ${method} ${fullUrl} - ${res.status}`);
+
   if (!res.ok) {
+    const errorText = await res.text();
+
+    console.error("❌ API Error");
+    console.error("URL:", fullUrl);
+    console.error("Method:", method);
+    console.error("Status:", res.status);
+    console.error("Response:", errorText);
+
     throw new Error(`API error: ${res.status}`);
   }
 
-  return res.json();
+  const data = await res.json();
+
+  console.log("✅ Response:", data);
+
+  return data as T;
 }
 
 export const apiClient = {

@@ -1,65 +1,40 @@
 import Sidebar from "../components/layout/Sidebar";
-import DashboardHeader from "../components/dashboard/DashboardHeader";
+
+import WelcomeBanner from "../components/dashboard/WelcomeBanner";
+import TodaysSchedule from "../components/dashboard/TodaysSchedule";
+import RecentActivity from "../components/dashboard/RecentActivity";
+import QuickActions from "../components/dashboard/QuickActions";
+
 import StatsGrid from "../components/ui/StatsGrid";
-import JobList from "../components/jobs/JobList";
 
 import { useJobs } from "../hooks/useJobs";
+import { getJobStats } from "../utils/jobStats";
 
 function Dashboard() {
-  const {
-    jobs,
-    loading,
-    deleteJob,
-    startEdit,
-  } = useJobs();
+  const { jobs, loading } = useJobs();
+
+  const stats = getJobStats(jobs);
 
   return (
     <main className="flex min-h-screen bg-slate-50">
       <Sidebar />
 
       <section className="flex-1 p-10">
-        <DashboardHeader
-          title="Good morning 👋"
-          subtitle="Here's what's happening in your business today."
-        />
+        <WelcomeBanner />
 
         {loading ? (
-          <p>Loading...</p>
+          <p className="text-slate-500">Loading dashboard...</p>
         ) : (
           <>
-            <StatsGrid
-              stats={[
-                {
-                  title: "Total Jobs",
-                  value: jobs.length,
-                },
-                {
-                  title: "Scheduled",
-                  value: jobs.filter(
-                    (j) => j.status === "Scheduled"
-                  ).length,
-                },
-                {
-                  title: "In Progress",
-                  value: jobs.filter(
-                    (j) => j.status === "In Progress"
-                  ).length,
-                },
-                {
-                  title: "Completed",
-                  value: jobs.filter(
-                    (j) => j.status === "Completed"
-                  ).length,
-                },
-              ]}
-            />
+            <StatsGrid stats={stats} />
+
+            <div className="mt-8 grid gap-6 lg:grid-cols-2">
+              <TodaysSchedule jobs={jobs} />
+              <RecentActivity />
+            </div>
 
             <div className="mt-8">
-              <JobList
-                jobs={jobs}
-                onDeleteJob={deleteJob}
-                onEditJob={startEdit}
-              />
+              <QuickActions />
             </div>
           </>
         )}

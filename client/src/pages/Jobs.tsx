@@ -1,7 +1,8 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 import Sidebar from "../components/layout/Sidebar";
-import DashboardHeader from "../components/dashboard/DashboardHeader";
+import SectionHeader from "../components/ui/SectionHeader";
 import StatsGrid from "../components/ui/StatsGrid";
 import JobList from "../components/jobs/JobList";
 import NewJobForm from "../components/jobs/NewJobForm";
@@ -10,6 +11,7 @@ import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
 
 import { useJobs } from "../hooks/useJobs";
+import type { JobPriority } from "../types/job";
 
 function Jobs() {
   const {
@@ -25,7 +27,13 @@ function Jobs() {
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
+  const [priorityFilter, setPriorityFilter] = useState<
+    JobPriority | "All"
+  >("All");
+
   const [showForm, setShowForm] = useState(false);
+
+  const navigate = useNavigate();
 
   const filteredJobs = jobs.filter((job) => {
     const matchesSearch =
@@ -35,9 +43,18 @@ function Jobs() {
       job.address.toLowerCase().includes(search.toLowerCase());
 
     const matchesStatus =
-      statusFilter === "All" || job.status === statusFilter;
+      statusFilter === "All" ||
+      job.status === statusFilter;
 
-    return matchesSearch && matchesStatus;
+    const matchesPriority =
+      priorityFilter === "All" ||
+      job.priority === priorityFilter;
+
+    return (
+      matchesSearch &&
+      matchesStatus &&
+      matchesPriority
+    );
   });
 
   return (
@@ -45,7 +62,7 @@ function Jobs() {
       <Sidebar />
 
       <section className="flex-1 p-10">
-        <DashboardHeader
+        <SectionHeader
           title="Jobs"
           subtitle="View and manage all your jobs."
         />
@@ -88,8 +105,14 @@ function Jobs() {
             )}
 
             <div className="mb-8">
-              <Button onClick={() => setShowForm((prev) => !prev)}>
-                {showForm ? "Close Form" : "+ New Job"}
+              <Button
+                onClick={() =>
+                  setShowForm((prev) => !prev)
+                }
+              >
+                {showForm
+                  ? "Close Form"
+                  : "+ New Job"}
               </Button>
             </div>
 
@@ -105,30 +128,66 @@ function Jobs() {
               />
             )}
 
-            <div className="my-8 flex flex-col gap-4 md:flex-row">
+            <div className="my-8 flex flex-col gap-4 lg:flex-row">
               <div className="flex-1">
                 <Input
                   type="text"
                   placeholder="🔍 Search customer, phone, job or address..."
                   value={search}
-                  onChange={(e) => setSearch(e.target.value)}
+                  onChange={(e) =>
+                    setSearch(e.target.value)
+                  }
                 />
               </div>
 
               <select
                 value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
+                onChange={(e) =>
+                  setStatusFilter(e.target.value)
+                }
                 className="rounded-xl border border-slate-300 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <option value="All">All Statuses</option>
-                <option value="Scheduled">Scheduled</option>
-                <option value="In Progress">In Progress</option>
-                <option value="Completed">Completed</option>
+                <option value="All">
+                  All Statuses
+                </option>
+                <option value="Scheduled">
+                  Scheduled
+                </option>
+                <option value="In Progress">
+                  In Progress
+                </option>
+                <option value="Completed">
+                  Completed
+                </option>
+              </select>
+
+              <select
+                value={priorityFilter}
+                onChange={(e) =>
+                  setPriorityFilter(
+                    e.target.value as
+                      | JobPriority
+                      | "All"
+                  )
+                }
+                className="rounded-xl border border-slate-300 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="All">
+                  All Priorities
+                </option>
+                <option value="Low">Low</option>
+                <option value="Normal">
+                  Normal
+                </option>
+                <option value="High">High</option>
+                <option value="Emergency">
+                  Emergency
+                </option>
               </select>
             </div>
-
             <JobList
               jobs={filteredJobs}
+              onViewJob={(job) => navigate(`/jobs/${job.id}`)}
               onDeleteJob={deleteJob}
               onEditJob={(job) => {
                 startEdit(job);

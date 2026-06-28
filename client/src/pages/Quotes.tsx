@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 import Sidebar from "../components/layout/Sidebar";
-import DashboardHeader from "../components/dashboard/DashboardHeader";
+import DashboardHeader from "../components/dashboard/WelcomeBanner";
 import StatsGrid from "../components/ui/StatsGrid";
 import Button from "../components/ui/Button";
 import Modal from "../components/ui/Modal";

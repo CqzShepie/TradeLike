@@ -1,7 +1,6 @@
 import Navbar from "./components/layout/Navbar";
 import Hero from "./components/dashboard/Hero";
 import Features from "./components/dashboard/Features";
-import DashboardPreview from "./components/dashboard/DashboardPreview";
 
 function App() {
   return (
@@ -9,7 +8,6 @@ function App() {
       <Navbar />
       <Hero />
       <Features />
-      <DashboardPreview />
     </main>
   );
 }

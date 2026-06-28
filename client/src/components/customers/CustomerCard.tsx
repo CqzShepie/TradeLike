@@ -1,6 +1,9 @@
 import { useState } from "react";
-import type { Customer } from "../../types/customer";
+
+import Card from "../ui/Card";
 import Modal from "../ui/Modal";
+
+import type { Customer } from "../../types/customer";
 
 type CustomerCardProps = {
   customer: Customer;
@@ -23,7 +26,7 @@ function CustomerCard({
   }
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm transition-all hover:-translate-y-1 hover:shadow-md">
+    <Card className="hover:-translate-y-1 hover:shadow-md">
       <div className="flex items-start justify-between">
         <div>
           <h3 className="text-lg font-semibold text-slate-900">
@@ -89,7 +92,7 @@ function CustomerCard({
           </div>
         </Modal>
       )}
-    </div>
+    </Card>
   );
 }
 

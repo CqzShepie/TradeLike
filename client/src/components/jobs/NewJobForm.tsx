@@ -1,5 +1,12 @@
 import { useEffect, useState, type FormEvent } from "react";
-import type { Job, JobStatus } from "../../types/job";
+
+import Card from "../ui/Card";
+
+import type {
+  Job,
+  JobStatus,
+  JobPriority,
+} from "../../types/job";
 import type { NewJob } from "../../types/newJob";
 
 type NewJobFormProps = {
@@ -21,6 +28,8 @@ function NewJobForm({
   const [address, setAddress] = useState("");
   const [time, setTime] = useState("");
   const [status, setStatus] = useState<JobStatus>("Scheduled");
+  const [priority, setPriority] =
+    useState<JobPriority>("Normal");
 
   useEffect(() => {
     if (editingJob) {
@@ -30,6 +39,7 @@ function NewJobForm({
       setAddress(editingJob.address);
       setTime(editingJob.time);
       setStatus(editingJob.status);
+      setPriority(editingJob.priority);
     } else {
       setCustomer("");
       setPhone("");
@@ -37,6 +47,7 @@ function NewJobForm({
       setAddress("");
       setTime("");
       setStatus("Scheduled");
+      setPriority("Normal");
     }
   }, [editingJob]);
 
@@ -52,6 +63,7 @@ function NewJobForm({
         address,
         time,
         status,
+        priority,
       });
     } else {
       onAddJob({
@@ -61,6 +73,7 @@ function NewJobForm({
         address,
         time,
         status,
+        priority,
       });
     }
 
@@ -70,12 +83,13 @@ function NewJobForm({
     setAddress("");
     setTime("");
     setStatus("Scheduled");
+    setPriority("Normal");
 
     onCancelEdit?.();
   }
 
   return (
-    <div className="mt-10 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+    <Card className="mt-10">
       <h2 className="mb-6 text-2xl font-bold">
         {editingJob ? "Edit Job" : "New Job"}
       </h2>
@@ -126,6 +140,19 @@ function NewJobForm({
           <option value="Completed">Completed</option>
         </select>
 
+        <select
+          value={priority}
+          onChange={(e) =>
+            setPriority(e.target.value as JobPriority)
+          }
+          className="w-full rounded-lg border px-4 py-3"
+        >
+          <option value="Low">Low Priority</option>
+          <option value="Normal">Normal Priority</option>
+          <option value="High">High Priority</option>
+          <option value="Emergency">🚨 Emergency</option>
+        </select>
+
         <div className="flex gap-3">
           <button
             type="submit"
@@ -145,7 +172,7 @@ function NewJobForm({
           )}
         </div>
       </form>
-    </div>
+    </Card>
   );
 }
 

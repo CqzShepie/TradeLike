@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 import Sidebar from "../components/layout/Sidebar";
-import DashboardHeader from "../components/dashboard/DashboardHeader";
+import SectionHeader from "../components/ui/SectionHeader";
 import StatsGrid from "../components/ui/StatsGrid";
 import CustomerList from "../components/customers/CustomerList";
 import NewCustomerForm from "../components/customers/NewCustomerForm";
@@ -57,7 +57,7 @@ function Customers() {
       <Sidebar />
 
       <section className="flex-1 p-10">
-        <DashboardHeader
+        <SectionHeader
           title="Customers"
           subtitle="View and manage all your customers."
         />

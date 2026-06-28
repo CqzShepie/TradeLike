@@ -1,4 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
+
+import Card from "../ui/Card";
+
 import type { Customer } from "../../types/customer";
 import type { NewCustomer } from "../../types/newCustomer";
 
@@ -67,7 +70,7 @@ function NewCustomerForm({
   }
 
   return (
-    <div className="mt-10 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+    <Card className="mt-10">
       <h2 className="mb-6 text-2xl font-bold">
         {editingCustomer ? "Edit Customer" : "New Customer"}
       </h2>
@@ -122,7 +125,7 @@ function NewCustomerForm({
           )}
         </div>
       </form>
-    </div>
+    </Card>
   );
 }
 

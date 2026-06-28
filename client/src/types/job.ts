@@ -3,12 +3,21 @@ export type JobStatus =
   | "In Progress"
   | "Completed";
 
+export type JobPriority =
+  | "Low"
+  | "Normal"
+  | "High"
+  | "Emergency";
+
 export interface Job {
   id: number;
   customer: string;
-  jobTitle: string;   
-  address: string;
   phone: string;
+  jobTitle: string;
+  address: string;
+
   time: string;
+
   status: JobStatus;
+  priority: JobPriority;
 }

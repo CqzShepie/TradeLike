@@ -1,3 +1,4 @@
+import Card from "../ui/Card";
 import Button from "../ui/Button";
 import StatusBadge from "../ui/StatusBadge";
 
@@ -11,7 +12,7 @@ type Props = {
 
 function QuoteCard({ quote, onEdit, onDelete }: Props) {
   return (
-    <div className="rounded-xl border bg-white p-5 shadow-sm">
+    <Card>
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-lg font-semibold">
@@ -55,7 +56,7 @@ function QuoteCard({ quote, onEdit, onDelete }: Props) {
           Delete
         </Button>
       </div>
-    </div>
+    </Card>
   );
 }
 
