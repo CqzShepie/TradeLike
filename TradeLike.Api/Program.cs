@@ -1,12 +1,13 @@
 var builder = WebApplication.CreateBuilder(args);
 
-// Controllers
+// Services
 builder.Services.AddControllers();
 
-// OpenAPI (optional)
-builder.Services.AddOpenApi();
+// Swagger / OpenAPI
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 
-// ✅ ADD CORS (THIS FIXES YOUR ERROR)
+// CORS
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
@@ -20,24 +21,22 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
+// Swagger
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
+    app.UseSwagger();
+    app.UseSwaggerUI();
 }
 
-// HTTPS redirect (keep if you want)
 app.UseHttpsRedirection();
 
-// ✅ ENABLE CORS (IMPORTANT)
 app.UseCors("AllowFrontend");
 
-// Your test endpoint (keep it)
+app.MapControllers();
+
 app.MapGet("/weatherforecast", () =>
 {
     return "Weather still works";
 });
-
-// Controllers
-app.MapControllers();
 
 app.Run();
