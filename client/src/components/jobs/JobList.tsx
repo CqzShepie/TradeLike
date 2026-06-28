@@ -1,11 +1,17 @@
-import type { Job } from "../types/job";
+import type { Job } from "../../types/job";
 import JobCard from "./JobCard";
 
-type DashboardJobsProps = {
+type JobListProps = {
   jobs: Job[];
+  onDeleteJob?: (id: number) => void;
+  onEditJob?: (job: Job) => void;
 };
 
-function DashboardJobs({ jobs }: DashboardJobsProps) {
+function JobList({
+  jobs,
+  onDeleteJob,
+  onEditJob,
+}: JobListProps) {
   return (
     <>
       <h2 className="mt-12 mb-6 text-2xl font-bold">
@@ -17,6 +23,8 @@ function DashboardJobs({ jobs }: DashboardJobsProps) {
           <JobCard
             key={job.id}
             job={job}
+            onDeleteJob={onDeleteJob}
+            onEditJob={onEditJob}
           />
         ))}
       </div>
@@ -24,4 +32,4 @@ function DashboardJobs({ jobs }: DashboardJobsProps) {
   );
 }
 
-export default DashboardJobs;
+export default JobList;

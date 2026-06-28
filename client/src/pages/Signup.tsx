@@ -1,6 +1,6 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useState } from "react";
-import Logo from "../components/Logo";
+import Logo from "../components/layout/Logo";
 
 function Signup() {
   const [businessName, setBusinessName] = useState("");

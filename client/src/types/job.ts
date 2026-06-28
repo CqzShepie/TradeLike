@@ -6,7 +6,7 @@ export type JobStatus =
 export interface Job {
   id: number;
   customer: string;
-  job: string;
+  jobTitle: string;   
   address: string;
   phone: string;
   time: string;

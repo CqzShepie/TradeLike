@@ -1,32 +1,17 @@
-import { useState } from "react";
-import type { Job } from "../types/job";
-import type { NewJob } from "../types/newJob";
+import Sidebar from "../components/layout/Sidebar";
+import DashboardHeader from "../components/dashboard/DashboardHeader";
+import StatsGrid from "../components/ui/StatsGrid";
+import JobList from "../components/jobs/JobList";
 
-import { initialJobs } from "../data/initialJobs";
-
-import Sidebar from "../components/Sidebar";
-import DashboardHeader from "../components/DashboardHeader";
-import DashboardStats from "../components/DashboardStats";
-import DashboardJobs from "../components/DashboardJobs";
-import NewJobForm from "../components/NewJobForm";
+import { useJobs } from "../hooks/useJobs";
 
 function Dashboard() {
-  const [jobs, setJobs] = useState<Job[]>(initialJobs);
-
-  function handleAddJob(newJob: NewJob) {
-    setJobs((currentJobs) => [
-      ...currentJobs,
-      {
-        id: currentJobs.length + 1,
-        customer: newJob.customer,
-        job: newJob.job,
-        address: "",
-        phone: "",
-        time: newJob.time,
-        status: "Scheduled",
-      },
-    ]);
-  }
+  const {
+    jobs,
+    loading,
+    deleteJob,
+    startEdit,
+  } = useJobs();
 
   return (
     <main className="flex min-h-screen bg-slate-50">
@@ -38,11 +23,46 @@ function Dashboard() {
           subtitle="Here's what's happening in your business today."
         />
 
-        <DashboardStats jobCount={jobs.length} />
+        {loading ? (
+          <p>Loading...</p>
+        ) : (
+          <>
+            <StatsGrid
+              stats={[
+                {
+                  title: "Total Jobs",
+                  value: jobs.length,
+                },
+                {
+                  title: "Scheduled",
+                  value: jobs.filter(
+                    (j) => j.status === "Scheduled"
+                  ).length,
+                },
+                {
+                  title: "In Progress",
+                  value: jobs.filter(
+                    (j) => j.status === "In Progress"
+                  ).length,
+                },
+                {
+                  title: "Completed",
+                  value: jobs.filter(
+                    (j) => j.status === "Completed"
+                  ).length,
+                },
+              ]}
+            />
 
-        <NewJobForm onAddJob={handleAddJob} />
-
-        <DashboardJobs jobs={jobs} />
+            <div className="mt-8">
+              <JobList
+                jobs={jobs}
+                onDeleteJob={deleteJob}
+                onEditJob={startEdit}
+              />
+            </div>
+          </>
+        )}
       </section>
     </main>
   );
