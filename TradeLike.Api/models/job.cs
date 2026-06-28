@@ -15,5 +15,7 @@ namespace TradeLike.Api.Models
         public string Time { get; set; } = string.Empty;
 
         public string Status { get; set; } = "Scheduled";
+
+        public string Priority { get; set; } = "Normal";
     }
 }

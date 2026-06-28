@@ -13,27 +13,45 @@ public class JobsController : ControllerBase
         {
             Id = 1,
             Customer = "John Williams",
+            Phone = "",
             JobTitle = "Boiler Service",
             Address = "London",
             Time = "08:30",
-            Status = "Scheduled"
+            Status = "Scheduled",
+            Priority = "Normal"
         },
         new Job
         {
             Id = 2,
             Customer = "Sarah Smith",
+            Phone = "",
             JobTitle = "Radiator Repair",
             Address = "Manchester",
             Time = "10:00",
-            Status = "In Progress"
+            Status = "In Progress",
+            Priority = "High"
         }
     };
 
-    // GET
+    // GET ALL
     [HttpGet]
     public IActionResult GetJobs()
     {
         return Ok(Jobs);
+    }
+
+    // GET BY ID
+    [HttpGet("{id}")]
+    public IActionResult GetJob(int id)
+    {
+        var job = Jobs.FirstOrDefault(j => j.Id == id);
+
+        if (job == null)
+        {
+            return NotFound();
+        }
+
+        return Ok(job);
     }
 
     // POST
@@ -50,30 +68,36 @@ public class JobsController : ControllerBase
     [HttpDelete("{id}")]
     public IActionResult DeleteJob(int id)
     {
-        var job = Jobs.FirstOrDefault(x => x.Id == id);
+        var job = Jobs.FirstOrDefault(j => j.Id == id);
 
         if (job == null)
+        {
             return NotFound();
+        }
 
         Jobs.Remove(job);
 
         return Ok(job);
     }
 
-    // PUT (UPDATE)
+    // PUT
     [HttpPut("{id}")]
     public IActionResult UpdateJob(int id, [FromBody] Job updatedJob)
     {
-        var job = Jobs.FirstOrDefault(x => x.Id == id);
+        var job = Jobs.FirstOrDefault(j => j.Id == id);
 
         if (job == null)
+        {
             return NotFound();
+        }
 
         job.Customer = updatedJob.Customer;
+        job.Phone = updatedJob.Phone;
         job.JobTitle = updatedJob.JobTitle;
         job.Address = updatedJob.Address;
         job.Time = updatedJob.Time;
         job.Status = updatedJob.Status;
+        job.Priority = updatedJob.Priority;
 
         return Ok(job);
     }

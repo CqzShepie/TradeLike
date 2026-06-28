@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("TradeLike.Api")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+ae9bed3a6e319966c9f7e6591140ead49aaff1f7")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+30ef697319befc06230a61e411cc3062345f97f7")]
 [assembly: System.Reflection.AssemblyProductAttribute("TradeLike.Api")]
 [assembly: System.Reflection.AssemblyTitleAttribute("TradeLike.Api")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
