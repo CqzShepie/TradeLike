@@ -1,15 +1,18 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useState } from "react";
+
 import Logo from "../components/layout/Logo";
+import { authService } from "../services/authService";
 
 function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const navigate = useNavigate();
 
-  function handleSubmit(event: React.FormEvent) {
+  async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
 
     if (email.trim() === "") {
@@ -27,8 +30,22 @@ function Login() {
       return;
     }
 
-    setError("");
-    navigate("/dashboard");
+    try {
+      setLoading(true);
+      setError("");
+
+      await authService.login({
+        email,
+        password,
+      });
+
+      navigate("/dashboard");
+    } catch (err) {
+      console.error(err);
+      setError("Invalid email or password.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -48,7 +65,6 @@ function Login() {
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-5">
-
             <div>
               <label
                 htmlFor="email"
@@ -99,11 +115,11 @@ function Login() {
 
             <button
               type="submit"
-              className="w-full rounded-lg bg-blue-600 py-3 font-semibold text-white hover:bg-blue-700"
+              disabled={loading}
+              className="w-full rounded-lg bg-blue-600 py-3 font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-400"
             >
-              Sign In
+              {loading ? "Signing In..." : "Sign In"}
             </button>
-
           </form>
 
           <p className="mt-6 text-center text-sm text-slate-600">

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
-import { apiClient } from "../services/apiClient";
+import { customerService } from "../services/customerService";
 
 import type { Customer } from "../types/customer";
 import type { NewCustomer } from "../types/newCustomer";
@@ -15,7 +15,7 @@ export function useCustomers() {
   useEffect(() => {
     async function loadCustomers() {
       try {
-        const data = await apiClient.get<Customer[]>("/customers");
+        const data = await customerService.getAll();
         setCustomers(data);
       } catch (err) {
         console.error("Failed to load customers:", err);
@@ -32,10 +32,7 @@ export function useCustomers() {
   // ADD CUSTOMER
   async function addCustomer(newCustomer: NewCustomer) {
     try {
-      const created = await apiClient.post<Customer>(
-        "/customers",
-        newCustomer
-      );
+      const created = await customerService.create(newCustomer);
 
       setCustomers((prev) => [...prev, created]);
 
@@ -49,7 +46,7 @@ export function useCustomers() {
   // DELETE CUSTOMER
   async function deleteCustomer(id: number) {
     try {
-      await apiClient.delete<void>(`/customers/${id}`);
+      await customerService.delete(id);
 
       setCustomers((prev) =>
         prev.filter((customer) => customer.id !== id)
@@ -69,10 +66,7 @@ export function useCustomers() {
   // UPDATE CUSTOMER
   async function updateCustomer(updatedCustomer: Customer) {
     try {
-      const updated = await apiClient.put<Customer>(
-        `/customers/${updatedCustomer.id}`,
-        updatedCustomer
-      );
+      const updated = await customerService.update(updatedCustomer);
 
       setCustomers((prev) =>
         prev.map((customer) =>

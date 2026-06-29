@@ -1,77 +1,65 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TradeLike.Api.Models;
+using TradeLike.Api.Services;
 
 namespace TradeLike.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize]
 public class CustomersController : ControllerBase
 {
-    private static List<Customer> Customers = new()
+    private readonly ICustomerService _customerService;
+
+    public CustomersController(ICustomerService customerService)
     {
-        new Customer
-        {
-            Id = 1,
-            Name = "John Williams",
-            Phone = "07700111222",
-            Email = "john@example.com",
-            Address = "London"
-        },
-        new Customer
-        {
-            Id = 2,
-            Name = "Sarah Smith",
-            Phone = "07700333444",
-            Email = "sarah@example.com",
-            Address = "Manchester"
-        }
-    };
+        _customerService = customerService;
+    }
 
     // GET
     [HttpGet]
-    public IActionResult GetCustomers()
+    public async Task<IActionResult> GetCustomers()
     {
-        return Ok(Customers);
+        var customers = await _customerService.GetAllAsync();
+
+        return Ok(customers);
     }
 
     // POST
     [HttpPost]
-    public IActionResult CreateCustomer([FromBody] Customer customer)
+    public async Task<IActionResult> CreateCustomer([FromBody] Customer customer)
     {
-        customer.Id = Customers.Count + 1;
-        Customers.Add(customer);
+        var createdCustomer = await _customerService.CreateAsync(customer);
 
-        return Ok(customer);
-    }
-
-    // DELETE
-    [HttpDelete("{id}")]
-    public IActionResult DeleteCustomer(int id)
-    {
-        var customer = Customers.FirstOrDefault(x => x.Id == id);
-
-        if (customer == null)
-            return NotFound();
-
-        Customers.Remove(customer);
-
-        return Ok(customer);
+        return Ok(createdCustomer);
     }
 
     // PUT
-    [HttpPut("{id}")]
-    public IActionResult UpdateCustomer(int id, [FromBody] Customer updatedCustomer)
+    [HttpPut("{id:int}")]
+    public async Task<IActionResult> UpdateCustomer(int id, [FromBody] Customer customer)
     {
-        var customer = Customers.FirstOrDefault(x => x.Id == id);
+        var updatedCustomer = await _customerService.UpdateAsync(id, customer);
 
-        if (customer == null)
+        if (updatedCustomer is null)
+        {
             return NotFound();
+        }
 
-        customer.Name = updatedCustomer.Name;
-        customer.Phone = updatedCustomer.Phone;
-        customer.Email = updatedCustomer.Email;
-        customer.Address = updatedCustomer.Address;
+        return Ok(updatedCustomer);
+    }
 
-        return Ok(customer);
+    // DELETE
+    [HttpDelete("{id:int}")]
+    public async Task<IActionResult> DeleteCustomer(int id)
+    {
+        var deletedCustomer = await _customerService.DeleteAsync(id);
+
+        if (deletedCustomer is null)
+        {
+            return NotFound();
+        }
+
+        return Ok(deletedCustomer);
     }
 }

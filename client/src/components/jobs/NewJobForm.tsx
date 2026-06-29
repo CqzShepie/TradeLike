@@ -7,6 +7,7 @@ import type {
   JobStatus,
   JobPriority,
 } from "../../types/job";
+
 import type { NewJob } from "../../types/newJob";
 
 type NewJobFormProps = {
@@ -26,10 +27,12 @@ function NewJobForm({
   const [phone, setPhone] = useState("");
   const [jobTitle, setJobTitle] = useState("");
   const [address, setAddress] = useState("");
-  const [time, setTime] = useState("");
+
+  // ✅ NEW FIELD (replaces time)
+  const [scheduledDate, setScheduledDate] = useState("");
+
   const [status, setStatus] = useState<JobStatus>("Scheduled");
-  const [priority, setPriority] =
-    useState<JobPriority>("Normal");
+  const [priority, setPriority] = useState<JobPriority>("Normal");
 
   useEffect(() => {
     if (editingJob) {
@@ -37,7 +40,9 @@ function NewJobForm({
       setPhone(editingJob.phone);
       setJobTitle(editingJob.jobTitle);
       setAddress(editingJob.address);
-      setTime(editingJob.time);
+
+      setScheduledDate(editingJob.scheduledDate || "");
+
       setStatus(editingJob.status);
       setPriority(editingJob.priority);
     } else {
@@ -45,7 +50,7 @@ function NewJobForm({
       setPhone("");
       setJobTitle("");
       setAddress("");
-      setTime("");
+      setScheduledDate("");
       setStatus("Scheduled");
       setPriority("Normal");
     }
@@ -54,34 +59,30 @@ function NewJobForm({
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
 
+    const jobPayload = {
+      customer,
+      phone,
+      jobTitle,
+      address,
+      scheduledDate,
+      status,
+      priority,
+    };
+
     if (editingJob && onUpdateJob) {
       onUpdateJob({
         ...editingJob,
-        customer,
-        phone,
-        jobTitle,
-        address,
-        time,
-        status,
-        priority,
+        ...jobPayload,
       });
     } else {
-      onAddJob({
-        customer,
-        phone,
-        jobTitle,
-        address,
-        time,
-        status,
-        priority,
-      });
+      onAddJob(jobPayload);
     }
 
     setCustomer("");
     setPhone("");
     setJobTitle("");
     setAddress("");
-    setTime("");
+    setScheduledDate("");
     setStatus("Scheduled");
     setPriority("Normal");
 
@@ -122,13 +123,16 @@ function NewJobForm({
           placeholder="Address"
           className="w-full rounded-lg border px-4 py-3"
         />
-
+        {/* Scheduled Date */}
         <input
-          type="time"
-          value={time}
-          onChange={(e) => setTime(e.target.value)}
+          type="datetime-local"
+          value={scheduledDate}
+          onChange={(e) => setScheduledDate(e.target.value)}
+          min="2024-01-01T00:00"
+          max="2099-12-31T23:59"
+          required
           className="w-full rounded-lg border px-4 py-3"
-        />
+/>
 
         <select
           value={status}
@@ -150,7 +154,7 @@ function NewJobForm({
           <option value="Low">Low Priority</option>
           <option value="Normal">Normal Priority</option>
           <option value="High">High Priority</option>
-          <option value="Emergency">🚨 Emergency</option>
+          <option value="Urgent">Urgent</option>
         </select>
 
         <div className="flex gap-3">

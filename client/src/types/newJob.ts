@@ -8,9 +8,7 @@ export interface NewJob {
   phone: string;
   jobTitle: string;
   address: string;
-
-  time: string;
-
+  scheduledDate: string;
   status: JobStatus;
   priority: JobPriority;
 }

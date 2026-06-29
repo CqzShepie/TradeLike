@@ -5,6 +5,8 @@ import TodaysSchedule from "../components/dashboard/TodaysSchedule";
 import RecentActivity from "../components/dashboard/RecentActivity";
 import QuickActions from "../components/dashboard/QuickActions";
 
+import TodayJobs from "../components/jobs/TodayJobs";
+
 import StatsGrid from "../components/ui/StatsGrid";
 
 import { useJobs } from "../hooks/useJobs";
@@ -30,6 +32,10 @@ function Dashboard() {
 
             <div className="mt-8 grid gap-6 lg:grid-cols-2">
               <TodaysSchedule jobs={jobs} />
+              <TodayJobs />
+            </div>
+
+            <div className="mt-8">
               <RecentActivity />
             </div>
 

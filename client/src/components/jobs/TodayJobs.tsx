@@ -1,30 +1,46 @@
+import { useEffect, useState } from "react";
+import { jobsService } from "../../services/jobsService";
 import type { Job } from "../../types/job";
 
-interface Props {
-  jobs: Job[];
-}
+export default function TodayJobs() {
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [loading, setLoading] = useState(true);
 
-export default function TodaysSchedule({ jobs }: Props) {
-  const today = new Date().toDateString();
+  const loadJobs = async () => {
+    try {
+      setLoading(true);
 
-  const todaysJobs = jobs.filter((job) =>
-    job.scheduledDate
-      ? new Date(job.scheduledDate).toDateString() === today
-      : false
-  );
+      const jobs = await jobsService.getToday();
+      setJobs(jobs);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadJobs();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="rounded bg-white p-4 shadow">
+        Loading today's jobs...
+      </div>
+    );
+  }
 
   return (
-    <div className="bg-white p-4 rounded shadow">
-      <h2 className="text-lg font-semibold mb-4">Today's Schedule</h2>
+    <div className="rounded bg-white p-4 shadow">
+      <h2 className="mb-4 text-lg font-semibold">Today's Jobs</h2>
 
-      {todaysJobs.length === 0 ? (
+      {jobs.length === 0 ? (
         <p className="text-gray-500">No jobs scheduled for today</p>
       ) : (
         <div className="space-y-3">
-          {todaysJobs.map((job) => (
+          {jobs.map((job) => (
             <div
               key={job.id}
-              className="border rounded p-3 flex justify-between"
+              className="flex items-center justify-between rounded border p-3"
             >
               <div>
                 <p className="font-medium">{job.jobTitle}</p>

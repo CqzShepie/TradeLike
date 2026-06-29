@@ -1,104 +1,112 @@
+using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TradeLike.Api.Models;
+using TradeLike.Api.Services;
 
 namespace TradeLike.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize]
 public class JobsController : ControllerBase
 {
-    private static List<Job> Jobs = new()
+    private readonly IJobService _jobService;
+
+    public JobsController(IJobService jobService)
     {
-        new Job
-        {
-            Id = 1,
-            Customer = "John Williams",
-            Phone = "",
-            JobTitle = "Boiler Service",
-            Address = "London",
-            Time = "08:30",
-            Status = "Scheduled",
-            Priority = "Normal"
-        },
-        new Job
-        {
-            Id = 2,
-            Customer = "Sarah Smith",
-            Phone = "",
-            JobTitle = "Radiator Repair",
-            Address = "Manchester",
-            Time = "10:00",
-            Status = "In Progress",
-            Priority = "High"
-        }
-    };
+        _jobService = jobService;
+    }
 
     // GET ALL
     [HttpGet]
-    public IActionResult GetJobs()
+    public async Task<IActionResult> GetJobs()
     {
-        return Ok(Jobs);
+        var jobs = await _jobService.GetAllAsync();
+        return Ok(jobs);
     }
 
     // GET BY ID
-    [HttpGet("{id}")]
-    public IActionResult GetJob(int id)
+    [HttpGet("{id:int}")]
+    public async Task<IActionResult> GetJob(int id)
     {
-        var job = Jobs.FirstOrDefault(j => j.Id == id);
+        var job = await _jobService.GetByIdAsync(id);
 
-        if (job == null)
-        {
+        if (job is null)
             return NotFound();
-        }
 
         return Ok(job);
     }
 
-    // POST
+    // CREATE
     [HttpPost]
-    public IActionResult CreateJob([FromBody] Job job)
+    public async Task<IActionResult> CreateJob([FromBody] Job job)
     {
-        job.Id = Jobs.Count + 1;
-        Jobs.Add(job);
+        try
+        {
+            var created = await _jobService.CreateAsync(job);
 
-        return Ok(job);
+            return CreatedAtAction(
+                nameof(GetJob),
+                new { id = created.Id },
+                created);
+        }
+        catch (ValidationException ex)
+        {
+            return BadRequest(new
+            {
+                error = ex.Message
+            });
+        }
+    }
+
+    // UPDATE
+    [HttpPut("{id:int}")]
+    public async Task<IActionResult> UpdateJob(int id, [FromBody] Job job)
+    {
+        try
+        {
+            var updated = await _jobService.UpdateAsync(id, job);
+
+            if (updated is null)
+                return NotFound();
+
+            return Ok(updated);
+        }
+        catch (ValidationException ex)
+        {
+            return BadRequest(new
+            {
+                error = ex.Message
+            });
+        }
     }
 
     // DELETE
-    [HttpDelete("{id}")]
-    public IActionResult DeleteJob(int id)
+    [HttpDelete("{id:int}")]
+    public async Task<IActionResult> DeleteJob(int id)
     {
-        var job = Jobs.FirstOrDefault(j => j.Id == id);
+        var deleted = await _jobService.DeleteAsync(id);
 
-        if (job == null)
-        {
+        if (deleted is null)
             return NotFound();
-        }
 
-        Jobs.Remove(job);
-
-        return Ok(job);
+        return Ok(deleted);
     }
 
-    // PUT
-    [HttpPut("{id}")]
-    public IActionResult UpdateJob(int id, [FromBody] Job updatedJob)
+    // TODAY'S JOBS
+    [HttpGet("today")]
+    public async Task<IActionResult> GetTodayJobs()
     {
-        var job = Jobs.FirstOrDefault(j => j.Id == id);
+        var jobs = await _jobService.GetTodayAsync();
+        return Ok(jobs);
+    }
 
-        if (job == null)
-        {
-            return NotFound();
-        }
-
-        job.Customer = updatedJob.Customer;
-        job.Phone = updatedJob.Phone;
-        job.JobTitle = updatedJob.JobTitle;
-        job.Address = updatedJob.Address;
-        job.Time = updatedJob.Time;
-        job.Status = updatedJob.Status;
-        job.Priority = updatedJob.Priority;
-
-        return Ok(job);
+    // WEEK VIEW
+    [HttpGet("week")]
+    public async Task<IActionResult> GetWeekJobs()
+    {
+        var jobs = await _jobService.GetWeekAsync();
+        return Ok(jobs);
     }
 }

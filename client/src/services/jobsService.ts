@@ -22,4 +22,12 @@ export const jobsService = {
   // DELETE
   delete: (id: number) =>
     apiClient.delete<void>(`/jobs/${id}`),
+
+  // 📅 TODAY'S JOBS
+  getToday: () =>
+    apiClient.get<Job[]>("/jobs/today"),
+
+  // 📅 WEEK VIEW
+  getWeek: () =>
+    apiClient.get<Job[]>("/jobs/week"),
 };

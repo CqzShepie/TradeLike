@@ -1,9 +1,58 @@
+using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using TradeLike.Api.Configuration;
+using TradeLike.Api.Data;
+using TradeLike.Api.Services;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Services
 builder.Services.AddControllers();
 
-// Swagger / OpenAPI
+// Database
+builder.Services.AddDbContext<TradeLikeDbContext>(options =>
+    options.UseSqlServer(
+        builder.Configuration.GetConnectionString("TradeLikeDatabase")));
+
+// Application Services
+builder.Services.AddScoped<ICustomerService, CustomerService>();
+builder.Services.AddScoped<IJobService, JobService>();
+
+// JWT Settings
+builder.Services.Configure<JwtSettings>(
+    builder.Configuration.GetSection("Jwt"));
+
+builder.Services.AddSingleton<JwtService>();
+
+// Authentication
+builder.Services
+    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        var jwt = builder.Configuration
+            .GetSection("Jwt")
+            .Get<JwtSettings>()!;
+
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+
+            ValidIssuer = jwt.Issuer,
+            ValidAudience = jwt.Audience,
+
+            IssuerSigningKey = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(jwt.Key))
+        };
+    });
+
+builder.Services.AddAuthorization();
+
+// Swagger
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
@@ -16,8 +65,7 @@ builder.Services.AddCors(options =>
             .WithOrigins(
                 "http://localhost:5173",
                 "https://app.tradelike.co.uk",
-                "https://gray-glacier-03cac3803.7.azurestaticapps.net"
-)
+                "https://gray-glacier-03cac3803.7.azurestaticapps.net")
             .AllowAnyHeader()
             .AllowAnyMethod();
     });
@@ -36,6 +84,9 @@ app.UseHttpsRedirection();
 
 app.UseCors("AllowFrontend");
 
+app.UseAuthentication();
+app.UseAuthorization();
+
 app.MapControllers();
 
 app.MapGet("/", () => Results.Ok(new
@@ -52,3 +103,4 @@ app.MapGet("/health", () => Results.Ok(new
 }));
 
 app.Run();
+builder.Services.AddScoped<IQuoteService, QuoteService>();

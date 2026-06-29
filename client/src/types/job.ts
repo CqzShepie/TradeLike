@@ -1,22 +1,25 @@
 export type JobStatus =
   | "Scheduled"
   | "In Progress"
-  | "Completed";
+  | "Completed"
+  | "Cancelled";
 
 export type JobPriority =
   | "Low"
   | "Normal"
   | "High"
-  | "Emergency";
+  | "Urgent";
 
 export interface Job {
   id: number;
+
   customer: string;
   phone: string;
+
   jobTitle: string;
   address: string;
 
-  time: string;
+  scheduledDate: string;
 
   status: JobStatus;
   priority: JobPriority;

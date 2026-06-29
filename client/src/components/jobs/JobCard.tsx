@@ -29,6 +29,16 @@ function JobCard({
     setShowConfirm(false);
   }
 
+  // ✅ FORMAT DATE PROPERLY FOR UI
+  const formattedDate = job.scheduledDate
+    ? new Date(job.scheduledDate).toLocaleString([], {
+        day: "2-digit",
+        month: "short",
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : "No date set";
+
   return (
     <>
       <Card
@@ -49,8 +59,9 @@ function JobCard({
               📍 {job.address || "No address"}
             </p>
 
+            {/* ✅ FIXED CALENDAR DISPLAY */}
             <p className="mt-3 text-sm font-medium text-slate-500">
-              🕒 {job.time}
+              🕒 {formattedDate}
             </p>
           </div>
 
