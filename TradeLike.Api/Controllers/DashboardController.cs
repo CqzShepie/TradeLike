@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using TradeLike.Api.Models;
-using TradeLike.Api.Services;
+using Microsoft.EntityFrameworkCore;
+using TradeLike.Api.Data;
 
 namespace TradeLike.Api.Controllers;
 
@@ -10,17 +10,29 @@ namespace TradeLike.Api.Controllers;
 [Authorize]
 public class DashboardController : ControllerBase
 {
-    private readonly IJobService _jobService;
+    private readonly TradeLikeDbContext _context;
 
-    public DashboardController(IJobService jobService)
+    public DashboardController(TradeLikeDbContext context)
     {
-        _jobService = jobService;
+        _context = context;
     }
 
     [HttpGet("summary")]
     public async Task<IActionResult> GetSummary()
     {
-        var jobs = await _jobService.GetAllAsync();
+        var jobs = await _context.Jobs
+            .AsNoTracking()
+            .Select(job => new DashboardJobResponse(
+                job.Id,
+                job.Customer,
+                job.Phone,
+                job.JobTitle,
+                job.Address,
+                job.ScheduledDate,
+                job.Status,
+                job.Priority
+            ))
+            .ToListAsync();
 
         var today = DateTime.Today;
 
@@ -36,7 +48,7 @@ public class DashboardController : ControllerBase
             .ToList();
 
         var recentActivity = jobs
-            .OrderByDescending(job => GetActivityDate(job))
+            .OrderByDescending(job => job.ScheduledDate)
             .Take(8)
             .Select(ToActivity)
             .ToList();
@@ -54,12 +66,7 @@ public class DashboardController : ControllerBase
         return Ok(response);
     }
 
-    private static DateTime GetActivityDate(Job job)
-    {
-        return job.ScheduledDate;
-    }
-
-    private static DashboardActivityResponse ToActivity(Job job)
+    private static DashboardActivityResponse ToActivity(DashboardJobResponse job)
     {
         var title = job.Status switch
         {
@@ -69,12 +76,10 @@ public class DashboardController : ControllerBase
             _ => "Job scheduled"
         };
 
-        var description = $"{job.JobTitle} for {job.Customer}";
-
         return new DashboardActivityResponse(
             JobId: job.Id,
             Title: title,
-            Description: description,
+            Description: $"{job.JobTitle} for {job.Customer}",
             Timestamp: job.ScheduledDate,
             Type: job.Status
         );
@@ -85,9 +90,20 @@ public class DashboardController : ControllerBase
         int ScheduledJobs,
         int InProgressJobs,
         int CompletedJobs,
-        IReadOnlyList<Job> TodayJobs,
-        IReadOnlyList<Job> UpcomingJobs,
+        IReadOnlyList<DashboardJobResponse> TodayJobs,
+        IReadOnlyList<DashboardJobResponse> UpcomingJobs,
         IReadOnlyList<DashboardActivityResponse> RecentActivity
+    );
+
+    private sealed record DashboardJobResponse(
+        int Id,
+        string Customer,
+        string Phone,
+        string JobTitle,
+        string Address,
+        DateTime ScheduledDate,
+        string Status,
+        string Priority
     );
 
     private sealed record DashboardActivityResponse(
