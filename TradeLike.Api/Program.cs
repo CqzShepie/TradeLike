@@ -13,7 +13,11 @@ builder.Services.AddCors(options =>
     options.AddPolicy("AllowFrontend", policy =>
     {
         policy
-            .WithOrigins("http://localhost:5173")
+            .WithOrigins(
+                "http://localhost:5173",
+                "https://app.tradelike.co.uk",
+                "https://gray-glacier-03cac3803.7.azurestaticapps.net"
+)
             .AllowAnyHeader()
             .AllowAnyMethod();
     });
@@ -34,9 +38,17 @@ app.UseCors("AllowFrontend");
 
 app.MapControllers();
 
-app.MapGet("/weatherforecast", () =>
+app.MapGet("/", () => Results.Ok(new
 {
-    return "Weather still works";
-});
+    Name = "TradeLike API",
+    Status = "Running",
+    Environment = app.Environment.EnvironmentName
+}));
+
+app.MapGet("/health", () => Results.Ok(new
+{
+    Status = "Healthy",
+    Time = DateTime.UtcNow
+}));
 
 app.Run();
