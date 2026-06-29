@@ -1,4 +1,12 @@
-function WelcomeBanner() {
+type WelcomeBannerProps = {
+  title?: string;
+  subtitle?: string;
+};
+
+function WelcomeBanner({
+  title,
+  subtitle,
+}: WelcomeBannerProps) {
   const hour = new Date().getHours();
 
   let greeting = "Good evening";
@@ -12,11 +20,11 @@ function WelcomeBanner() {
   return (
     <div className="mb-8">
       <h1 className="text-4xl font-bold tracking-tight text-slate-900">
-        {greeting} 
+        {title ?? greeting}
       </h1>
 
       <p className="mt-2 text-lg text-slate-500">
-        Here's what's happening in your business today.
+        {subtitle ?? "Here's what's happening in your business today."}
       </p>
     </div>
   );

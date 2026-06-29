@@ -1,57 +1,63 @@
-const BASE_URL = "http://localhost:5001/api";
+const BASE_URL =
+  import.meta.env.VITE_API_URL ?? "http://localhost:5001/api";
 
-async function request<T>(url: string, options?: RequestInit): Promise<T> {
-  const method = options?.method ?? "GET";
-  const fullUrl = `${BASE_URL}${url}`;
+async function request<T>(
+  endpoint: string,
+  options: RequestInit = {}
+): Promise<T> {
+  const url = `${BASE_URL}${endpoint}`;
 
-  console.log(`➡️ ${method} ${fullUrl}`);
-
-  const res = await fetch(fullUrl, {
+  const response = await fetch(url, {
     headers: {
       "Content-Type": "application/json",
-      ...options?.headers,
+      ...(options.headers ?? {}),
     },
     ...options,
   });
 
-  console.log(`⬅️ ${method} ${fullUrl} - ${res.status}`);
+  if (!response.ok) {
+    const message = await response.text();
 
-  if (!res.ok) {
-    const errorText = await res.text();
+    console.error("API Request Failed", {
+      url,
+      method: options.method ?? "GET",
+      status: response.status,
+      message,
+    });
 
-    console.error("❌ API Error");
-    console.error("URL:", fullUrl);
-    console.error("Method:", method);
-    console.error("Status:", res.status);
-    console.error("Response:", errorText);
-
-    throw new Error(`API error: ${res.status}`);
+    throw new Error(message || `Request failed (${response.status})`);
   }
 
-  const data = await res.json();
+  // Handle endpoints that return no content (204)
+  if (response.status === 204) {
+    return undefined as T;
+  }
 
-  console.log("✅ Response:", data);
-
-  return data as T;
+  return (await response.json()) as T;
 }
 
 export const apiClient = {
-  get: <T>(url: string) => request<T>(url),
+  get<T>(endpoint: string) {
+    return request<T>(endpoint);
+  },
 
-  post: <T>(url: string, body: unknown) =>
-    request<T>(url, {
+  post<T>(endpoint: string, body: unknown) {
+    return request<T>(endpoint, {
       method: "POST",
       body: JSON.stringify(body),
-    }),
+    });
+  },
 
-  put: <T>(url: string, body: unknown) =>
-    request<T>(url, {
+  put<T>(endpoint: string, body: unknown) {
+    return request<T>(endpoint, {
       method: "PUT",
       body: JSON.stringify(body),
-    }),
+    });
+  },
 
-  delete: <T>(url: string) =>
-    request<T>(url, {
+  delete<T>(endpoint: string) {
+    return request<T>(endpoint, {
       method: "DELETE",
-    }),
+    });
+  },
 };

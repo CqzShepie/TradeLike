@@ -1,151 +1,124 @@
-import { useState, useEffect, type ChangeEvent, type FormEvent } from "react";
 import Card from "../ui/Card";
+import Button from "../ui/Button";
 
 import type { Quote } from "../../types/quote";
-import type { NewQuote } from "../../types/newQuote";
 
 type Props = {
-  onAddQuote: (quote: NewQuote) => void;
-  onUpdateQuote: (quote: Quote) => void;
-  editingQuote: Quote | null;
-  onCancelEdit: () => void;
+  quotes: Quote[];
+  onEditQuote: (quote: Quote) => void;
+  onDeleteQuote: (quote: Quote) => void;
 };
 
-function NewQuoteForm({
-  onAddQuote,
-  onUpdateQuote,
-  editingQuote,
-  onCancelEdit,
+function QuoteList({
+  quotes,
+  onEditQuote,
+  onDeleteQuote,
 }: Props) {
-  const [form, setForm] = useState<NewQuote>({
-    customerId: 0,
-    customerName: "",
-    title: "",
-    description: "",
-    amount: 0,
-    status: "Draft",
-  });
-
-  useEffect(() => {
-    if (editingQuote) {
-      setForm({
-        customerId: editingQuote.customerId,
-        customerName: editingQuote.customerName,
-        title: editingQuote.title,
-        description: editingQuote.description || "",
-        amount: editingQuote.amount,
-        status: editingQuote.status,
-      });
-    }
-  }, [editingQuote]);
-
-  function handleChange(
-    e: ChangeEvent<
-      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
-    >
-  ) {
-    setForm({
-      ...form,
-      [e.target.name]:
-        e.target.name === "amount"
-          ? Number(e.target.value)
-          : e.target.value,
-    });
-  }
-
-  function handleSubmit(e: FormEvent) {
-    e.preventDefault();
-
-    if (editingQuote) {
-      onUpdateQuote({
-        ...editingQuote,
-        ...form,
-      });
-    } else {
-      onAddQuote(form);
-    }
-
-    setForm({
-      customerId: 0,
-      customerName: "",
-      title: "",
-      description: "",
-      amount: 0,
-      status: "Draft",
-    });
+  if (quotes.length === 0) {
+    return (
+      <Card>
+        <div className="p-8 text-center text-slate-500">
+          No quotes found.
+        </div>
+      </Card>
+    );
   }
 
   return (
-    <Card className="mb-8">
-      <form onSubmit={handleSubmit}>
-        <div className="grid gap-4 md:grid-cols-2">
-          <input
-            name="customerName"
-            placeholder="Customer Name"
-            value={form.customerName}
-            onChange={handleChange}
-            className="rounded-lg border p-2"
-          />
+    <Card className="overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="min-w-full">
+          <thead className="border-b bg-slate-50">
+            <tr>
+              <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Customer
+              </th>
 
-          <input
-            name="title"
-            placeholder="Quote Title"
-            value={form.title}
-            onChange={handleChange}
-            className="rounded-lg border p-2"
-          />
+              <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Quote
+              </th>
 
-          <input
-            name="amount"
-            type="number"
-            placeholder="Amount"
-            value={form.amount}
-            onChange={handleChange}
-            className="rounded-lg border p-2"
-          />
+              <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Amount
+              </th>
 
-          <select
-            name="status"
-            value={form.status}
-            onChange={handleChange}
-            className="rounded-lg border p-2"
-          >
-            <option value="Draft">Draft</option>
-            <option value="Sent">Sent</option>
-            <option value="Accepted">Accepted</option>
-            <option value="Rejected">Rejected</option>
-          </select>
-        </div>
+              <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Status
+              </th>
 
-        <textarea
-          name="description"
-          placeholder="Description"
-          value={form.description}
-          onChange={handleChange}
-          className="mt-4 w-full rounded-lg border p-2"
-        />
+              <th className="px-6 py-4 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Actions
+              </th>
+            </tr>
+          </thead>
 
-        <div className="mt-4 flex gap-3">
-          <button
-            type="submit"
-            className="rounded-lg bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700"
-          >
-            {editingQuote ? "Update Quote" : "Create Quote"}
-          </button>
+          <tbody>
+            {quotes.map((quote) => (
+              <tr
+                key={quote.id}
+                className="border-b last:border-0 hover:bg-slate-50"
+              >
+                <td className="px-6 py-4">
+                  {quote.customerName}
+                </td>
 
-          {editingQuote && (
-            <button
-              type="button"
-              onClick={onCancelEdit}
-              className="rounded-lg bg-gray-200 px-4 py-2 transition-colors hover:bg-gray-300"
-            >
-              Cancel
-            </button>
-          )}
-        </div>
-      </form>
+                <td className="px-6 py-4">
+                  <div className="font-medium">
+                    {quote.title}
+                  </div>
+
+                  {quote.description && (
+                    <div className="text-sm text-slate-500">
+                      {quote.description}
+                    </div>
+                  )}
+                </td>
+
+                <td className="px-6 py-4 font-medium">
+                  £{quote.amount.toFixed(2)}
+                </td>
+
+                <td className="px-6 py-4">
+                  <span
+                    className={`rounded-full px-3 py-1 text-xs font-semibold
+                    ${
+                      quote.status === "Accepted"
+                        ? "bg-green-100 text-green-700"
+                        : quote.status === "Rejected"
+                        ? "bg-red-100 text-red-700"
+                        : quote.status === "Sent"
+                        ? "bg-blue-100 text-blue-700"
+                        : "bg-slate-100 text-slate-700"
+                    }`}
+                  >
+                    {quote.status}
+                  </span>
+                </td>
+
+                <td className="px-6 py-4">
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      variant="secondary"
+                      onClick={() => onEditQuote(quote)}
+                    >
+                      Edit
+                    </Button>
+
+                    <Button
+                      variant="danger"
+                      onClick={() => onDeleteQuote(quote)}
+                    >
+                      Delete
+                    </Button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </Card>
   );
 }
 
-export default NewQuoteForm;
+export default QuoteList;
