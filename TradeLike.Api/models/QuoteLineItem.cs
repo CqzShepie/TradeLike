@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace TradeLike.Api.Models;
 
@@ -8,6 +9,7 @@ public class QuoteLineItem
 
     public int QuoteId { get; set; }
 
+    [JsonIgnore]
     public Quote? Quote { get; set; }
 
     [Required]

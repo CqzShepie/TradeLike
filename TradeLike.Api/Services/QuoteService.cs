@@ -7,7 +7,7 @@ namespace TradeLike.Api.Services;
 
 public class QuoteService : IQuoteService
 {
-    private static readonly HashSet<string> AllowedStatuses = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly string[] AllowedStatuses =
     {
         "Draft",
         "Sent",
@@ -15,7 +15,7 @@ public class QuoteService : IQuoteService
         "Rejected"
     };
 
-    private static readonly HashSet<string> AllowedLineTypes = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly string[] AllowedLineTypes =
     {
         "Labour",
         "Materials",
@@ -71,7 +71,9 @@ public class QuoteService : IQuoteService
             .FirstOrDefaultAsync(q => q.Id == id);
 
         if (quote is null)
+        {
             return null;
+        }
 
         quote.CustomerId = updatedQuote.CustomerId;
         quote.CustomerName = updatedQuote.CustomerName;
@@ -86,9 +88,11 @@ public class QuoteService : IQuoteService
         quote.Notes = updatedQuote.Notes;
 
         _context.QuoteLineItems.RemoveRange(quote.LineItems);
+        quote.LineItems.Clear();
 
-        quote.LineItems = updatedQuote.LineItems
-            .Select(item => new QuoteLineItem
+        foreach (var item in updatedQuote.LineItems)
+        {
+            quote.LineItems.Add(new QuoteLineItem
             {
                 Type = item.Type,
                 Description = item.Description,
@@ -96,8 +100,8 @@ public class QuoteService : IQuoteService
                 UnitPrice = item.UnitPrice,
                 VatRate = item.VatRate,
                 LineTotal = item.LineTotal
-            })
-            .ToList();
+            });
+        }
 
         await _context.SaveChangesAsync();
 
@@ -109,7 +113,9 @@ public class QuoteService : IQuoteService
         var quote = await _context.Quotes.FindAsync(id);
 
         if (quote is null)
+        {
             return null;
+        }
 
         _context.Quotes.Remove(quote);
         await _context.SaveChangesAsync();
@@ -124,8 +130,7 @@ public class QuoteService : IQuoteService
         quote.Description = string.IsNullOrWhiteSpace(quote.Description)
             ? null
             : quote.Description.Trim();
-
-        quote.Status = quote.Status.Trim();
+        quote.Status = Canonicalise(quote.Status, AllowedStatuses);
         quote.Notes = string.IsNullOrWhiteSpace(quote.Notes)
             ? null
             : quote.Notes.Trim();
@@ -133,10 +138,10 @@ public class QuoteService : IQuoteService
         quote.LineItems = quote.LineItems
             .Select(item => new QuoteLineItem
             {
-                Type = string.IsNullOrWhiteSpace(item.Type)
-                    ? "Other"
-                    : item.Type.Trim(),
-                Description = item.Description.Trim(),
+                Type = Canonicalise(
+                    string.IsNullOrWhiteSpace(item.Type) ? "Other" : item.Type,
+                    AllowedLineTypes),
+                Description = item.Description?.Trim() ?? string.Empty,
                 Quantity = item.Quantity,
                 UnitPrice = item.UnitPrice,
                 VatRate = item.VatRate,
@@ -148,42 +153,102 @@ public class QuoteService : IQuoteService
     private static void ValidateQuote(Quote quote)
     {
         if (quote.CustomerId <= 0)
+        {
             throw new ValidationException("Customer is required.");
+        }
 
         if (string.IsNullOrWhiteSpace(quote.CustomerName))
+        {
             throw new ValidationException("Customer name is required.");
+        }
+
+        if (quote.CustomerName.Length > 150)
+        {
+            throw new ValidationException("Customer name must be 150 characters or fewer.");
+        }
 
         if (string.IsNullOrWhiteSpace(quote.Title))
+        {
             throw new ValidationException("Quote title is required.");
+        }
+
+        if (quote.Title.Length > 200)
+        {
+            throw new ValidationException("Quote title must be 200 characters or fewer.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(quote.Description) &&
+            quote.Description.Length > 4000)
+        {
+            throw new ValidationException("Quote description must be 4000 characters or fewer.");
+        }
 
         if (string.IsNullOrWhiteSpace(quote.Status))
+        {
             throw new ValidationException("Quote status is required.");
+        }
 
-        if (!AllowedStatuses.Contains(quote.Status))
-            throw new ValidationException("Quote status is invalid.");
+        if (!AllowedStatuses.Contains(quote.Status, StringComparer.OrdinalIgnoreCase))
+        {
+            throw new ValidationException("Quote status is invalid. Use Draft, Sent, Accepted, or Rejected.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(quote.Notes) &&
+            quote.Notes.Length > 4000)
+        {
+            throw new ValidationException("Quote notes must be 4000 characters or fewer.");
+        }
 
         if (quote.DiscountTotal < 0)
+        {
             throw new ValidationException("Discount cannot be negative.");
+        }
 
         if (quote.LineItems.Count == 0)
-            throw new ValidationException("At least one quote line item is required.");
-
-        foreach (var item in quote.LineItems)
         {
-            if (!AllowedLineTypes.Contains(item.Type))
-                throw new ValidationException("Quote line item type is invalid.");
+            throw new ValidationException("At least one priced quote line item is required.");
+        }
+
+        for (var index = 0; index < quote.LineItems.Count; index++)
+        {
+            var lineNumber = index + 1;
+            var item = quote.LineItems[index];
+
+            if (!AllowedLineTypes.Contains(item.Type, StringComparer.OrdinalIgnoreCase))
+            {
+                throw new ValidationException(
+                    $"Line {lineNumber} has an invalid type. Use Labour, Materials, or Other.");
+            }
 
             if (string.IsNullOrWhiteSpace(item.Description))
-                throw new ValidationException("Quote line item description is required.");
+            {
+                throw new ValidationException(
+                    $"Line {lineNumber} needs a line item description.");
+            }
+
+            if (item.Description.Length > 250)
+            {
+                throw new ValidationException(
+                    $"Line {lineNumber} description must be 250 characters or fewer.");
+            }
 
             if (item.Quantity <= 0)
-                throw new ValidationException("Quote line item quantity must be greater than zero.");
+            {
+                throw new ValidationException(
+                    $"Line {lineNumber} quantity must be greater than zero.");
+            }
 
             if (item.UnitPrice < 0)
-                throw new ValidationException("Quote line item unit price cannot be negative.");
+            {
+                throw new ValidationException(
+                    $"Line {lineNumber} unit price cannot be negative.");
+            }
 
-            if (item.VatRate < 0)
-                throw new ValidationException("Quote line item VAT rate cannot be negative.");
+            if (item.VatRate < 0 || item.VatRate > 100)
+            {
+                throw new ValidationException(
+                    $"Line {lineNumber} VAT rate must be between 0 and 100.");
+            }
         }
     }
 
@@ -194,23 +259,35 @@ public class QuoteService : IQuoteService
             var net = item.Quantity * item.UnitPrice;
             var vat = net * (item.VatRate / 100);
 
-            item.LineTotal = decimal.Round(net + vat, 2);
+            item.LineTotal = RoundMoney(net + vat);
         }
 
-        quote.Subtotal = decimal.Round(
-            quote.LineItems.Sum(item => item.Quantity * item.UnitPrice),
-            2);
+        quote.Subtotal = RoundMoney(
+            quote.LineItems.Sum(item => item.Quantity * item.UnitPrice));
 
-        quote.VatTotal = decimal.Round(
-            quote.LineItems.Sum(item => item.Quantity * item.UnitPrice * (item.VatRate / 100)),
-            2);
+        quote.VatTotal = RoundMoney(
+            quote.LineItems.Sum(item =>
+                item.Quantity * item.UnitPrice * (item.VatRate / 100)));
 
-        quote.DiscountTotal = decimal.Round(quote.DiscountTotal, 2);
+        quote.DiscountTotal = RoundMoney(quote.DiscountTotal);
 
-        quote.Total = decimal.Round(
-            Math.Max(0, quote.Subtotal + quote.VatTotal - quote.DiscountTotal),
-            2);
+        quote.Total = RoundMoney(
+            Math.Max(0, quote.Subtotal + quote.VatTotal - quote.DiscountTotal));
 
         quote.Amount = quote.Total;
+    }
+
+    private static string Canonicalise(string value, IReadOnlyCollection<string> allowedValues)
+    {
+        var trimmed = value.Trim();
+
+        return allowedValues.FirstOrDefault(
+            allowed => string.Equals(allowed, trimmed, StringComparison.OrdinalIgnoreCase))
+            ?? trimmed;
+    }
+
+    private static decimal RoundMoney(decimal value)
+    {
+        return decimal.Round(value, 2, MidpointRounding.AwayFromZero);
     }
 }

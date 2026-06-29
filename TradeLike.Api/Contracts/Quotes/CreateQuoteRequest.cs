@@ -1,12 +1,21 @@
 namespace TradeLike.Api.Contracts.Quotes;
 
-public sealed record CreateQuoteRequest(
-    int CustomerId,
-    string CustomerName,
-    string Title,
-    string? Description,
-    decimal DiscountTotal,
-    string Status,
-    string? Notes,
-    IReadOnlyList<QuoteLineItemRequest> LineItems
-);
+public sealed class CreateQuoteRequest
+{
+    public int CustomerId { get; init; }
+
+    public string CustomerName { get; init; } = string.Empty;
+
+    public string Title { get; init; } = string.Empty;
+
+    public string? Description { get; init; }
+
+    public decimal DiscountTotal { get; init; }
+
+    public string Status { get; init; } = "Draft";
+
+    public string? Notes { get; init; }
+
+    public IReadOnlyList<QuoteLineItemRequest> LineItems { get; init; } =
+        Array.Empty<QuoteLineItemRequest>();
+}

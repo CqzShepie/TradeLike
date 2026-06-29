@@ -26,46 +26,70 @@ public class TradeLikeDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
-        modelBuilder.Entity<Quote>()
-            .Property(q => q.Amount)
-            .HasColumnType("decimal(18,2)");
+        modelBuilder.Entity<Quote>(entity =>
+        {
+            entity.Property(q => q.CustomerName)
+                .IsRequired()
+                .HasMaxLength(150);
 
-        modelBuilder.Entity<Quote>()
-            .Property(q => q.Subtotal)
-            .HasColumnType("decimal(18,2)");
+            entity.Property(q => q.Title)
+                .IsRequired()
+                .HasMaxLength(200);
 
-        modelBuilder.Entity<Quote>()
-            .Property(q => q.VatTotal)
-            .HasColumnType("decimal(18,2)");
+            entity.Property(q => q.Description)
+                .HasMaxLength(4000);
 
-        modelBuilder.Entity<Quote>()
-            .Property(q => q.DiscountTotal)
-            .HasColumnType("decimal(18,2)");
+            entity.Property(q => q.Status)
+                .IsRequired()
+                .HasMaxLength(30);
 
-        modelBuilder.Entity<Quote>()
-            .Property(q => q.Total)
-            .HasColumnType("decimal(18,2)");
+            entity.Property(q => q.Notes)
+                .HasMaxLength(4000);
 
-        modelBuilder.Entity<Quote>()
-            .HasMany(q => q.LineItems)
-            .WithOne(i => i.Quote)
-            .HasForeignKey(i => i.QuoteId)
-            .OnDelete(DeleteBehavior.Cascade);
+            entity.Property(q => q.Amount)
+                .HasPrecision(18, 2);
 
-        modelBuilder.Entity<QuoteLineItem>()
-            .Property(i => i.Quantity)
-            .HasColumnType("decimal(18,2)");
+            entity.Property(q => q.Subtotal)
+                .HasPrecision(18, 2);
 
-        modelBuilder.Entity<QuoteLineItem>()
-            .Property(i => i.UnitPrice)
-            .HasColumnType("decimal(18,2)");
+            entity.Property(q => q.VatTotal)
+                .HasPrecision(18, 2);
 
-        modelBuilder.Entity<QuoteLineItem>()
-            .Property(i => i.VatRate)
-            .HasColumnType("decimal(18,2)");
+            entity.Property(q => q.DiscountTotal)
+                .HasPrecision(18, 2);
 
-        modelBuilder.Entity<QuoteLineItem>()
-            .Property(i => i.LineTotal)
-            .HasColumnType("decimal(18,2)");
+            entity.Property(q => q.Total)
+                .HasPrecision(18, 2);
+
+            entity.HasMany(q => q.LineItems)
+                .WithOne(i => i.Quote)
+                .HasForeignKey(i => i.QuoteId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<QuoteLineItem>(entity =>
+        {
+            entity.ToTable("QuoteLineItems");
+
+            entity.Property(i => i.Type)
+                .IsRequired()
+                .HasMaxLength(30);
+
+            entity.Property(i => i.Description)
+                .IsRequired()
+                .HasMaxLength(250);
+
+            entity.Property(i => i.Quantity)
+                .HasPrecision(18, 2);
+
+            entity.Property(i => i.UnitPrice)
+                .HasPrecision(18, 2);
+
+            entity.Property(i => i.VatRate)
+                .HasPrecision(18, 2);
+
+            entity.Property(i => i.LineTotal)
+                .HasPrecision(18, 2);
+        });
     }
 }

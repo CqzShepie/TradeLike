@@ -8,21 +8,15 @@ export function getJobStats(jobs: Job[]) {
     },
     {
       title: "Scheduled",
-      value: jobs.filter(
-        (job) => job.status === "Scheduled"
-      ).length,
+      value: jobs.filter(job => job.status === "Scheduled").length,
     },
     {
       title: "In Progress",
-      value: jobs.filter(
-        (job) => job.status === "In Progress"
-      ).length,
+      value: jobs.filter(job => job.status === "InProgress").length,
     },
     {
       title: "Completed",
-      value: jobs.filter(
-        (job) => job.status === "Completed"
-      ).length,
+      value: jobs.filter(job => job.status === "Completed").length,
     },
   ];
 }

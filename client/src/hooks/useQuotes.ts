@@ -4,74 +4,78 @@ import type { Quote } from "../types/quote";
 import type { NewQuote } from "../types/newQuote";
 
 export function useQuotes() {
-    const [quotes, setQuotes] = useState<Quote[]>([]);
-    const [editingQuote, setEditingQuote] = useState<Quote | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState("");
+  const [quotes, setQuotes] = useState<Quote[]>([]);
+  const [editingQuote, setEditingQuote] = useState<Quote | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-    async function loadQuotes() {
-        try {
-            setLoading(true);
-            setError("");
+  async function loadQuotes() {
+    try {
+      setLoading(true);
+      setError("");
 
-            const data = await quotesService.getAll();
-
-            setQuotes(data);
-        } catch {
-            setError("Unable to load quotes.");
-        } finally {
-            setLoading(false);
-        }
+      const data = await quotesService.getAll();
+      setQuotes(data);
+    } catch (err) {
+      setError(getErrorMessage(err, "Unable to load quotes."));
+    } finally {
+      setLoading(false);
     }
+  }
 
-    useEffect(() => {
-        loadQuotes();
-    }, []);
+  useEffect(() => {
+    loadQuotes();
+  }, []);
 
-    async function addQuote(newQuote: NewQuote) {
-        const created = await quotesService.create(newQuote);
+  async function addQuote(newQuote: NewQuote) {
+    const created = await quotesService.create(newQuote);
+    setQuotes(previous => [created, ...previous]);
 
-        setQuotes(previous => [created, ...previous]);
-    }
+    return created;
+  }
 
-    async function updateQuote(updatedQuote: Quote) {
-        const updated = await quotesService.update(updatedQuote);
+  async function updateQuote(updatedQuote: Quote) {
+    const updated = await quotesService.update(updatedQuote);
 
-        setQuotes(previous =>
-            previous.map(quote =>
-                quote.id === updated.id ? updated : quote
-            )
-        );
+    setQuotes(previous =>
+      previous.map(quote => (quote.id === updated.id ? updated : quote))
+    );
 
-        setEditingQuote(null);
-    }
+    setEditingQuote(null);
 
-    async function deleteQuote(id: number) {
-        await quotesService.delete(id);
+    return updated;
+  }
 
-        setQuotes(previous =>
-            previous.filter(quote => quote.id !== id)
-        );
-    }
+  async function deleteQuote(id: number) {
+    await quotesService.delete(id);
 
-    function startEdit(quote: Quote) {
-        setEditingQuote(quote);
-    }
+    setQuotes(previous => previous.filter(quote => quote.id !== id));
+  }
 
-    function cancelEdit() {
-        setEditingQuote(null);
-    }
+  function startEdit(quote: Quote) {
+    setEditingQuote(quote);
+  }
 
-    return {
-        quotes,
-        loading,
-        error,
-        addQuote,
-        updateQuote,
-        deleteQuote,
-        startEdit,
-        editingQuote,
-        cancelEdit,
-        reloadQuotes: loadQuotes,
-    };
+  function cancelEdit() {
+    setEditingQuote(null);
+  }
+
+  return {
+    quotes,
+    loading,
+    error,
+    addQuote,
+    updateQuote,
+    deleteQuote,
+    startEdit,
+    editingQuote,
+    cancelEdit,
+    reloadQuotes: loadQuotes,
+  };
+}
+
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error && error.message.trim() !== ""
+    ? error.message
+    : fallback;
 }

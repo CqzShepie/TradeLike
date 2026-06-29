@@ -1,9 +1,14 @@
 namespace TradeLike.Api.Contracts.Quotes;
 
-public sealed record QuoteLineItemRequest(
-    string Type,
-    string Description,
-    decimal Quantity,
-    decimal UnitPrice,
-    decimal VatRate
-);
+public sealed class QuoteLineItemRequest
+{
+    public string Type { get; init; } = "Labour";
+
+    public string Description { get; init; } = string.Empty;
+
+    public decimal Quantity { get; init; } = 1;
+
+    public decimal UnitPrice { get; init; }
+
+    public decimal VatRate { get; init; } = 20;
+}
