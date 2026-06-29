@@ -11,28 +11,30 @@ export function useCustomers() {
     const [loading, setLoading] = useState(true);
     const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
 
-    useEffect(() => {
-        async function loadCustomers() {
-            try {
-                const data = await customersService.getAll();
-                setCustomers(data);
-            } catch (err) {
-                console.error("Failed to load customers:", err);
-                toast.error("Failed to load customers.");
-                setCustomers([]);
-            } finally {
-                setLoading(false);
-            }
-        }
+    async function loadCustomers() {
+        try {
+            setLoading(true);
 
+            const data = await customersService.getAll();
+
+            setCustomers(data);
+        } catch (err) {
+            console.error("Failed to load customers:", err);
+            toast.error("Failed to load customers.");
+            setCustomers([]);
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    useEffect(() => {
         loadCustomers();
     }, []);
 
     async function addCustomer(newCustomer: NewCustomer) {
         try {
-            const created = await customersService.create(newCustomer);
-
-            setCustomers(previous => [...previous, created]);
+            await customersService.create(newCustomer);
+            await loadCustomers();
 
             toast.success("Customer created successfully!");
         } catch (err) {
@@ -44,10 +46,7 @@ export function useCustomers() {
     async function deleteCustomer(id: number) {
         try {
             await customersService.delete(id);
-
-            setCustomers(previous =>
-                previous.filter(customer => customer.id !== id)
-            );
+            await loadCustomers();
 
             if (editingCustomer?.id === id) {
                 setEditingCustomer(null);
@@ -62,13 +61,8 @@ export function useCustomers() {
 
     async function updateCustomer(updatedCustomer: Customer) {
         try {
-            const updated = await customersService.update(updatedCustomer);
-
-            setCustomers(previous =>
-                previous.map(customer =>
-                    customer.id === updated.id ? updated : customer
-                )
-            );
+            await customersService.update(updatedCustomer);
+            await loadCustomers();
 
             setEditingCustomer(null);
 
@@ -96,5 +90,6 @@ export function useCustomers() {
         editingCustomer,
         startEdit,
         cancelEdit,
+        reloadCustomers: loadCustomers,
     };
 }
