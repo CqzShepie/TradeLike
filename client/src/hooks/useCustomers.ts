@@ -1,26 +1,21 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+
+import { apiClient } from "../services/apiClient";
+
 import type { Customer } from "../types/customer";
 import type { NewCustomer } from "../types/newCustomer";
-
-const API_URL = "http://localhost:5001/api/customers";
 
 export function useCustomers() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
 
-  // GET CUSTOMERS
+  // LOAD CUSTOMERS
   useEffect(() => {
     async function loadCustomers() {
       try {
-        const res = await fetch(API_URL);
-
-        if (!res.ok) {
-          throw new Error(`Failed to load customers (${res.status})`);
-        }
-
-        const data: Customer[] = await res.json();
+        const data = await apiClient.get<Customer[]>("/customers");
         setCustomers(data);
       } catch (err) {
         console.error("Failed to load customers:", err);
@@ -37,19 +32,10 @@ export function useCustomers() {
   // ADD CUSTOMER
   async function addCustomer(newCustomer: NewCustomer) {
     try {
-      const res = await fetch(API_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(newCustomer),
-      });
-
-      if (!res.ok) {
-        throw new Error(`POST failed (${res.status})`);
-      }
-
-      const created: Customer = await res.json();
+      const created = await apiClient.post<Customer>(
+        "/customers",
+        newCustomer
+      );
 
       setCustomers((prev) => [...prev, created]);
 
@@ -63,15 +49,11 @@ export function useCustomers() {
   // DELETE CUSTOMER
   async function deleteCustomer(id: number) {
     try {
-      const res = await fetch(`${API_URL}/${id}`, {
-        method: "DELETE",
-      });
+      await apiClient.delete<void>(`/customers/${id}`);
 
-      if (!res.ok) {
-        throw new Error(`DELETE failed (${res.status})`);
-      }
-
-      setCustomers((prev) => prev.filter((customer) => customer.id !== id));
+      setCustomers((prev) =>
+        prev.filter((customer) => customer.id !== id)
+      );
 
       if (editingCustomer?.id === id) {
         setEditingCustomer(null);
@@ -87,19 +69,10 @@ export function useCustomers() {
   // UPDATE CUSTOMER
   async function updateCustomer(updatedCustomer: Customer) {
     try {
-      const res = await fetch(`${API_URL}/${updatedCustomer.id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(updatedCustomer),
-      });
-
-      if (!res.ok) {
-        throw new Error(`PUT failed (${res.status})`);
-      }
-
-      const updated: Customer = await res.json();
+      const updated = await apiClient.put<Customer>(
+        `/customers/${updatedCustomer.id}`,
+        updatedCustomer
+      );
 
       setCustomers((prev) =>
         prev.map((customer) =>
