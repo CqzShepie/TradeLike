@@ -1,32 +1,71 @@
-namespace TradeLike.Api.Models;
+using Microsoft.EntityFrameworkCore;
+using TradeLike.Api.Models;
 
-public class Quote
+namespace TradeLike.Api.Data;
+
+public class TradeLikeDbContext : DbContext
 {
-    public int Id { get; set; }
+    public TradeLikeDbContext(DbContextOptions<TradeLikeDbContext> options)
+        : base(options)
+    {
+    }
 
-    public int CustomerId { get; set; }
+    public DbSet<User> Users => Set<User>();
 
-    public string CustomerName { get; set; } = string.Empty;
+    public DbSet<Customer> Customers => Set<Customer>();
 
-    public string Title { get; set; } = string.Empty;
+    public DbSet<Job> Jobs => Set<Job>();
 
-    public string? Description { get; set; }
+    public DbSet<Quote> Quotes => Set<Quote>();
 
-    public decimal Amount { get; set; }
+    public DbSet<QuoteLineItem> QuoteLineItems => Set<QuoteLineItem>();
 
-    public decimal Subtotal { get; set; }
+    public DbSet<Engineer> Engineers => Set<Engineer>();
 
-    public decimal VatTotal { get; set; }
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
 
-    public decimal DiscountTotal { get; set; }
+        modelBuilder.Entity<Quote>()
+            .Property(q => q.Amount)
+            .HasColumnType("decimal(18,2)");
 
-    public decimal Total { get; set; }
+        modelBuilder.Entity<Quote>()
+            .Property(q => q.Subtotal)
+            .HasColumnType("decimal(18,2)");
 
-    public string Status { get; set; } = "Draft";
+        modelBuilder.Entity<Quote>()
+            .Property(q => q.VatTotal)
+            .HasColumnType("decimal(18,2)");
 
-    public string? Notes { get; set; }
+        modelBuilder.Entity<Quote>()
+            .Property(q => q.DiscountTotal)
+            .HasColumnType("decimal(18,2)");
 
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        modelBuilder.Entity<Quote>()
+            .Property(q => q.Total)
+            .HasColumnType("decimal(18,2)");
 
-    public List<QuoteLineItem> LineItems { get; set; } = new();
+        modelBuilder.Entity<Quote>()
+            .HasMany(q => q.LineItems)
+            .WithOne(i => i.Quote)
+            .HasForeignKey(i => i.QuoteId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<QuoteLineItem>()
+            .Property(i => i.Quantity)
+            .HasColumnType("decimal(18,2)");
+
+        modelBuilder.Entity<QuoteLineItem>()
+            .Property(i => i.UnitPrice)
+            .HasColumnType("decimal(18,2)");
+
+        modelBuilder.Entity<QuoteLineItem>()
+            .Property(i => i.VatRate)
+            .HasColumnType("decimal(18,2)");
+
+        modelBuilder.Entity<QuoteLineItem>()
+            .Property(i => i.LineTotal)
+            .HasColumnType("decimal(18,2)");
+    }
 }

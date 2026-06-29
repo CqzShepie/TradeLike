@@ -1,28 +1,32 @@
-using System.ComponentModel.DataAnnotations;
-
 namespace TradeLike.Api.Models;
 
-public class QuoteLineItem
+public class Quote
 {
     public int Id { get; set; }
 
-    public int QuoteId { get; set; }
+    public int CustomerId { get; set; }
 
-    public Quote? Quote { get; set; }
+    public string CustomerName { get; set; } = string.Empty;
 
-    [Required]
-    [MaxLength(30)]
-    public string Type { get; set; } = "Labour";
+    public string Title { get; set; } = string.Empty;
 
-    [Required]
-    [MaxLength(250)]
-    public string Description { get; set; } = string.Empty;
+    public string? Description { get; set; }
 
-    public decimal Quantity { get; set; } = 1;
+    public decimal Amount { get; set; }
 
-    public decimal UnitPrice { get; set; }
+    public decimal Subtotal { get; set; }
 
-    public decimal VatRate { get; set; } = 20;
+    public decimal VatTotal { get; set; }
 
-    public decimal LineTotal { get; set; }
+    public decimal DiscountTotal { get; set; }
+
+    public decimal Total { get; set; }
+
+    public string Status { get; set; } = "Draft";
+
+    public string? Notes { get; set; }
+
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    public List<QuoteLineItem> LineItems { get; set; } = new();
 }
