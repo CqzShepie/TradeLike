@@ -15,14 +15,16 @@ function NewQuoteForm({
   editingQuote,
   onCancelEdit,
 }: Props) {
-  const [form, setForm] = useState<NewQuote>({
-    customerId: 0,
+  const emptyForm: NewQuote = {
+    customerId: 1, // Temporary until customer selector is implemented
     customerName: "",
     title: "",
     description: "",
     amount: 0,
     status: "Draft",
-  });
+  };
+
+  const [form, setForm] = useState<NewQuote>(emptyForm);
 
   useEffect(() => {
     if (editingQuote) {
@@ -30,21 +32,48 @@ function NewQuoteForm({
         customerId: editingQuote.customerId,
         customerName: editingQuote.customerName,
         title: editingQuote.title,
-        description: editingQuote.description || "",
+        description: editingQuote.description ?? "",
         amount: editingQuote.amount,
         status: editingQuote.status,
       });
+    } else {
+      setForm(emptyForm);
     }
   }, [editingQuote]);
 
   function handleChange(
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+    >
   ) {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+
+    setForm((prev) => ({
+      ...prev,
+      [name]:
+        name === "amount"
+          ? Number(value)
+          : value,
+    }));
   }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+
+    if (!form.customerName.trim()) {
+      alert("Customer name is required.");
+      return;
+    }
+
+    if (!form.title.trim()) {
+      alert("Quote title is required.");
+      return;
+    }
+
+    if (form.amount <= 0) {
+      alert("Amount must be greater than zero.");
+      return;
+    }
 
     if (editingQuote) {
       onUpdateQuote({
@@ -55,14 +84,7 @@ function NewQuoteForm({
       onAddQuote(form);
     }
 
-    setForm({
-      customerId: 0,
-      customerName: "",
-      title: "",
-      description: "",
-      amount: 0,
-      status: "Draft",
-    });
+    setForm(emptyForm);
   }
 
   return (
@@ -77,6 +99,7 @@ function NewQuoteForm({
           value={form.customerName}
           onChange={handleChange}
           className="rounded-lg border p-2"
+          required
         />
 
         <input
@@ -85,15 +108,19 @@ function NewQuoteForm({
           value={form.title}
           onChange={handleChange}
           className="rounded-lg border p-2"
+          required
         />
 
         <input
           name="amount"
           type="number"
+          min="0.01"
+          step="0.01"
           placeholder="Amount"
-          value={form.amount}
+          value={form.amount === 0 ? "" : form.amount}
           onChange={handleChange}
           className="rounded-lg border p-2"
+          required
         />
 
         <select

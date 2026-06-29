@@ -1,5 +1,7 @@
+using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using TradeLike.Api.Contracts.Quotes;
 using TradeLike.Api.Models;
 using TradeLike.Api.Services;
 
@@ -8,11 +10,11 @@ namespace TradeLike.Api.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
-public class QuoteController : ControllerBase
+public class QuotesController : ControllerBase
 {
     private readonly IQuoteService _quoteService;
 
-    public QuoteController(IQuoteService quoteService)
+    public QuotesController(IQuoteService quoteService)
     {
         _quoteService = quoteService;
     }
@@ -36,21 +38,67 @@ public class QuoteController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<IActionResult> CreateQuote([FromBody] Quote quote)
+    public async Task<IActionResult> CreateQuote([FromBody] CreateQuoteRequest request)
     {
-        var created = await _quoteService.CreateAsync(quote);
-        return Ok(created);
+        try
+        {
+            var quote = new Quote
+            {
+                CustomerId = request.CustomerId,
+                CustomerName = request.CustomerName,
+                Title = request.Title,
+                Description = request.Description,
+                Amount = request.Amount,
+                Status = request.Status
+            };
+
+            var created = await _quoteService.CreateAsync(quote);
+
+            return CreatedAtAction(
+                nameof(GetQuote),
+                new { id = created.Id },
+                created);
+        }
+        catch (ValidationException ex)
+        {
+            return BadRequest(new
+            {
+                error = ex.Message
+            });
+        }
     }
 
     [HttpPut("{id:int}")]
-    public async Task<IActionResult> UpdateQuote(int id, [FromBody] Quote quote)
+    public async Task<IActionResult> UpdateQuote(
+        int id,
+        [FromBody] UpdateQuoteRequest request)
     {
-        var updated = await _quoteService.UpdateAsync(id, quote);
+        try
+        {
+            var quote = new Quote
+            {
+                CustomerId = request.CustomerId,
+                CustomerName = request.CustomerName,
+                Title = request.Title,
+                Description = request.Description,
+                Amount = request.Amount,
+                Status = request.Status
+            };
 
-        if (updated is null)
-            return NotFound();
+            var updated = await _quoteService.UpdateAsync(id, quote);
 
-        return Ok(updated);
+            if (updated is null)
+                return NotFound();
+
+            return Ok(updated);
+        }
+        catch (ValidationException ex)
+        {
+            return BadRequest(new
+            {
+                error = ex.Message
+            });
+        }
     }
 
     [HttpDelete("{id:int}")]

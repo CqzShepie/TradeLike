@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using Microsoft.EntityFrameworkCore;
 using TradeLike.Api.Data;
 using TradeLike.Api.Models;
@@ -17,7 +18,7 @@ public class QuoteService : IQuoteService
     {
         return await _context.Quotes
             .AsNoTracking()
-            .OrderByDescending(q => q.Id)
+            .OrderByDescending(q => q.CreatedAt)
             .ToListAsync();
     }
 
@@ -30,6 +31,8 @@ public class QuoteService : IQuoteService
 
     public async Task<Quote> CreateAsync(Quote quote)
     {
+        ValidateQuote(quote);
+
         quote.CreatedAt = DateTime.UtcNow;
 
         await _context.Quotes.AddAsync(quote);
@@ -40,6 +43,8 @@ public class QuoteService : IQuoteService
 
     public async Task<Quote?> UpdateAsync(int id, Quote updatedQuote)
     {
+        ValidateQuote(updatedQuote);
+
         var quote = await _context.Quotes.FindAsync(id);
 
         if (quote is null)
@@ -68,5 +73,23 @@ public class QuoteService : IQuoteService
         await _context.SaveChangesAsync();
 
         return quote;
+    }
+
+    private static void ValidateQuote(Quote quote)
+    {
+        if (quote.CustomerId <= 0)
+            throw new ValidationException("Customer is required.");
+
+        if (string.IsNullOrWhiteSpace(quote.CustomerName))
+            throw new ValidationException("Customer name is required.");
+
+        if (string.IsNullOrWhiteSpace(quote.Title))
+            throw new ValidationException("Quote title is required.");
+
+        if (quote.Amount <= 0)
+            throw new ValidationException("Quote amount must be greater than zero.");
+
+        if (string.IsNullOrWhiteSpace(quote.Status))
+            throw new ValidationException("Quote status is required.");
     }
 }

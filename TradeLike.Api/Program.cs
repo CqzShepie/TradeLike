@@ -8,7 +8,7 @@ using TradeLike.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Services
+// Controllers
 builder.Services.AddControllers();
 
 // Database
@@ -19,14 +19,14 @@ builder.Services.AddDbContext<TradeLikeDbContext>(options =>
 // Application Services
 builder.Services.AddScoped<ICustomerService, CustomerService>();
 builder.Services.AddScoped<IJobService, JobService>();
+builder.Services.AddScoped<IQuoteService, QuoteService>();
 
-// JWT Settings
+// JWT
 builder.Services.Configure<JwtSettings>(
     builder.Configuration.GetSection("Jwt"));
 
 builder.Services.AddSingleton<JwtService>();
 
-// Authentication
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -73,7 +73,6 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// Swagger
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -103,4 +102,3 @@ app.MapGet("/health", () => Results.Ok(new
 }));
 
 app.Run();
-builder.Services.AddScoped<IQuoteService, QuoteService>();
