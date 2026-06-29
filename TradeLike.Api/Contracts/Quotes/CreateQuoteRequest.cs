@@ -7,5 +7,5 @@ public sealed record CreateQuoteRequest(
     string? Description,
     decimal Amount,
     string Status,
-    tring? Notes
+    string? Notes
 );
