@@ -4,6 +4,25 @@ export type QuoteStatus =
     | "Accepted"
     | "Rejected";
 
+export type QuoteLineItemType =
+    | "Labour"
+    | "Materials"
+    | "Other";
+
+export type QuoteLineItem = {
+    id?: number;
+    quoteId?: number;
+
+    type: QuoteLineItemType;
+    description: string;
+
+    quantity: number;
+    unitPrice: number;
+    vatRate: number;
+
+    lineTotal: number;
+};
+
 export type Quote = {
     id: number;
 
@@ -15,9 +34,16 @@ export type Quote = {
 
     amount: number;
 
+    subtotal: number;
+    vatTotal: number;
+    discountTotal: number;
+    total: number;
+
     status: QuoteStatus;
 
     notes?: string | null;
 
     createdAt: string;
+
+    lineItems: QuoteLineItem[];
 };

@@ -15,9 +15,16 @@ export const quotesService = {
             customerName: quote.customerName,
             title: quote.title,
             description: quote.description ?? null,
-            amount: Number(quote.amount),
+            discountTotal: Number(quote.discountTotal || 0),
             status: quote.status,
             notes: quote.notes ?? null,
+            lineItems: quote.lineItems.map(item => ({
+                type: item.type,
+                description: item.description,
+                quantity: Number(item.quantity),
+                unitPrice: Number(item.unitPrice),
+                vatRate: Number(item.vatRate),
+            })),
         }),
 
     update: (quote: Quote) =>
@@ -26,9 +33,16 @@ export const quotesService = {
             customerName: quote.customerName,
             title: quote.title,
             description: quote.description ?? null,
-            amount: Number(quote.amount),
+            discountTotal: Number(quote.discountTotal || 0),
             status: quote.status,
             notes: quote.notes ?? null,
+            lineItems: quote.lineItems.map(item => ({
+                type: item.type,
+                description: item.description,
+                quantity: Number(item.quantity),
+                unitPrice: Number(item.unitPrice),
+                vatRate: Number(item.vatRate),
+            })),
         }),
 
     delete: (id: number) =>

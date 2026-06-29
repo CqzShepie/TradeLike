@@ -1,23 +1,32 @@
-using Microsoft.EntityFrameworkCore;
-using TradeLike.Api.Models;
+namespace TradeLike.Api.Models;
 
-namespace TradeLike.Api.Data;
-
-public class TradeLikeDbContext : DbContext
+public class Quote
 {
-    public TradeLikeDbContext(DbContextOptions<TradeLikeDbContext> options)
-        : base(options)
-    {
-    }
+    public int Id { get; set; }
 
-    public DbSet<User> Users => Set<User>();
+    public int CustomerId { get; set; }
 
-    public DbSet<Customer> Customers => Set<Customer>();
+    public string CustomerName { get; set; } = string.Empty;
 
-    public DbSet<Job> Jobs => Set<Job>();
+    public string Title { get; set; } = string.Empty;
 
-    public DbSet<Quote> Quotes => Set<Quote>();
+    public string? Description { get; set; }
 
-    // ✅ ADD THIS
-    public DbSet<Engineer> Engineers => Set<Engineer>();
+    public decimal Amount { get; set; }
+
+    public decimal Subtotal { get; set; }
+
+    public decimal VatTotal { get; set; }
+
+    public decimal DiscountTotal { get; set; }
+
+    public decimal Total { get; set; }
+
+    public string Status { get; set; } = "Draft";
+
+    public string? Notes { get; set; }
+
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    public List<QuoteLineItem> LineItems { get; set; } = new();
 }

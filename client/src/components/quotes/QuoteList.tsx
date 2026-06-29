@@ -51,21 +51,24 @@ export default function QuoteList({
 
                         <div className="space-y-2 text-sm text-slate-600">
                             <p>
-                                <span className="font-medium text-slate-800">Amount:</span>{" "}
-                                {formatMoney(quote.amount)}
+                                <span className="font-medium text-slate-800">Total:</span>{" "}
+                                {formatMoney(quote.total || quote.amount)}
+                            </p>
+
+                            <p>
+                                <span className="font-medium text-slate-800">VAT:</span>{" "}
+                                {formatMoney(quote.vatTotal || 0)}
+                            </p>
+
+                            <p>
+                                <span className="font-medium text-slate-800">Lines:</span>{" "}
+                                {quote.lineItems?.length ?? 0}
                             </p>
 
                             <p>
                                 <span className="font-medium text-slate-800">Created:</span>{" "}
                                 {new Date(quote.createdAt).toLocaleDateString("en-GB")}
                             </p>
-
-                            {quote.description && (
-                                <p>
-                                    <span className="font-medium text-slate-800">Description:</span>{" "}
-                                    {quote.description}
-                                </p>
-                            )}
                         </div>
 
                         {quote.notes && (

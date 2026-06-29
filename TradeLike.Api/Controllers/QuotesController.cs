@@ -23,6 +23,7 @@ public class QuotesController : ControllerBase
     public async Task<IActionResult> GetQuotes()
     {
         var quotes = await _quoteService.GetAllAsync();
+
         return Ok(quotes);
     }
 
@@ -42,15 +43,7 @@ public class QuotesController : ControllerBase
     {
         try
         {
-            var quote = new Quote
-            {
-                CustomerId = request.CustomerId,
-                CustomerName = request.CustomerName,
-                Title = request.Title,
-                Description = request.Description,
-                Amount = request.Amount,
-                Status = request.Status
-            };
+            var quote = ToQuote(request);
 
             var created = await _quoteService.CreateAsync(quote);
 
@@ -75,15 +68,7 @@ public class QuotesController : ControllerBase
     {
         try
         {
-            var quote = new Quote
-            {
-                CustomerId = request.CustomerId,
-                CustomerName = request.CustomerName,
-                Title = request.Title,
-                Description = request.Description,
-                Amount = request.Amount,
-                Status = request.Status
-            };
+            var quote = ToQuote(request);
 
             var updated = await _quoteService.UpdateAsync(id, quote);
 
@@ -110,5 +95,51 @@ public class QuotesController : ControllerBase
             return NotFound();
 
         return Ok(deleted);
+    }
+
+    private static Quote ToQuote(CreateQuoteRequest request)
+    {
+        return new Quote
+        {
+            CustomerId = request.CustomerId,
+            CustomerName = request.CustomerName,
+            Title = request.Title,
+            Description = request.Description,
+            DiscountTotal = request.DiscountTotal,
+            Status = request.Status,
+            Notes = request.Notes,
+            LineItems = request.LineItems
+                .Select(ToLineItem)
+                .ToList()
+        };
+    }
+
+    private static Quote ToQuote(UpdateQuoteRequest request)
+    {
+        return new Quote
+        {
+            CustomerId = request.CustomerId,
+            CustomerName = request.CustomerName,
+            Title = request.Title,
+            Description = request.Description,
+            DiscountTotal = request.DiscountTotal,
+            Status = request.Status,
+            Notes = request.Notes,
+            LineItems = request.LineItems
+                .Select(ToLineItem)
+                .ToList()
+        };
+    }
+
+    private static QuoteLineItem ToLineItem(QuoteLineItemRequest request)
+    {
+        return new QuoteLineItem
+        {
+            Type = request.Type,
+            Description = request.Description,
+            Quantity = request.Quantity,
+            UnitPrice = request.UnitPrice,
+            VatRate = request.VatRate
+        };
     }
 }

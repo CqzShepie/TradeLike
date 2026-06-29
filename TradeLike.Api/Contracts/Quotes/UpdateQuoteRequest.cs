@@ -5,7 +5,8 @@ public sealed record UpdateQuoteRequest(
     string CustomerName,
     string Title,
     string? Description,
-    decimal Amount,
+    decimal DiscountTotal,
     string Status,
-    string? Notes
+    string? Notes,
+    IReadOnlyList<QuoteLineItemRequest> LineItems
 );

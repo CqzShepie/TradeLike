@@ -36,7 +36,7 @@ function Quotes() {
     );
 
     const totalValue = quotes.reduce(
-        (sum, quote) => sum + quote.amount,
+        (sum, quote) => sum + (quote.total || quote.amount || 0),
         0
     );
 
