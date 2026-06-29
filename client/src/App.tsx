@@ -1,15 +1,7 @@
-import Navbar from "./components/layout/Navbar";
-import Hero from "./components/dashboard/Hero";
-import Features from "./components/dashboard/Features";
+import AppRouter from "./routes/AppRouter";
 
 function App() {
-  return (
-    <main className="min-h-screen bg-slate-50">
-      <Navbar />
-      <Hero />
-      <Features />
-    </main>
-  );
+    return <AppRouter />;
 }
 
 export default App;

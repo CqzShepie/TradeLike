@@ -1,20 +1,21 @@
 export type QuoteStatus =
-  | "Draft"
-  | "Sent"
-  | "Accepted"
-  | "Rejected";
+    | "Draft"
+    | "Sent"
+    | "Accepted"
+    | "Rejected";
 
 export type Quote = {
-  id: number;
-  customerId: number;
-  customerName: string;
+    id: number;
 
-  title: string;
-  description?: string;
+    customerId: number;
+    customerName: string;
 
-  amount: number;
+    title: string;
+    description?: string;
 
-  status: QuoteStatus;
+    amount: number;
 
-  createdAt: string;
+    status: QuoteStatus;
+
+    createdAt: string;
 };

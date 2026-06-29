@@ -18,7 +18,7 @@ public class JobService : IJobService
     {
         return await _context.Jobs
             .AsNoTracking()
-            .OrderByDescending(j => j.ScheduledDate)
+            .OrderBy(j => j.ScheduledDate)
             .ToListAsync();
     }
 
@@ -87,9 +87,16 @@ public class JobService : IJobService
             .ToListAsync();
     }
 
-    public async Task<IReadOnlyList<Job>> GetWeekAsync()
+    public async Task<IReadOnlyList<Job>> GetWeekAsync(DateTime weekStart)
     {
-        var start = DateTime.Today;
+        weekStart = weekStart.Date;
+
+        var start = weekStart.DayOfWeek switch
+        {
+            DayOfWeek.Sunday => weekStart.AddDays(-6),
+            _ => weekStart.AddDays(1 - (int)weekStart.DayOfWeek)
+        };
+
         var end = start.AddDays(7);
 
         return await _context.Jobs

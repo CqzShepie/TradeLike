@@ -1,89 +1,77 @@
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
-
+import { quotesService } from "../services/quotesService";
 import type { Quote } from "../types/quote";
 import type { NewQuote } from "../types/newQuote";
-import { quotesService } from "../services/quotesService";
 
 export function useQuotes() {
-  const [quotes, setQuotes] = useState<Quote[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [editingQuote, setEditingQuote] = useState<Quote | null>(null);
-  const [error, setError] = useState<string | null>(null);
+    const [quotes, setQuotes] = useState<Quote[]>([]);
+    const [editingQuote, setEditingQuote] = useState<Quote | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState("");
 
-  useEffect(() => {
     async function loadQuotes() {
-      try {
-        const data = await quotesService.getAll();
-        setQuotes(data);
-        setError(null);
-      } catch (err) {
-        console.error(err);
-        setError("Failed to load quotes.");
-        toast.error("Failed to load quotes.");
-      } finally {
-        setLoading(false);
-      }
+        try {
+            setLoading(true);
+            setError("");
+
+            const data = await quotesService.getAll();
+
+            setQuotes(data);
+        } catch {
+            setError("Unable to load quotes.");
+        } finally {
+            setLoading(false);
+        }
     }
 
-    loadQuotes();
-  }, []);
+    useEffect(() => {
+        loadQuotes();
+    }, []);
 
-  async function addQuote(quote: NewQuote) {
-    try {
-      const created = await quotesService.create(quote);
-      setQuotes((prev) => [...prev, created]);
-      toast.success("Quote created!");
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to create quote.");
+    async function addQuote(newQuote: NewQuote) {
+        const created = await quotesService.create(newQuote);
+
+        setQuotes(previous => [created, ...previous]);
     }
-  }
 
-  async function deleteQuote(id: number) {
-    try {
-      await quotesService.delete(id);
-      setQuotes((prev) => prev.filter((q) => q.id !== id));
-      toast.success("Quote deleted!");
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to delete quote.");
+    async function updateQuote(updatedQuote: Quote) {
+        const updated = await quotesService.update(updatedQuote);
+
+        setQuotes(previous =>
+            previous.map(quote =>
+                quote.id === updated.id ? updated : quote
+            )
+        );
+
+        setEditingQuote(null);
     }
-  }
 
-  async function updateQuote(updated: Quote) {
-    try {
-      const res = await quotesService.update(updated);
+    async function deleteQuote(id: number) {
+        await quotesService.delete(id);
 
-      setQuotes((prev) =>
-        prev.map((q) => (q.id === res.id ? res : q))
-      );
-
-      setEditingQuote(null);
-      toast.success("Quote updated!");
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to update quote.");
+        setQuotes(previous =>
+            previous.filter(quote => quote.id !== id)
+        );
     }
-  }
 
-  function startEdit(quote: Quote) {
-    setEditingQuote(quote);
-  }
+    function startEdit(quote: Quote) {
+        setEditingQuote(quote);
+    }
 
-  function cancelEdit() {
-    setEditingQuote(null);
-  }
+    function cancelEdit() {
+        setEditingQuote(null);
+    }
 
-  return {
-    quotes,
-    loading,
-    error,
-    addQuote,
-    deleteQuote,
-    updateQuote,
-    editingQuote,
-    startEdit,
-    cancelEdit,
-  };
+    return {
+        quotes,
+        loading,
+        error,
+        addQuote,
+        updateQuote,
+        deleteQuote,
+        startEdit,
+        editingQuote,
+        cancelEdit,
+        reloadQuotes: loadQuotes,
+    };
 }

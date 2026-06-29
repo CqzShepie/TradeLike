@@ -6,6 +6,8 @@ public interface ICustomerService
 {
     Task<IReadOnlyList<Customer>> GetAllAsync();
 
+    Task<Customer?> GetByIdAsync(int id);
+
     Task<Customer> CreateAsync(Customer customer);
 
     Task<Customer?> UpdateAsync(int id, Customer customer);

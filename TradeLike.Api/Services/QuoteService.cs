@@ -7,6 +7,14 @@ namespace TradeLike.Api.Services;
 
 public class QuoteService : IQuoteService
 {
+    private static readonly HashSet<string> AllowedStatuses = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "Draft",
+        "Sent",
+        "Accepted",
+        "Rejected"
+    };
+
     private readonly TradeLikeDbContext _context;
 
     public QuoteService(TradeLikeDbContext context)
@@ -31,6 +39,7 @@ public class QuoteService : IQuoteService
 
     public async Task<Quote> CreateAsync(Quote quote)
     {
+        NormaliseQuote(quote);
         ValidateQuote(quote);
 
         quote.CreatedAt = DateTime.UtcNow;
@@ -43,6 +52,7 @@ public class QuoteService : IQuoteService
 
     public async Task<Quote?> UpdateAsync(int id, Quote updatedQuote)
     {
+        NormaliseQuote(updatedQuote);
         ValidateQuote(updatedQuote);
 
         var quote = await _context.Quotes.FindAsync(id);
@@ -75,6 +85,17 @@ public class QuoteService : IQuoteService
         return quote;
     }
 
+    private static void NormaliseQuote(Quote quote)
+    {
+        quote.CustomerName = quote.CustomerName.Trim();
+        quote.Title = quote.Title.Trim();
+        quote.Description = string.IsNullOrWhiteSpace(quote.Description)
+            ? null
+            : quote.Description.Trim();
+
+        quote.Status = quote.Status.Trim();
+    }
+
     private static void ValidateQuote(Quote quote)
     {
         if (quote.CustomerId <= 0)
@@ -91,5 +112,8 @@ public class QuoteService : IQuoteService
 
         if (string.IsNullOrWhiteSpace(quote.Status))
             throw new ValidationException("Quote status is required.");
+
+        if (!AllowedStatuses.Contains(quote.Status))
+            throw new ValidationException("Quote status is invalid.");
     }
 }

@@ -17,4 +17,7 @@ public class TradeLikeDbContext : DbContext
     public DbSet<Job> Jobs => Set<Job>();
 
     public DbSet<Quote> Quotes => Set<Quote>();
+
+    // ✅ ADD THIS
+    public DbSet<Engineer> Engineers => Set<Engineer>();
 }

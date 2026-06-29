@@ -5,136 +5,139 @@ import Logo from "../components/layout/Logo";
 import { authService } from "../services/authService";
 
 function Login() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+    const [email, setEmail] = useState("admin@tradelike.co.uk");
+    const [password, setPassword] = useState("Password123!");
+    const [error, setError] = useState("");
+    const [loading, setLoading] = useState(false);
 
-  const navigate = useNavigate();
+    const navigate = useNavigate();
 
-  async function handleSubmit(event: React.FormEvent) {
-    event.preventDefault();
+    async function handleSubmit(event: React.FormEvent) {
+        event.preventDefault();
 
-    if (email.trim() === "") {
-      setError("Please enter your email address.");
-      return;
+        const trimmedEmail = email.trim();
+        const trimmedPassword = password.trim();
+
+        if (trimmedEmail === "") {
+            setError("Please enter your email address.");
+            return;
+        }
+
+        if (!trimmedEmail.includes("@")) {
+            setError("Please enter a valid email address.");
+            return;
+        }
+
+        if (trimmedPassword === "") {
+            setError("Please enter your password.");
+            return;
+        }
+
+        try {
+            setLoading(true);
+            setError("");
+
+            await authService.login({
+                email: trimmedEmail,
+                password: trimmedPassword
+            });
+
+            navigate("/dashboard", { replace: true });
+        } catch (err) {
+            console.error(err);
+            setError("Invalid email or password.");
+        } finally {
+            setLoading(false);
+        }
     }
 
-    if (!email.includes("@")) {
-      setError("Please enter a valid email address.");
-      return;
-    }
+    return (
+        <main className="min-h-screen bg-slate-50">
+            <header className="px-8 py-6">
+                <Logo />
+            </header>
 
-    if (password.trim() === "") {
-      setError("Please enter your password.");
-      return;
-    }
+            <div className="flex justify-center px-6">
+                <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
+                    <h1 className="mb-2 text-3xl font-bold">
+                        Welcome back
+                    </h1>
 
-    try {
-      setLoading(true);
-      setError("");
+                    <p className="mb-8 text-slate-600">
+                        Sign in to your TradeLike account.
+                    </p>
 
-      await authService.login({
-        email,
-        password,
-      });
+                    <form onSubmit={handleSubmit} className="space-y-5">
+                        <div>
+                            <label
+                                htmlFor="email"
+                                className="mb-2 block text-sm font-medium"
+                            >
+                                Email Address
+                            </label>
 
-      navigate("/dashboard");
-    } catch (err) {
-      console.error(err);
-      setError("Invalid email or password.");
-    } finally {
-      setLoading(false);
-    }
-  }
+                            <input
+                                id="email"
+                                type="email"
+                                placeholder="you@example.com"
+                                value={email}
+                                onChange={(event) => {
+                                    setEmail(event.target.value);
+                                    setError("");
+                                }}
+                                className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-blue-600"
+                            />
+                        </div>
 
-  return (
-    <main className="min-h-screen bg-slate-50">
-      <header className="px-8 py-6">
-        <Logo />
-      </header>
+                        <div>
+                            <label
+                                htmlFor="password"
+                                className="mb-2 block text-sm font-medium"
+                            >
+                                Password
+                            </label>
 
-      <div className="flex justify-center px-6">
-        <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
-          <h1 className="mb-2 text-3xl font-bold">
-            Welcome back
-          </h1>
+                            <input
+                                id="password"
+                                type="password"
+                                placeholder="••••••••"
+                                value={password}
+                                onChange={(event) => {
+                                    setPassword(event.target.value);
+                                    setError("");
+                                }}
+                                className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-blue-600"
+                            />
+                        </div>
 
-          <p className="mb-8 text-slate-600">
-            Sign in to your TradeLike account.
-          </p>
+                        {error && (
+                            <p className="rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-600">
+                                {error}
+                            </p>
+                        )}
 
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div>
-              <label
-                htmlFor="email"
-                className="mb-2 block text-sm font-medium"
-              >
-                Email Address
-              </label>
+                        <button
+                            type="submit"
+                            disabled={loading}
+                            className="w-full rounded-lg bg-blue-600 py-3 font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-400"
+                        >
+                            {loading ? "Signing In..." : "Sign In"}
+                        </button>
+                    </form>
 
-              <input
-                id="email"
-                type="email"
-                placeholder="you@example.com"
-                value={email}
-                onChange={(event) => {
-                  setEmail(event.target.value);
-                  setError("");
-                }}
-                className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-blue-600"
-              />
+                    <p className="mt-6 text-center text-sm text-slate-600">
+                        Don't have an account?{" "}
+                        <Link
+                            to="/signup"
+                            className="font-semibold text-blue-600 hover:underline"
+                        >
+                            Create one
+                        </Link>
+                    </p>
+                </div>
             </div>
-
-            <div>
-              <label
-                htmlFor="password"
-                className="mb-2 block text-sm font-medium"
-              >
-                Password
-              </label>
-
-              <input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(event) => {
-                  setPassword(event.target.value);
-                  setError("");
-                }}
-                className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-blue-600"
-              />
-            </div>
-
-            {error && (
-              <p className="text-sm font-medium text-red-600">
-                {error}
-              </p>
-            )}
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full rounded-lg bg-blue-600 py-3 font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-400"
-            >
-              {loading ? "Signing In..." : "Sign In"}
-            </button>
-          </form>
-
-          <p className="mt-6 text-center text-sm text-slate-600">
-            Don't have an account?{" "}
-            <Link
-              to="/signup"
-              className="font-semibold text-blue-600 hover:underline"
-            >
-              Create one
-            </Link>
-          </p>
-        </div>
-      </div>
-    </main>
-  );
+        </main>
+    );
 }
 
 export default Login;

@@ -102,11 +102,14 @@ public class JobsController : ControllerBase
         return Ok(jobs);
     }
 
-    // WEEK VIEW
+    // WEEK VIEW (FIXED)
     [HttpGet("week")]
-    public async Task<IActionResult> GetWeekJobs()
+    public async Task<IActionResult> GetWeekJobs([FromQuery] DateTime? start)
     {
-        var jobs = await _jobService.GetWeekAsync();
+        var weekStart = start?.Date ?? DateTime.Today;
+
+        var jobs = await _jobService.GetWeekAsync(weekStart);
+
         return Ok(jobs);
     }
 }

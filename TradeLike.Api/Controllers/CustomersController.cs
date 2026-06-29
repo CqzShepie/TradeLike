@@ -17,7 +17,6 @@ public class CustomersController : ControllerBase
         _customerService = customerService;
     }
 
-    // GET
     [HttpGet]
     public async Task<IActionResult> GetCustomers()
     {
@@ -26,16 +25,30 @@ public class CustomersController : ControllerBase
         return Ok(customers);
     }
 
-    // POST
+    [HttpGet("{id:int}")]
+    public async Task<IActionResult> GetCustomer(int id)
+    {
+        var customer = await _customerService.GetByIdAsync(id);
+
+        if (customer is null)
+        {
+            return NotFound();
+        }
+
+        return Ok(customer);
+    }
+
     [HttpPost]
     public async Task<IActionResult> CreateCustomer([FromBody] Customer customer)
     {
         var createdCustomer = await _customerService.CreateAsync(customer);
 
-        return Ok(createdCustomer);
+        return CreatedAtAction(
+            nameof(GetCustomer),
+            new { id = createdCustomer.Id },
+            createdCustomer);
     }
 
-    // PUT
     [HttpPut("{id:int}")]
     public async Task<IActionResult> UpdateCustomer(int id, [FromBody] Customer customer)
     {
@@ -49,7 +62,6 @@ public class CustomersController : ControllerBase
         return Ok(updatedCustomer);
     }
 
-    // DELETE
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> DeleteCustomer(int id)
     {

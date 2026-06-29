@@ -1,10 +1,13 @@
+import type { QuoteStatus } from "./quote";
+
 export type NewQuote = {
-  customerId: number;
-  customerName: string;
+    customerId: number;
+    customerName: string;
 
-  title: string;
-  description?: string;
+    title: string;
+    description?: string;
 
-  amount: number;
-  status: "Draft" | "Sent" | "Accepted" | "Rejected";
+    amount: number;
+
+    status: QuoteStatus;
 };

@@ -11,7 +11,7 @@ import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
 
 import { useJobs } from "../hooks/useJobs";
-import type { JobPriority } from "../types/job";
+import type { JobPriority, JobStatus } from "../types/job";
 
 function Jobs() {
   const {
@@ -26,10 +26,8 @@ function Jobs() {
   } = useJobs();
 
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("All");
-  const [priorityFilter, setPriorityFilter] = useState<
-    JobPriority | "All"
-  >("All");
+  const [statusFilter, setStatusFilter] = useState<JobStatus | "All">("All");
+  const [priorityFilter, setPriorityFilter] = useState<JobPriority | "All">("All");
 
   const [showForm, setShowForm] = useState(false);
 
@@ -50,11 +48,7 @@ function Jobs() {
       priorityFilter === "All" ||
       job.priority === priorityFilter;
 
-    return (
-      matchesSearch &&
-      matchesStatus &&
-      matchesPriority
-    );
+    return matchesSearch && matchesStatus && matchesPriority;
   });
 
   return (
@@ -79,21 +73,15 @@ function Jobs() {
                 },
                 {
                   title: "Scheduled",
-                  value: jobs.filter(
-                    (j) => j.status === "Scheduled"
-                  ).length,
+                  value: jobs.filter(j => j.status === "Scheduled").length,
                 },
                 {
                   title: "In Progress",
-                  value: jobs.filter(
-                    (j) => j.status === "In Progress"
-                  ).length,
+                  value: jobs.filter(j => j.status === "InProgress").length,
                 },
                 {
                   title: "Completed",
-                  value: jobs.filter(
-                    (j) => j.status === "Completed"
-                  ).length,
+                  value: jobs.filter(j => j.status === "Completed").length,
                 },
               ]}
             />
@@ -105,14 +93,8 @@ function Jobs() {
             )}
 
             <div className="mb-8">
-              <Button
-                onClick={() =>
-                  setShowForm((prev) => !prev)
-                }
-              >
-                {showForm
-                  ? "Close Form"
-                  : "+ New Job"}
+              <Button onClick={() => setShowForm(prev => !prev)}>
+                {showForm ? "Close Form" : "+ New Job"}
               </Button>
             </div>
 
@@ -134,57 +116,40 @@ function Jobs() {
                   type="text"
                   placeholder="🔍 Search customer, phone, job or address..."
                   value={search}
-                  onChange={(e) =>
-                    setSearch(e.target.value)
-                  }
+                  onChange={(e) => setSearch(e.target.value)}
                 />
               </div>
 
+              {/* STATUS FILTER */}
               <select
                 value={statusFilter}
                 onChange={(e) =>
-                  setStatusFilter(e.target.value)
+                  setStatusFilter(e.target.value as JobStatus | "All")
                 }
                 className="rounded-xl border border-slate-300 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <option value="All">
-                  All Statuses
-                </option>
-                <option value="Scheduled">
-                  Scheduled
-                </option>
-                <option value="In Progress">
-                  In Progress
-                </option>
-                <option value="Completed">
-                  Completed
-                </option>
+                <option value="All">All Statuses</option>
+                <option value="Scheduled">Scheduled</option>
+                <option value="InProgress">In Progress</option>
+                <option value="Completed">Completed</option>
               </select>
 
+              {/* PRIORITY FILTER */}
               <select
                 value={priorityFilter}
                 onChange={(e) =>
-                  setPriorityFilter(
-                    e.target.value as
-                      | JobPriority
-                      | "All"
-                  )
+                  setPriorityFilter(e.target.value as JobPriority | "All")
                 }
                 className="rounded-xl border border-slate-300 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <option value="All">
-                  All Priorities
-                </option>
+                <option value="All">All Priorities</option>
                 <option value="Low">Low</option>
-                <option value="Normal">
-                  Normal
-                </option>
+                <option value="Normal">Normal</option>
                 <option value="High">High</option>
-                <option value="Emergency">
-                  Emergency
-                </option>
+                <option value="Urgent">Urgent</option>
               </select>
             </div>
+
             <JobList
               jobs={filteredJobs}
               onViewJob={(job) => navigate(`/jobs/${job.id}`)}

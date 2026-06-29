@@ -33,6 +33,10 @@ public class Job
     [MaxLength(30)]
     public string Priority { get; set; } = "Normal";
 
+    // 🧠 DISPATCH LAYER (NEW)
+    public int? EngineerId { get; set; }
+    public Engineer? Engineer { get; set; }
+
     public void Validate()
     {
         if (ScheduledDate.Year < 2024 || ScheduledDate.Year > 2099)

@@ -7,6 +7,9 @@ namespace TradeLike.Api.Controllers;
 [Route("api/[controller]")]
 public class AuthController : ControllerBase
 {
+    private const string AdminEmail = "admin@tradelike.co.uk";
+    private const string AdminPassword = "Password123!";
+
     private readonly JwtService _jwtService;
 
     public AuthController(JwtService jwtService)
@@ -14,14 +17,18 @@ public class AuthController : ControllerBase
         _jwtService = jwtService;
     }
 
-    public record LoginRequest(string Email, string Password);
+    public sealed record LoginRequest(
+        string Email,
+        string Password
+    );
 
     [HttpPost("login")]
-    public IActionResult Login(LoginRequest request)
+    public IActionResult Login([FromBody] LoginRequest request)
     {
-        // Temporary login until database/users are added
-        if (request.Email != "admin@tradelike.co.uk" ||
-            request.Password != "Password123!")
+        var email = request.Email.Trim().ToLowerInvariant();
+        var password = request.Password.Trim();
+
+        if (email != AdminEmail || password != AdminPassword)
         {
             return Unauthorized(new
             {
@@ -31,7 +38,7 @@ public class AuthController : ControllerBase
 
         var token = _jwtService.GenerateToken(
             userId: 1,
-            email: request.Email);
+            email: email);
 
         return Ok(new
         {
@@ -39,7 +46,7 @@ public class AuthController : ControllerBase
             user = new
             {
                 id = 1,
-                email = request.Email,
+                email,
                 name = "TradeLike Admin"
             }
         });

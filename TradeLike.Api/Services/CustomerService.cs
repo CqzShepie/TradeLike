@@ -21,8 +21,17 @@ public class CustomerService : ICustomerService
             .ToListAsync();
     }
 
+    public async Task<Customer?> GetByIdAsync(int id)
+    {
+        return await _context.Customers
+            .AsNoTracking()
+            .FirstOrDefaultAsync(c => c.Id == id);
+    }
+
     public async Task<Customer> CreateAsync(Customer customer)
     {
+        NormaliseCustomer(customer);
+
         await _context.Customers.AddAsync(customer);
         await _context.SaveChangesAsync();
 
@@ -31,6 +40,8 @@ public class CustomerService : ICustomerService
 
     public async Task<Customer?> UpdateAsync(int id, Customer updatedCustomer)
     {
+        NormaliseCustomer(updatedCustomer);
+
         var customer = await _context.Customers.FindAsync(id);
 
         if (customer is null)
@@ -42,6 +53,7 @@ public class CustomerService : ICustomerService
         customer.Phone = updatedCustomer.Phone;
         customer.Email = updatedCustomer.Email;
         customer.Address = updatedCustomer.Address;
+        customer.Notes = updatedCustomer.Notes;
 
         await _context.SaveChangesAsync();
 
@@ -61,5 +73,16 @@ public class CustomerService : ICustomerService
         await _context.SaveChangesAsync();
 
         return customer;
+    }
+
+    private static void NormaliseCustomer(Customer customer)
+    {
+        customer.Name = customer.Name.Trim();
+        customer.Phone = customer.Phone.Trim();
+        customer.Email = customer.Email.Trim();
+        customer.Address = customer.Address.Trim();
+        customer.Notes = string.IsNullOrWhiteSpace(customer.Notes)
+            ? null
+            : customer.Notes.Trim();
     }
 }
