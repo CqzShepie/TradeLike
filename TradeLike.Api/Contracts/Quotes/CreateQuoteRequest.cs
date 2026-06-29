@@ -6,5 +6,6 @@ public sealed record CreateQuoteRequest(
     string Title,
     string? Description,
     decimal Amount,
-    string Status
+    string Status,
+    tring? Notes
 );

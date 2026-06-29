@@ -16,5 +16,7 @@ public class Quote
 
     public string Status { get; set; } = "Draft";
 
+    public string? Notes { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }

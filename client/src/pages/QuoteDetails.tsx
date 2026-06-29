@@ -3,41 +3,34 @@ import { useEffect, useState } from "react";
 
 import Sidebar from "../components/layout/Sidebar";
 import type {
-    Job,
-    JobPriority,
-    JobStatus,
-} from "../types/job";
-import { jobsService } from "../services/jobsService";
+    Quote,
+    QuoteStatus,
+} from "../types/quote";
+import { quotesService } from "../services/quotesService";
+import { formatMoney } from "../utils/formatMoney";
 
-const statuses: JobStatus[] = [
-    "Scheduled",
-    "InProgress",
-    "Completed",
-    "Cancelled",
+const statuses: QuoteStatus[] = [
+    "Draft",
+    "Sent",
+    "Accepted",
+    "Rejected",
 ];
 
-const priorities: JobPriority[] = [
-    "Low",
-    "Normal",
-    "High",
-    "Urgent",
-];
-
-export default function JobDetails() {
+export default function QuoteDetails() {
     const { id } = useParams();
 
-    const [job, setJob] = useState<Job | null>(null);
-    const [form, setForm] = useState<Job | null>(null);
+    const [quote, setQuote] = useState<Quote | null>(null);
+    const [form, setForm] = useState<Quote | null>(null);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState("");
 
     useEffect(() => {
-        async function loadJob() {
-            const jobId = Number(id);
+        async function loadQuote() {
+            const quoteId = Number(id);
 
-            if (!Number.isFinite(jobId)) {
-                setError("Invalid job ID.");
+            if (!Number.isFinite(quoteId)) {
+                setError("Invalid quote ID.");
                 setLoading(false);
                 return;
             }
@@ -46,18 +39,18 @@ export default function JobDetails() {
                 setLoading(true);
                 setError("");
 
-                const data = await jobsService.getById(jobId);
+                const data = await quotesService.getById(quoteId);
 
-                setJob(data);
+                setQuote(data);
                 setForm(data);
             } catch {
-                setError("Unable to load job.");
+                setError("Unable to load quote.");
             } finally {
                 setLoading(false);
             }
         }
 
-        loadJob();
+        loadQuote();
     }, [id]);
 
     async function handleSave(event: React.FormEvent) {
@@ -65,23 +58,13 @@ export default function JobDetails() {
 
         if (!form) return;
 
-        if (form.customer.trim() === "") {
-            setError("Customer is required.");
+        if (form.title.trim() === "") {
+            setError("Quote title is required.");
             return;
         }
 
-        if (form.phone.trim() === "") {
-            setError("Phone number is required.");
-            return;
-        }
-
-        if (form.jobTitle.trim() === "") {
-            setError("Job title is required.");
-            return;
-        }
-
-        if (form.address.trim() === "") {
-            setError("Address is required.");
+        if (!Number.isFinite(Number(form.amount)) || Number(form.amount) <= 0) {
+            setError("Quote amount must be greater than zero.");
             return;
         }
 
@@ -89,19 +72,18 @@ export default function JobDetails() {
             setSaving(true);
             setError("");
 
-            const updated = await jobsService.update({
+            const updated = await quotesService.update({
                 ...form,
-                customer: form.customer.trim(),
-                phone: form.phone.trim(),
-                jobTitle: form.jobTitle.trim(),
-                address: form.address.trim(),
+                title: form.title.trim(),
+                description: form.description?.trim() || null,
+                amount: Number(form.amount),
                 notes: form.notes?.trim() || null,
             });
 
-            setJob(updated);
+            setQuote(updated);
             setForm(updated);
         } catch {
-            setError("Unable to save job.");
+            setError("Unable to save quote.");
         } finally {
             setSaving(false);
         }
@@ -114,16 +96,16 @@ export default function JobDetails() {
             <section className="flex-1 p-10">
                 <div className="mb-6">
                     <Link
-                        to="/jobs"
+                        to="/quotes"
                         className="text-sm font-medium text-blue-600 hover:underline"
                     >
-                        ← Back to Jobs
+                        ← Back to Quotes
                     </Link>
                 </div>
 
                 {loading && (
                     <p className="text-slate-500">
-                        Loading job...
+                        Loading quote...
                     </p>
                 )}
 
@@ -133,7 +115,7 @@ export default function JobDetails() {
                     </div>
                 )}
 
-                {!loading && !error && job && form && (
+                {!loading && !error && quote && form && (
                     <div className="grid gap-6 xl:grid-cols-[1fr_360px]">
                         <form
                             onSubmit={handleSave}
@@ -142,15 +124,15 @@ export default function JobDetails() {
                             <div className="mb-6 flex items-start justify-between gap-4">
                                 <div>
                                     <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">
-                                        Job #{job.id}
+                                        Quote #{quote.id}
                                     </p>
 
                                     <h1 className="mt-1 text-3xl font-bold text-slate-900">
-                                        {job.jobTitle}
+                                        {quote.title}
                                     </h1>
 
                                     <p className="mt-2 text-sm text-slate-500">
-                                        {job.customer}
+                                        {quote.customerName}
                                     </p>
                                 </div>
 
@@ -164,42 +146,27 @@ export default function JobDetails() {
                             </div>
 
                             <div className="grid gap-4 md:grid-cols-2">
-                                <Field label="Job Title">
+                                <Field label="Title">
                                     <input
-                                        value={form.jobTitle}
+                                        value={form.title}
                                         onChange={event =>
-                                            setForm({ ...form, jobTitle: event.target.value })
+                                            setForm({ ...form, title: event.target.value })
                                         }
                                         className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600"
                                     />
                                 </Field>
 
-                                <Field label="Customer">
+                                <Field label="Amount">
                                     <input
-                                        value={form.customer}
+                                        type="number"
+                                        step="0.01"
+                                        min="0"
+                                        value={form.amount}
                                         onChange={event =>
-                                            setForm({ ...form, customer: event.target.value })
-                                        }
-                                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600"
-                                    />
-                                </Field>
-
-                                <Field label="Phone">
-                                    <input
-                                        value={form.phone}
-                                        onChange={event =>
-                                            setForm({ ...form, phone: event.target.value })
-                                        }
-                                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600"
-                                    />
-                                </Field>
-
-                                <Field label="Scheduled">
-                                    <input
-                                        type="datetime-local"
-                                        value={toDateTimeLocalValue(form.scheduledDate)}
-                                        onChange={event =>
-                                            setForm({ ...form, scheduledDate: event.target.value })
+                                            setForm({
+                                                ...form,
+                                                amount: Number(event.target.value),
+                                            })
                                         }
                                         className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600"
                                     />
@@ -211,59 +178,55 @@ export default function JobDetails() {
                                         onChange={event =>
                                             setForm({
                                                 ...form,
-                                                status: event.target.value as JobStatus,
+                                                status: event.target.value as QuoteStatus,
                                             })
                                         }
                                         className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600"
                                     >
                                         {statuses.map(status => (
                                             <option key={status} value={status}>
-                                                {formatStatus(status)}
+                                                {status}
                                             </option>
                                         ))}
                                     </select>
                                 </Field>
 
-                                <Field label="Priority">
-                                    <select
-                                        value={form.priority}
-                                        onChange={event =>
-                                            setForm({
-                                                ...form,
-                                                priority: event.target.value as JobPriority,
-                                            })
-                                        }
-                                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600"
-                                    >
-                                        {priorities.map(priority => (
-                                            <option key={priority} value={priority}>
-                                                {priority}
-                                            </option>
-                                        ))}
-                                    </select>
+                                <Field label="Customer">
+                                    <input
+                                        value={`#${form.customerId} — ${form.customerName}`}
+                                        disabled
+                                        className="w-full rounded-lg border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-500"
+                                    />
                                 </Field>
 
                                 <div className="md:col-span-2">
-                                    <Field label="Address">
-                                        <input
-                                            value={form.address}
+                                    <Field label="Description">
+                                        <textarea
+                                            value={form.description ?? ""}
                                             onChange={event =>
-                                                setForm({ ...form, address: event.target.value })
+                                                setForm({
+                                                    ...form,
+                                                    description: event.target.value,
+                                                })
                                             }
+                                            rows={5}
                                             className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600"
                                         />
                                     </Field>
                                 </div>
 
                                 <div className="md:col-span-2">
-                                    <Field label="Job Notes">
+                                    <Field label="Quote Notes">
                                         <textarea
                                             value={form.notes ?? ""}
                                             onChange={event =>
-                                                setForm({ ...form, notes: event.target.value })
+                                                setForm({
+                                                    ...form,
+                                                    notes: event.target.value,
+                                                })
                                             }
                                             rows={8}
-                                            placeholder="Access notes, materials, customer preferences, risks, completion notes, etc."
+                                            placeholder="Internal notes, pricing assumptions, exclusions, follow-up reminders, materials, etc."
                                             className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600"
                                         />
                                     </Field>
@@ -274,17 +237,25 @@ export default function JobDetails() {
                         <aside className="space-y-6">
                             <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
                                 <h2 className="text-lg font-bold text-slate-900">
-                                    Job Snapshot
+                                    Quote Snapshot
                                 </h2>
 
                                 <div className="mt-5 space-y-4 text-sm">
-                                    <Snapshot label="Customer" value={job.customer} />
-                                    <Snapshot label="Phone" value={job.phone} />
-                                    <Snapshot label="Address" value={job.address} />
-                                    <Snapshot label="Scheduled" value={formatDateTime(job.scheduledDate)} />
-                                    <Snapshot label="Status" value={formatStatus(job.status)} />
-                                    <Snapshot label="Priority" value={job.priority} />
+                                    <Snapshot label="Customer" value={quote.customerName} />
+                                    <Snapshot label="Amount" value={formatMoney(quote.amount)} />
+                                    <Snapshot label="Status" value={quote.status} />
+                                    <Snapshot
+                                        label="Created"
+                                        value={new Date(quote.createdAt).toLocaleDateString("en-GB")}
+                                    />
                                 </div>
+
+                                <Link
+                                    to={`/customers/${quote.customerId}`}
+                                    className="mt-6 inline-flex rounded-lg border border-blue-200 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-50"
+                                >
+                                    View Customer
+                                </Link>
                             </div>
 
                             <div className="rounded-xl border border-amber-200 bg-amber-50 p-6">
@@ -293,7 +264,7 @@ export default function JobDetails() {
                                 </p>
 
                                 <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-amber-950">
-                                    {job.notes || "No job notes added yet."}
+                                    {quote.notes || "No quote notes added yet."}
                                 </p>
                             </div>
                         </aside>
@@ -340,45 +311,4 @@ function Snapshot({
             </p>
         </div>
     );
-}
-
-function formatDateTime(value: string) {
-    if (!value) {
-        return "No date set";
-    }
-
-    const date = new Date(value);
-
-    if (Number.isNaN(date.getTime())) {
-        return "Invalid date";
-    }
-
-    return date.toLocaleString("en-GB", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-    });
-}
-
-function formatStatus(value: string) {
-    return value === "InProgress" ? "In Progress" : value;
-}
-
-function toDateTimeLocalValue(value: string) {
-    if (!value) {
-        return "";
-    }
-
-    const date = new Date(value);
-
-    if (Number.isNaN(date.getTime())) {
-        return value.slice(0, 16);
-    }
-
-    const offsetMs = date.getTimezoneOffset() * 60_000;
-    const localDate = new Date(date.getTime() - offsetMs);
-
-    return localDate.toISOString().slice(0, 16);
 }

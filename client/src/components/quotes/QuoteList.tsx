@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import type { Quote } from "../../types/quote";
 import { formatMoney } from "../../utils/formatMoney";
 
@@ -21,75 +22,78 @@ export default function QuoteList({
     }
 
     return (
-        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-            <table className="w-full border-collapse text-left text-sm">
-                <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-                    <tr>
-                        <th className="px-4 py-3">Quote</th>
-                        <th className="px-4 py-3">Customer</th>
-                        <th className="px-4 py-3">Amount</th>
-                        <th className="px-4 py-3">Status</th>
-                        <th className="px-4 py-3">Created</th>
-                        <th className="px-4 py-3 text-right">Actions</th>
-                    </tr>
-                </thead>
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {quotes.map(quote => (
+                <article
+                    key={quote.id}
+                    className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-blue-300 hover:shadow-md"
+                >
+                    <Link to={`/quotes/${quote.id}`} className="block">
+                        <div className="mb-4 flex items-start justify-between gap-4">
+                            <div>
+                                <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">
+                                    Quote #{quote.id}
+                                </p>
 
-                <tbody className="divide-y divide-slate-100">
-                    {quotes.map(quote => (
-                        <tr key={quote.id} className="hover:bg-slate-50">
-                            <td className="px-4 py-3">
-                                <div className="font-semibold text-slate-900">
+                                <h3 className="mt-1 text-lg font-bold text-slate-900">
                                     {quote.title}
-                                </div>
+                                </h3>
 
-                                {quote.description && (
-                                    <div className="mt-1 text-xs text-slate-500">
-                                        {quote.description}
-                                    </div>
-                                )}
-                            </td>
+                                <p className="mt-1 text-sm text-slate-500">
+                                    {quote.customerName}
+                                </p>
+                            </div>
 
-                            <td className="px-4 py-3 text-slate-700">
-                                {quote.customerName}
-                            </td>
+                            <span className={getStatusClass(quote.status)}>
+                                {quote.status}
+                            </span>
+                        </div>
 
-                            <td className="px-4 py-3 font-semibold text-slate-900">
+                        <div className="space-y-2 text-sm text-slate-600">
+                            <p>
+                                <span className="font-medium text-slate-800">Amount:</span>{" "}
                                 {formatMoney(quote.amount)}
-                            </td>
+                            </p>
 
-                            <td className="px-4 py-3">
-                                <span className={getStatusClass(quote.status)}>
-                                    {quote.status}
-                                </span>
-                            </td>
-
-                            <td className="px-4 py-3 text-slate-500">
+                            <p>
+                                <span className="font-medium text-slate-800">Created:</span>{" "}
                                 {new Date(quote.createdAt).toLocaleDateString("en-GB")}
-                            </td>
+                            </p>
 
-                            <td className="px-4 py-3">
-                                <div className="flex justify-end gap-2">
-                                    <button
-                                        type="button"
-                                        onClick={() => onEditQuote(quote)}
-                                        className="rounded-lg border border-slate-300 px-3 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
-                                    >
-                                        Edit
-                                    </button>
+                            {quote.description && (
+                                <p>
+                                    <span className="font-medium text-slate-800">Description:</span>{" "}
+                                    {quote.description}
+                                </p>
+                            )}
+                        </div>
 
-                                    <button
-                                        type="button"
-                                        onClick={() => onDeleteQuote(quote)}
-                                        className="rounded-lg border border-red-200 px-3 py-1 text-xs font-medium text-red-600 hover:bg-red-50"
-                                    >
-                                        Delete
-                                    </button>
-                                </div>
-                            </td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
+                        {quote.notes && (
+                            <div className="mt-4 rounded-lg bg-amber-50 p-3 text-xs leading-5 text-amber-900">
+                                {quote.notes}
+                            </div>
+                        )}
+                    </Link>
+
+                    <div className="mt-5 flex justify-end gap-2 border-t border-slate-100 pt-4">
+                        <button
+                            type="button"
+                            onClick={() => onEditQuote(quote)}
+                            className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                        >
+                            Edit
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={() => onDeleteQuote(quote)}
+                            className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50"
+                        >
+                            Delete
+                        </button>
+                    </div>
+                </article>
+            ))}
         </div>
     );
 }

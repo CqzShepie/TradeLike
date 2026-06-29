@@ -32,6 +32,7 @@ export default function NewQuoteForm({
     const [description, setDescription] = useState("");
     const [amount, setAmount] = useState("");
     const [status, setStatus] = useState<QuoteStatus>("Draft");
+    const [notes, setNotes] = useState("");
 
     const [error, setError] = useState("");
     const [saving, setSaving] = useState(false);
@@ -74,6 +75,7 @@ export default function NewQuoteForm({
             setDescription("");
             setAmount("");
             setStatus("Draft");
+            setNotes("");
             setError("");
             return;
         }
@@ -83,6 +85,7 @@ export default function NewQuoteForm({
         setDescription(editingQuote.description ?? "");
         setAmount(String(editingQuote.amount));
         setStatus(editingQuote.status);
+        setNotes(editingQuote.notes ?? "");
         setError("");
     }, [editingQuote]);
 
@@ -126,9 +129,10 @@ export default function NewQuoteForm({
                     customerId: selectedCustomer.id,
                     customerName: selectedCustomer.name,
                     title: title.trim(),
-                    description: description.trim() || undefined,
+                    description: description.trim() || null,
                     amount: parsedAmount,
                     status,
+                    notes: notes.trim() || null,
                 });
 
                 return;
@@ -138,9 +142,10 @@ export default function NewQuoteForm({
                 customerId: selectedCustomer.id,
                 customerName: selectedCustomer.name,
                 title: title.trim(),
-                description: description.trim() || undefined,
+                description: description.trim() || null,
                 amount: parsedAmount,
                 status,
+                notes: notes.trim() || null,
             });
 
             setSelectedCustomerId("");
@@ -148,6 +153,7 @@ export default function NewQuoteForm({
             setDescription("");
             setAmount("");
             setStatus("Draft");
+            setNotes("");
         } catch {
             setError("Unable to save quote.");
         } finally {
@@ -179,14 +185,10 @@ export default function NewQuoteForm({
             )}
 
             <div className="grid gap-4 md:grid-cols-2">
-                <div>
-                    <label className="mb-1 block text-sm font-medium text-slate-700">
-                        Customer
-                    </label>
-
+                <Field label="Customer">
                     <select
                         value={selectedCustomerId}
-                        onChange={(event) => {
+                        onChange={event => {
                             setSelectedCustomerId(event.target.value);
                             setError("");
                         }}
@@ -211,13 +213,9 @@ export default function NewQuoteForm({
                             No customers found. Create a customer first.
                         </p>
                     )}
-                </div>
+                </Field>
 
-                <div>
-                    <label className="mb-1 block text-sm font-medium text-slate-700">
-                        Customer ID
-                    </label>
-
+                <Field label="Customer ID">
                     <input
                         value={
                             selectedCustomer
@@ -227,43 +225,31 @@ export default function NewQuoteForm({
                         disabled
                         className="w-full rounded-lg border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-500"
                     />
-                </div>
+                </Field>
 
-                <div>
-                    <label className="mb-1 block text-sm font-medium text-slate-700">
-                        Title
-                    </label>
-
+                <Field label="Title">
                     <input
                         value={title}
-                        onChange={(event) => setTitle(event.target.value)}
+                        onChange={event => setTitle(event.target.value)}
                         className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600"
                     />
-                </div>
+                </Field>
 
-                <div>
-                    <label className="mb-1 block text-sm font-medium text-slate-700">
-                        Amount
-                    </label>
-
+                <Field label="Amount">
                     <input
                         type="number"
                         step="0.01"
                         min="0"
                         value={amount}
-                        onChange={(event) => setAmount(event.target.value)}
+                        onChange={event => setAmount(event.target.value)}
                         className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600"
                     />
-                </div>
+                </Field>
 
-                <div>
-                    <label className="mb-1 block text-sm font-medium text-slate-700">
-                        Status
-                    </label>
-
+                <Field label="Status">
                     <select
                         value={status}
-                        onChange={(event) =>
+                        onChange={event =>
                             setStatus(event.target.value as QuoteStatus)
                         }
                         className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600"
@@ -274,19 +260,29 @@ export default function NewQuoteForm({
                             </option>
                         ))}
                     </select>
+                </Field>
+
+                <div className="md:col-span-2">
+                    <Field label="Description">
+                        <textarea
+                            value={description}
+                            onChange={event => setDescription(event.target.value)}
+                            rows={3}
+                            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600"
+                        />
+                    </Field>
                 </div>
 
                 <div className="md:col-span-2">
-                    <label className="mb-1 block text-sm font-medium text-slate-700">
-                        Description
-                    </label>
-
-                    <textarea
-                        value={description}
-                        onChange={(event) => setDescription(event.target.value)}
-                        rows={3}
-                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600"
-                    />
+                    <Field label="Quote Notes">
+                        <textarea
+                            value={notes}
+                            onChange={event => setNotes(event.target.value)}
+                            rows={4}
+                            placeholder="Internal notes, pricing assumptions, customer requests, exclusions, follow-up reminders, etc."
+                            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600"
+                        />
+                    </Field>
                 </div>
             </div>
 
@@ -314,5 +310,23 @@ export default function NewQuoteForm({
                 </button>
             </div>
         </form>
+    );
+}
+
+function Field({
+    label,
+    children,
+}: {
+    label: string;
+    children: React.ReactNode;
+}) {
+    return (
+        <label className="block">
+            <span className="mb-1 block text-sm font-medium text-slate-700">
+                {label}
+            </span>
+
+            {children}
+        </label>
     );
 }

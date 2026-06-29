@@ -33,7 +33,8 @@ public class Job
     [MaxLength(30)]
     public string Priority { get; set; } = "Normal";
 
-    // 🧠 DISPATCH LAYER (NEW)
+    public string? Notes { get; set; }
+
     public int? EngineerId { get; set; }
     public Engineer? Engineer { get; set; }
 

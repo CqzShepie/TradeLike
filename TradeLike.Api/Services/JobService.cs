@@ -31,6 +31,7 @@ public class JobService : IJobService
 
     public async Task<Job> CreateAsync(Job job)
     {
+        NormaliseJob(job);
         ValidateJob(job);
 
         await _context.Jobs.AddAsync(job);
@@ -41,6 +42,7 @@ public class JobService : IJobService
 
     public async Task<Job?> UpdateAsync(int id, Job updatedJob)
     {
+        NormaliseJob(updatedJob);
         ValidateJob(updatedJob);
 
         var job = await _context.Jobs.FindAsync(id);
@@ -55,6 +57,8 @@ public class JobService : IJobService
         job.ScheduledDate = updatedJob.ScheduledDate;
         job.Status = updatedJob.Status;
         job.Priority = updatedJob.Priority;
+        job.Notes = updatedJob.Notes;
+        job.EngineerId = updatedJob.EngineerId;
 
         await _context.SaveChangesAsync();
 
@@ -107,11 +111,23 @@ public class JobService : IJobService
             .ToListAsync();
     }
 
+    private static void NormaliseJob(Job job)
+    {
+        job.Customer = job.Customer.Trim();
+        job.Phone = job.Phone.Trim();
+        job.JobTitle = job.JobTitle.Trim();
+        job.Address = job.Address.Trim();
+        job.Status = job.Status.Trim();
+        job.Priority = job.Priority.Trim();
+        job.Notes = string.IsNullOrWhiteSpace(job.Notes)
+            ? null
+            : job.Notes.Trim();
+    }
+
     private static void ValidateJob(Job job)
     {
         if (job.ScheduledDate.Year < 2024 || job.ScheduledDate.Year > 2099)
-            throw new ValidationException(
-                "Scheduled date must be between 2024 and 2099.");
+            throw new ValidationException("Scheduled date must be between 2024 and 2099.");
 
         if (string.IsNullOrWhiteSpace(job.Customer))
             throw new ValidationException("Customer is required.");

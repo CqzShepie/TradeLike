@@ -5,9 +5,11 @@ export type NewQuote = {
     customerName: string;
 
     title: string;
-    description?: string;
+    description?: string | null;
 
     amount: number;
 
     status: QuoteStatus;
+
+    notes?: string | null;
 };

@@ -23,5 +23,7 @@ export interface Job {
     status: JobStatus;
     priority: JobPriority;
 
+    notes?: string | null;
+
     engineerId?: number | null;
 }

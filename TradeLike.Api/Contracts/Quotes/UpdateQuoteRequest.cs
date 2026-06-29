@@ -6,5 +6,6 @@ public sealed record UpdateQuoteRequest(
     string Title,
     string? Description,
     decimal Amount,
-    string Status
+    string Status,
+    string? Notes
 );

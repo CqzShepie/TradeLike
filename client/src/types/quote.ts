@@ -11,11 +11,13 @@ export type Quote = {
     customerName: string;
 
     title: string;
-    description?: string;
+    description?: string | null;
 
     amount: number;
 
     status: QuoteStatus;
+
+    notes?: string | null;
 
     createdAt: string;
 };

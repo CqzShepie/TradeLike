@@ -10,6 +10,7 @@ import CalendarPage from "../pages/Calendar";
 import Signup from "../pages/Signup";
 import Login from "../pages/Login";
 import Quotes from "../pages/Quotes";
+import QuoteDetails from "../pages/QuoteDetails";
 
 function AppRouter() {
     return (
@@ -28,7 +29,9 @@ function AppRouter() {
             <Route path="/customers/:id" element={<CustomerDetails />} />
 
             <Route path="/calendar" element={<CalendarPage />} />
+
             <Route path="/quotes" element={<Quotes />} />
+            <Route path="/quotes/:id" element={<QuoteDetails />} />
 
             <Route
                 path="/invoices"
