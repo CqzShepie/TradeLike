@@ -94,6 +94,11 @@ export const customerStaffService = {
     return (await apiClient.post("/customer-staff/teams", cleanTeam(request))) as CustomerStaffWorkspace;
   },
 
+  async updateTeam(teamId: number, request: CreateCustomerTeamRequest) {
+    await apiClient.put(`/customer-staff/teams/${teamId}`, cleanTeam(request));
+    return this.getWorkspace();
+  },
+
   async deleteTeam(teamId: number) {
     return (await apiClient.delete(`/customer-staff/teams/${teamId}`)) as CustomerStaffWorkspace;
   },
