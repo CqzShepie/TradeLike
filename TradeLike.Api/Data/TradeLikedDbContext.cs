@@ -85,7 +85,7 @@ public class TradeLikeDbContext : DbContext
             entity.Property(user => user.SubscriptionPlan)
                 .IsRequired()
                 .HasMaxLength(40)
-                .HasDefaultValue("Trial");
+                .HasDefaultValue("Solo");
 
             entity.Property(user => user.BillingStatus)
                 .IsRequired()
@@ -217,70 +217,6 @@ public class TradeLikeDbContext : DbContext
             entity.Property(q => q.Title)
                 .IsRequired()
                 .HasMaxLength(200);
-
-            entity.Property(q => q.Description)
-                .HasMaxLength(4000);
-
-            entity.Property(q => q.Status)
-                .IsRequired()
-                .HasMaxLength(30);
-
-            entity.Property(q => q.Notes)
-                .HasMaxLength(4000);
-
-            entity.Property(q => q.DiscountType)
-                .IsRequired()
-                .HasMaxLength(20)
-                .HasDefaultValue("Amount");
-
-            entity.Property(q => q.Amount)
-                .HasPrecision(18, 2);
-
-            entity.Property(q => q.Subtotal)
-                .HasPrecision(18, 2);
-
-            entity.Property(q => q.VatTotal)
-                .HasPrecision(18, 2);
-
-            entity.Property(q => q.DiscountValue)
-                .HasPrecision(18, 2)
-                .HasDefaultValue(0m);
-
-            entity.Property(q => q.DiscountTotal)
-                .HasPrecision(18, 2);
-
-            entity.Property(q => q.Total)
-                .HasPrecision(18, 2);
-
-            entity.HasMany(q => q.LineItems)
-                .WithOne(i => i.Quote)
-                .HasForeignKey(i => i.QuoteId)
-                .OnDelete(DeleteBehavior.Cascade);
-        });
-
-        modelBuilder.Entity<QuoteLineItem>(entity =>
-        {
-            entity.ToTable("QuoteLineItems");
-
-            entity.Property(i => i.Type)
-                .IsRequired()
-                .HasMaxLength(30);
-
-            entity.Property(i => i.Description)
-                .IsRequired()
-                .HasMaxLength(250);
-
-            entity.Property(i => i.Quantity)
-                .HasPrecision(18, 2);
-
-            entity.Property(i => i.UnitPrice)
-                .HasPrecision(18, 2);
-
-            entity.Property(i => i.VatRate)
-                .HasPrecision(18, 2);
-
-            entity.Property(i => i.LineTotal)
-                .HasPrecision(18, 2);
         });
     }
 }
