@@ -13,6 +13,7 @@ import Signup from "../pages/Signup";
 import Login from "../pages/Login";
 import Quotes from "../pages/Quotes";
 import QuoteDetails from "../pages/QuoteDetails";
+import Invoices from "../pages/Invoices";
 import AdminPortal from "../pages/AdminPortal";
 import Settings from "../pages/Settings";
 import CompanyInvite from "../pages/CompanyInvite";
@@ -49,8 +50,7 @@ function AppRouter() {
 
         <Route path="/quotes" element={<Quotes />} />
         <Route path="/quotes/:id" element={<QuoteDetails />} />
-
-        <Route path="/invoices" element={<PlaceholderPage title="Invoices" />} />
+        <Route path="/invoices" element={<Invoices />} />
         <Route path="/settings" element={<Settings />} />
 
         <Route
@@ -76,17 +76,6 @@ function ScrollToTop() {
   }, [pathname]);
 
   return null;
-}
-
-function PlaceholderPage({ title }: { title: string }) {
-  return (
-    <main className="min-h-screen bg-slate-50 pl-64">
-      <section className="p-10">
-        <h1 className="text-3xl font-bold text-gray-900">{title}</h1>
-        <p className="mt-2 text-sm text-gray-600">This section is not built yet.</p>
-      </section>
-    </main>
-  );
 }
 
 function NotFoundPage() {
