@@ -12,15 +12,15 @@ import { customersService } from "../../services/customersService";
 import { formatMoney } from "../../utils/formatMoney";
 
 interface NewQuoteFormProps {
-  onAddQuote: (quote: NewQuote) => Promise<unknown>;
-  onUpdateQuote: (quote: Quote) => Promise<unknown>;
+  onAddQuote: (quote: NewQuote) => Promise<void>;
+  onUpdateQuote: (quote: Quote) => Promise<void>;
   editingQuote: Quote | null;
   onCancelEdit: () => void;
 }
 
 const statuses: QuoteStatus[] = ["Draft", "Sent", "Accepted", "Rejected"];
-
 const lineTypes: QuoteLineItemType[] = ["Labour", "Materials", "Other"];
+const discountTypes: QuoteDiscountType[] = ["Amount", "Percentage"];
 
 const defaultLineItem: NewQuoteLineItem = {
   type: "Labour",
@@ -41,7 +41,6 @@ export default function NewQuoteForm({
   const [selectedCustomerId, setSelectedCustomerId] = useState("");
   const [customerSearch, setCustomerSearch] = useState("");
   const [customerPickerOpen, setCustomerPickerOpen] = useState(false);
-
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [discountType, setDiscountType] =
@@ -97,7 +96,13 @@ export default function NewQuoteForm({
     setTitle(editingQuote.title);
     setDescription(editingQuote.description ?? "");
     setDiscountType(editingQuote.discountType ?? "Amount");
-    setDiscountValue(String(editingQuote.discountValue ?? editingQuote.discountTotal ?? 0));
+    setDiscountValue(
+      String(
+        Number(editingQuote.discountValue || 0) > 0
+          ? editingQuote.discountValue
+          : editingQuote.discountTotal ?? 0
+      )
+    );
     setStatus(editingQuote.status);
     setNotes(editingQuote.notes ?? "");
     setLineItems(
@@ -149,24 +154,23 @@ export default function NewQuoteForm({
 
     const vatTotal = lineItems.reduce((sum, item) => {
       const net = Number(item.quantity || 0) * Number(item.unitPrice || 0);
+
       return sum + net * (Number(item.vatRate || 0) / 100);
     }, 0);
 
-    const beforeDiscount = subtotal + vatTotal;
-    const rawDiscountValue = Number(discountValue || 0);
+    const discount = calculateDiscountTotal(
+      discountType,
+      Number(discountValue || 0),
+      subtotal,
+      vatTotal
+    );
 
-    const discount =
-      discountType === "Percentage"
-        ? beforeDiscount * (rawDiscountValue / 100)
-        : rawDiscountValue;
-
-    const cappedDiscount = Math.min(Math.max(discount, 0), beforeDiscount);
-    const total = Math.max(0, beforeDiscount - cappedDiscount);
+    const total = Math.max(0, subtotal + vatTotal - discount);
 
     return {
       subtotal,
       vatTotal,
-      discount: cappedDiscount,
+      discount,
       total,
     };
   }, [lineItems, discountType, discountValue]);
@@ -213,8 +217,6 @@ export default function NewQuoteForm({
           amount: totals.total,
           subtotal: totals.subtotal,
           vatTotal: totals.vatTotal,
-          discountType,
-          discountValue: Number(discountValue || 0),
           discountTotal: totals.discount,
           total: totals.total,
           lineItems: payload.lineItems.map(item => ({
@@ -246,12 +248,14 @@ export default function NewQuoteForm({
       return false;
     }
 
-    if (Number(discountValue || 0) < 0) {
-      setError("Discount cannot be negative.");
+    const numericDiscountValue = Number(discountValue || 0);
+
+    if (numericDiscountValue < 0) {
+      setError("Discount value cannot be negative.");
       return false;
     }
 
-    if (discountType === "Percentage" && Number(discountValue || 0) > 100) {
+    if (discountType === "Percentage" && numericDiscountValue > 100) {
       setError("Percentage discount cannot be more than 100%.");
       return false;
     }
@@ -328,122 +332,111 @@ export default function NewQuoteForm({
 
   return (
     <form
-      noValidate
       onSubmit={handleSubmit}
-      className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
+      className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
     >
-      <div className="flex flex-col gap-2 border-b border-slate-200 pb-5 md:flex-row md:items-start md:justify-between">
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div>
-          <h2 className="text-xl font-bold text-slate-900">
+          <h2 className="text-lg font-bold text-slate-900">
             {editingQuote ? "Update Quote" : "New Quote"}
           </h2>
           <p className="mt-1 text-sm text-slate-500">
-            Use the quote description for a simple overview. Use priced line items
-            for the actual labour, materials, VAT, and quote total.
+            Use the quote description for a simple overview. Use priced line
+            items for the actual labour, materials, VAT, and quote total.
           </p>
         </div>
 
-        <div className="rounded-xl bg-blue-50 px-4 py-3 text-sm">
-          <p className="font-semibold text-blue-900">Quote total</p>
-          <p className="text-2xl font-bold text-blue-700">
+        <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-right">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+            Quote total
+          </p>
+          <p className="mt-1 text-xl font-bold text-slate-900">
             {formatMoney(totals.total)}
           </p>
         </div>
       </div>
 
       {error && (
-        <div className="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+        <div className="mt-5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700">
           {error}
         </div>
       )}
 
       <div className="mt-6 grid gap-4 md:grid-cols-2">
-        <Field
-          label="Customer"
-          hint="Start typing a customer name or ID, then select the correct customer."
-        >
-          <div
-            className="relative"
-            onBlur={() => {
-              window.setTimeout(() => setCustomerPickerOpen(false), 150);
-            }}
+        <div className="md:col-span-2">
+          <Field
+            label="Search customer"
+            hint="Start typing a customer name or database ID. Customer ID is filled automatically."
           >
-            <input
-              value={customerSearch}
-              onFocus={() => setCustomerPickerOpen(true)}
-              onChange={event => {
-                setCustomerSearch(event.target.value);
-                setSelectedCustomerId("");
-                setCustomerPickerOpen(true);
-                setError("");
+            <div
+              className="relative"
+              onBlur={() => {
+                window.setTimeout(() => setCustomerPickerOpen(false), 150);
               }}
-              disabled={loadingCustomers || customers.length === 0}
-              placeholder={
-                loadingCustomers
-                  ? "Loading customers..."
-                  : "Search customer name or ID"
-              }
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600 disabled:bg-slate-100"
-            />
+            >
+              <input
+                value={customerSearch}
+                onFocus={() => setCustomerPickerOpen(true)}
+                onChange={event => {
+                  setCustomerSearch(event.target.value);
+                  setSelectedCustomerId("");
+                  setCustomerPickerOpen(true);
+                  setError("");
+                }}
+                disabled={loadingCustomers || customers.length === 0}
+                placeholder={
+                  loadingCustomers ? "Loading customers..." : "Search customer name or ID"
+                }
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600 disabled:bg-slate-100"
+              />
 
-            {customerPickerOpen && !loadingCustomers && customers.length > 0 && (
-              <div className="absolute z-30 mt-2 max-h-72 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg">
-                {filteredCustomers.length > 0 ? (
-                  filteredCustomers.map(customer => (
-                    <button
-                      key={customer.id}
-                      type="button"
-                      onMouseDown={event => event.preventDefault()}
-                      onClick={() => selectCustomer(customer)}
-                      className="flex w-full items-center justify-between gap-3 border-b border-slate-100 px-4 py-3 text-left text-sm hover:bg-blue-50 last:border-b-0"
-                    >
-                      <span>
-                        <span className="font-semibold text-slate-900">
-                          {customer.name}
+              {customerPickerOpen && !loadingCustomers && customers.length > 0 && (
+                <div className="absolute z-20 mt-2 max-h-72 w-full overflow-auto rounded-xl border border-slate-200 bg-white shadow-xl">
+                  {filteredCustomers.length > 0 ? (
+                    filteredCustomers.map(customer => (
+                      <button
+                        key={customer.id}
+                        type="button"
+                        onMouseDown={event => event.preventDefault()}
+                        onClick={() => selectCustomer(customer)}
+                        className="flex w-full items-center justify-between gap-3 border-b border-slate-100 px-4 py-3 text-left text-sm hover:bg-blue-50 last:border-b-0"
+                      >
+                        <span>
+                          <span className="font-semibold text-slate-900">
+                            {customer.name}
+                          </span>
+                          <span className="ml-2 text-xs text-slate-500">
+                            Customer ID #{customer.id}
+                          </span>
                         </span>
-                        <span className="mt-0.5 block text-xs text-slate-500">
-                          Customer ID #{customer.id}
+                        <span className="text-xs font-semibold text-blue-700">
+                          Select
                         </span>
-                      </span>
+                      </button>
+                    ))
+                  ) : (
+                    <div className="px-4 py-3 text-sm text-slate-500">
+                      No customers match that search.
+                    </div>
+                  )}
 
-                      <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600">
-                        Select
-                      </span>
-                    </button>
-                  ))
-                ) : (
-                  <div className="px-4 py-3 text-sm text-slate-500">
-                    No customers match that search.
-                  </div>
-                )}
+                  {customers.length > 50 && filteredCustomers.length === 50 && (
+                    <div className="px-4 py-3 text-xs text-slate-500">
+                      Showing first 50 matches. Keep typing to narrow the list.
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </Field>
+        </div>
 
-                {customers.length > 50 && filteredCustomers.length === 50 && (
-                  <div className="border-t border-slate-100 bg-slate-50 px-4 py-2 text-xs text-slate-500">
-                    Showing first 50 matches. Keep typing to narrow the list.
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </Field>
-
-        <Field
-          label="Customer ID"
-          hint="Auto-filled from the database after you select a customer."
-        >
+        <Field label="Customer ID">
           <input
             value={selectedCustomer?.id ?? ""}
             readOnly
-            className="w-full rounded-lg border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-600 outline-none"
-          />
-        </Field>
-
-        <Field label="Quote title" hint="Example: Bathroom refit estimate">
-          <input
-            value={title}
-            onChange={event => setTitle(event.target.value)}
-            placeholder="Bathroom refit estimate"
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600"
+            placeholder="Auto-filled after selecting customer"
+            className="w-full rounded-lg border border-slate-200 bg-slate-100 px-3 py-2 text-sm text-slate-600"
           />
         </Field>
 
@@ -461,10 +454,19 @@ export default function NewQuoteForm({
           </select>
         </Field>
 
+        <Field label="Quote title">
+          <input
+            value={title}
+            onChange={event => setTitle(event.target.value)}
+            placeholder="Bathroom refit estimate"
+            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600"
+          />
+        </Field>
+
         <div className="md:col-span-2">
           <Field
             label="Quote description"
-            hint="Optional overview only. This is not a priced line item."
+            hint="Optional overview only. Do not use this for priced rows."
           >
             <textarea
               value={description}
@@ -484,8 +486,8 @@ export default function NewQuoteForm({
               Priced line items
             </h3>
             <p className="mt-1 text-xs text-slate-500">
-              Add the actual chargeable rows here. The line item description sits
-              underneath the pricing fields so it is clear and easy to fill in.
+              Add the actual chargeable rows here. The line item description
+              sits underneath the pricing fields so it is clear and easy to fill in.
             </p>
           </div>
 
@@ -623,7 +625,7 @@ export default function NewQuoteForm({
         </div>
       </div>
 
-      <div className="mt-6 grid gap-4 md:grid-cols-[1fr_340px]">
+      <div className="mt-6 grid gap-4 md:grid-cols-[1fr_380px]">
         <Field
           label="Internal quote notes"
           hint="For assumptions, exclusions, reminders, or internal context."
@@ -638,8 +640,8 @@ export default function NewQuoteForm({
         </Field>
 
         <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-          <div className="grid grid-cols-[110px_1fr] gap-3">
-            <Field label="Discount">
+          <div className="grid grid-cols-[130px_1fr] gap-3">
+            <Field label="Discount type">
               <select
                 value={discountType}
                 onChange={event =>
@@ -647,12 +649,19 @@ export default function NewQuoteForm({
                 }
                 className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-blue-600"
               >
-                <option value="Amount">£</option>
-                <option value="Percentage">%</option>
+                {discountTypes.map(type => (
+                  <option key={type} value={type}>
+                    {type === "Amount" ? "£ amount" : "% percentage"}
+                  </option>
+                ))}
               </select>
             </Field>
 
-            <Field label={discountType === "Percentage" ? "Discount %" : "Discount £"}>
+            <Field
+              label={
+                discountType === "Amount" ? "Discount value (£)" : "Discount value (%)"
+              }
+            >
               <input
                 type="number"
                 step="1"
@@ -666,19 +675,10 @@ export default function NewQuoteForm({
           </div>
 
           <div className="mt-4 space-y-2 text-sm">
-            <SummaryRow
-              label="Subtotal before VAT"
-              value={formatMoney(totals.subtotal)}
-            />
+            <SummaryRow label="Subtotal before VAT" value={formatMoney(totals.subtotal)} />
             <SummaryRow label="VAT total" value={formatMoney(totals.vatTotal)} />
-            <SummaryRow
-              label={
-                discountType === "Percentage"
-                  ? `Discount (${Number(discountValue || 0)}%)`
-                  : "Discount"
-              }
-              value={`-${formatMoney(totals.discount)}`}
-            />
+            <SummaryRow label="Calculated discount" value={`-${formatMoney(totals.discount)}`} />
+
             <div className="border-t border-slate-200 pt-2">
               <SummaryRow label="Quote total" value={formatMoney(totals.total)} strong />
             </div>
@@ -761,6 +761,25 @@ function calculateLineTotal(item: NewQuoteLineItem) {
   const vat = net * (Number(item.vatRate || 0) / 100);
 
   return net + vat;
+}
+
+function calculateDiscountTotal(
+  discountType: QuoteDiscountType,
+  discountValue: number,
+  subtotal: number,
+  vatTotal: number
+) {
+  const preDiscountTotal = subtotal + vatTotal;
+
+  if (discountValue <= 0) {
+    return 0;
+  }
+
+  if (discountType === "Percentage") {
+    return Math.min(preDiscountTotal, preDiscountTotal * (discountValue / 100));
+  }
+
+  return Math.min(preDiscountTotal, discountValue);
 }
 
 function getErrorMessage(error: unknown, fallback: string) {

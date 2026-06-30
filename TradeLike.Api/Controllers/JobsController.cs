@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using TradeLike.Api.Contracts.Quotes;
 using TradeLike.Api.Models;
 using TradeLike.Api.Services;
 
@@ -19,7 +20,7 @@ public class JobsController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<IReadOnlyList<JobResponse>>> GetJobs()
+    public async Task<ActionResult<List<JobResponse>>> GetJobs()
     {
         var jobs = await _jobService.GetAllAsync();
 
@@ -92,7 +93,7 @@ public class JobsController : ControllerBase
     }
 
     [HttpGet("today")]
-    public async Task<ActionResult<IReadOnlyList<JobResponse>>> GetTodayJobs()
+    public async Task<ActionResult<List<JobResponse>>> GetTodayJobs()
     {
         var jobs = await _jobService.GetTodayAsync();
 
@@ -100,7 +101,7 @@ public class JobsController : ControllerBase
     }
 
     [HttpGet("week")]
-    public async Task<ActionResult<IReadOnlyList<JobResponse>>> GetWeekJobs(
+    public async Task<ActionResult<List<JobResponse>>> GetWeekJobs(
         [FromQuery] DateTime? start)
     {
         var weekStart = start?.Date ?? DateTime.Today;
@@ -123,7 +124,49 @@ public class JobsController : ControllerBase
             Priority = job.Priority,
             Notes = job.Notes,
             QuoteId = job.QuoteId,
-            EngineerId = job.EngineerId
+            EngineerId = job.EngineerId,
+            SourceQuote = job.Quote is null ? null : ToQuoteResponse(job.Quote)
+        };
+    }
+
+    private static QuoteResponse ToQuoteResponse(Quote quote)
+    {
+        return new QuoteResponse
+        {
+            Id = quote.Id,
+            CustomerId = quote.CustomerId,
+            CustomerName = quote.CustomerName,
+            Title = quote.Title,
+            Description = quote.Description,
+            Amount = quote.Amount,
+            Subtotal = quote.Subtotal,
+            VatTotal = quote.VatTotal,
+            DiscountType = quote.DiscountType,
+            DiscountValue = quote.DiscountValue,
+            DiscountTotal = quote.DiscountTotal,
+            Total = quote.Total,
+            Status = quote.Status,
+            Notes = quote.Notes,
+            CreatedAt = quote.CreatedAt,
+            LineItems = quote.LineItems
+                .OrderBy(item => item.Id)
+                .Select(ToQuoteLineItemResponse)
+                .ToList()
+        };
+    }
+
+    private static QuoteLineItemResponse ToQuoteLineItemResponse(QuoteLineItem item)
+    {
+        return new QuoteLineItemResponse
+        {
+            Id = item.Id,
+            QuoteId = item.QuoteId,
+            Type = item.Type,
+            Description = item.Description,
+            Quantity = item.Quantity,
+            UnitPrice = item.UnitPrice,
+            VatRate = item.VatRate,
+            LineTotal = item.LineTotal
         };
     }
 }
@@ -151,4 +194,6 @@ public sealed class JobResponse
     public int? QuoteId { get; init; }
 
     public int? EngineerId { get; init; }
+
+    public QuoteResponse? SourceQuote { get; init; }
 }

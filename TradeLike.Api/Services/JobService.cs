@@ -34,6 +34,8 @@ public class JobService : IJobService
     {
         return await _context.Jobs
             .AsNoTracking()
+            .Include(job => job.Quote)
+                .ThenInclude(quote => quote!.LineItems)
             .OrderBy(job => job.ScheduledDate)
             .ToListAsync();
     }
@@ -42,6 +44,8 @@ public class JobService : IJobService
     {
         return await _context.Jobs
             .AsNoTracking()
+            .Include(job => job.Quote)
+                .ThenInclude(quote => quote!.LineItems)
             .FirstOrDefaultAsync(job => job.Id == id);
     }
 
@@ -50,6 +54,8 @@ public class JobService : IJobService
         NormaliseJob(job);
         ValidateJob(job);
 
+        // Normal manually-created jobs are not linked to a quote.
+        // Quote-linked jobs are created through QuoteService.ConvertAcceptedQuoteToJobAsync.
         job.QuoteId = null;
 
         await _context.Jobs.AddAsync(job);
@@ -80,14 +86,20 @@ public class JobService : IJobService
         job.Notes = updatedJob.Notes;
         job.EngineerId = updatedJob.EngineerId;
 
+        // Do not overwrite QuoteId here.
+        // A job created from a quote must keep its source QuoteId.
+
         await _context.SaveChangesAsync();
 
-        return job;
+        return await GetByIdAsync(id);
     }
 
     public async Task<Job?> DeleteAsync(int id)
     {
-        var job = await _context.Jobs.FindAsync(id);
+        var job = await _context.Jobs
+            .Include(existingJob => existingJob.Quote)
+                .ThenInclude(quote => quote!.LineItems)
+            .FirstOrDefaultAsync(existingJob => existingJob.Id == id);
 
         if (job is null)
         {
@@ -107,6 +119,8 @@ public class JobService : IJobService
 
         return await _context.Jobs
             .AsNoTracking()
+            .Include(job => job.Quote)
+                .ThenInclude(quote => quote!.LineItems)
             .Where(job => job.ScheduledDate >= today && job.ScheduledDate < tomorrow)
             .OrderBy(job => job.ScheduledDate)
             .ToListAsync();
@@ -126,6 +140,8 @@ public class JobService : IJobService
 
         return await _context.Jobs
             .AsNoTracking()
+            .Include(job => job.Quote)
+                .ThenInclude(quote => quote!.LineItems)
             .Where(job => job.ScheduledDate >= start && job.ScheduledDate < end)
             .OrderBy(job => job.ScheduledDate)
             .ToListAsync();
@@ -139,6 +155,7 @@ public class JobService : IJobService
         job.Address = job.Address.Trim();
         job.Status = Canonicalise(job.Status, AllowedStatuses);
         job.Priority = Canonicalise(job.Priority, AllowedPriorities);
+
         job.Notes = string.IsNullOrWhiteSpace(job.Notes)
             ? null
             : job.Notes.Trim();

@@ -1,74 +1,88 @@
 import type { Job } from "../types/job";
 import type { NewJob } from "../types/newJob";
+import type { Quote, QuoteLineItem } from "../types/quote";
 import { apiClient } from "./apiClient";
 
 export const jobsService = {
   async getAll() {
-    const jobs = await apiClient.get<Job[]>("/jobs");
+    const jobs = (await apiClient.get("/jobs")) as Job[];
     return jobs.map(normaliseJob);
   },
 
   async getById(id: number) {
-    const job = await apiClient.get<Job>(`/jobs/${id}`);
+    const job = (await apiClient.get(`/jobs/${id}`)) as Job;
     return normaliseJob(job);
   },
 
   async create(job: NewJob) {
-    const created = await apiClient.post<Job>("/jobs", toPayload(job));
+    const created = (await apiClient.post("/jobs", job)) as Job;
     return normaliseJob(created);
   },
 
   async update(job: Job) {
-    const updated = await apiClient.put<Job>(`/jobs/${job.id}`, toPayload(job));
+    const updated = (await apiClient.put(`/jobs/${job.id}`, {
+      customer: job.customer,
+      phone: job.phone,
+      jobTitle: job.jobTitle,
+      address: job.address,
+      scheduledDate: job.scheduledDate,
+      status: job.status,
+      priority: job.priority,
+      notes: job.notes ?? null,
+      engineerId: job.engineerId ?? null,
+    })) as Job;
+
     return normaliseJob(updated);
   },
 
-  async delete(id: number) {
-    const deleted = await apiClient.delete<Job>(`/jobs/${id}`);
-    return normaliseJob(deleted);
+  delete(id: number) {
+    return apiClient.delete(`/jobs/${id}`);
   },
 
   async getToday() {
-    const jobs = await apiClient.get<Job[]>("/jobs/today");
+    const jobs = (await apiClient.get("/jobs/today")) as Job[];
     return jobs.map(normaliseJob);
   },
 
   async getWeek(start: string) {
-    const jobs = await apiClient.get<Job[]>(
-      `/jobs/week?start=${encodeURIComponent(start)}`
-    );
-
+    const jobs = (await apiClient.get(`/jobs/week?start=${start}`)) as Job[];
     return jobs.map(normaliseJob);
   },
 };
 
-function toPayload(job: NewJob | Job) {
-  return {
-    customer: job.customer.trim(),
-    phone: job.phone.trim(),
-    jobTitle: job.jobTitle.trim(),
-    address: job.address.trim(),
-    scheduledDate: job.scheduledDate,
-    status: job.status,
-    priority: job.priority,
-    notes: job.notes?.trim() || null,
-    engineerId: job.engineerId ?? null,
-  };
-}
-
 function normaliseJob(job: Job): Job {
   return {
     ...job,
-    id: Number(job.id),
-    customer: job.customer ?? "",
-    phone: job.phone ?? "",
-    jobTitle: job.jobTitle ?? "",
-    address: job.address ?? "",
-    scheduledDate: job.scheduledDate ?? "",
-    status: job.status,
-    priority: job.priority,
-    notes: job.notes ?? null,
     quoteId: job.quoteId ?? null,
     engineerId: job.engineerId ?? null,
+    sourceQuote: job.sourceQuote ? normaliseQuote(job.sourceQuote) : null,
+  };
+}
+
+function normaliseQuote(quote: Quote): Quote {
+  const discountTotal = Number(quote.discountTotal ?? 0);
+  const discountValue = Number(quote.discountValue ?? 0);
+
+  return {
+    ...quote,
+    amount: Number(quote.amount ?? quote.total ?? 0),
+    subtotal: Number(quote.subtotal ?? 0),
+    vatTotal: Number(quote.vatTotal ?? 0),
+    discountType: quote.discountType ?? "Amount",
+    discountValue: discountValue > 0 ? discountValue : discountTotal,
+    discountTotal,
+    total: Number(quote.total ?? quote.amount ?? 0),
+    lineItems: (quote.lineItems ?? []).map(normaliseLineItem),
+  };
+}
+
+function normaliseLineItem(item: QuoteLineItem): QuoteLineItem {
+  return {
+    ...item,
+    description: item.description ?? "",
+    quantity: Number(item.quantity ?? 0),
+    unitPrice: Number(item.unitPrice ?? 0),
+    vatRate: Number(item.vatRate ?? 0),
+    lineTotal: Number(item.lineTotal ?? 0),
   };
 }

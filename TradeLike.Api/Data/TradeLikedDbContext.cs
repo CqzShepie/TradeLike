@@ -11,15 +11,10 @@ public class TradeLikeDbContext : DbContext
     }
 
     public DbSet<User> Users => Set<User>();
-
     public DbSet<Customer> Customers => Set<Customer>();
-
     public DbSet<Job> Jobs => Set<Job>();
-
     public DbSet<Quote> Quotes => Set<Quote>();
-
     public DbSet<QuoteLineItem> QuoteLineItems => Set<QuoteLineItem>();
-
     public DbSet<Engineer> Engineers => Set<Engineer>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -79,16 +74,17 @@ public class TradeLikeDbContext : DbContext
             entity.Property(q => q.Description)
                 .HasMaxLength(4000);
 
-            entity.Property(q => q.DiscountType)
-                .IsRequired()
-                .HasMaxLength(20);
-
             entity.Property(q => q.Status)
                 .IsRequired()
                 .HasMaxLength(30);
 
             entity.Property(q => q.Notes)
                 .HasMaxLength(4000);
+
+            entity.Property(q => q.DiscountType)
+                .IsRequired()
+                .HasMaxLength(20)
+                .HasDefaultValue("Amount");
 
             entity.Property(q => q.Amount)
                 .HasPrecision(18, 2);
@@ -100,7 +96,8 @@ public class TradeLikeDbContext : DbContext
                 .HasPrecision(18, 2);
 
             entity.Property(q => q.DiscountValue)
-                .HasPrecision(18, 2);
+                .HasPrecision(18, 2)
+                .HasDefaultValue(0m);
 
             entity.Property(q => q.DiscountTotal)
                 .HasPrecision(18, 2);

@@ -1,7 +1,11 @@
 import { apiClient } from "./apiClient";
 import type { Job, JobPriority } from "../types/job";
-import type { Quote, QuoteLineItem } from "../types/quote";
 import type { NewQuote, NewQuoteLineItem } from "../types/newQuote";
+import type {
+  Quote,
+  QuoteDiscountType,
+  QuoteLineItem,
+} from "../types/quote";
 
 export type ConvertQuoteToJobRequest = {
   jobTitle: string;
@@ -18,7 +22,7 @@ type QuotePayload = {
   customerName: string;
   title: string;
   description: string | null;
-  discountType: Quote["discountType"];
+  discountType: QuoteDiscountType;
   discountValue: number;
   discountTotal: number;
   status: Quote["status"];
@@ -28,31 +32,31 @@ type QuotePayload = {
 
 export const quotesService = {
   async getAll() {
-    const quotes = await apiClient.get<Quote[]>("/quotes");
+    const quotes = (await apiClient.get("/quotes")) as Quote[];
     return quotes.map(normaliseQuote);
   },
 
   async getById(id: number) {
-    const quote = await apiClient.get<Quote>(`/quotes/${id}`);
+    const quote = (await apiClient.get(`/quotes/${id}`)) as Quote;
     return normaliseQuote(quote);
   },
 
   async create(quote: NewQuote) {
-    const created = await apiClient.post<Quote>("/quotes", toPayload(quote));
+    const created = (await apiClient.post("/quotes", toPayload(quote))) as Quote;
     return normaliseQuote(created);
   },
 
   async update(quote: Quote) {
-    const updated = await apiClient.put<Quote>(
+    const updated = (await apiClient.put(
       `/quotes/${quote.id}`,
       toPayload(quote)
-    );
+    )) as Quote;
 
     return normaliseQuote(updated);
   },
 
   async convertToJob(id: number, request: ConvertQuoteToJobRequest) {
-    return apiClient.post<Job>(`/quotes/${id}/convert-to-job`, {
+    const job = (await apiClient.post(`/quotes/${id}/convert-to-job`, {
       jobTitle: request.jobTitle.trim(),
       scheduledDate: request.scheduledDate,
       phone: request.phone?.trim() || null,
@@ -60,14 +64,21 @@ export const quotesService = {
       priority: request.priority,
       notes: request.notes?.trim() || null,
       engineerId: request.engineerId ?? null,
-    });
+    })) as Job;
+
+    return {
+      ...job,
+      quoteId: job.quoteId ?? null,
+      sourceQuote: job.sourceQuote ? normaliseQuote(job.sourceQuote) : null,
+    };
   },
 
   delete(id: number) {
-    return apiClient.delete<Quote>(`/quotes/${id}`);
+    return apiClient.delete(`/quotes/${id}`);
   },
 };
 
+// Backwards-compatible alias in case any older file imports quoteService.
 export const quoteService = quotesService;
 
 function toPayload(quote: NewQuote | Quote): QuotePayload {
@@ -76,7 +87,7 @@ function toPayload(quote: NewQuote | Quote): QuotePayload {
     customerName: quote.customerName.trim(),
     title: quote.title.trim(),
     description: quote.description?.trim() || null,
-    discountType: quote.discountType ?? "Amount",
+    discountType: quote.discountType || "Amount",
     discountValue: Number(quote.discountValue || 0),
     discountTotal: Number(quote.discountTotal || 0),
     status: quote.status,
@@ -91,8 +102,10 @@ function toPayload(quote: NewQuote | Quote): QuotePayload {
   };
 }
 
-function normaliseQuote(quote: Quote): Quote {
+export function normaliseQuote(quote: Quote): Quote {
   const lineItems = quote.lineItems ?? [];
+  const discountTotal = Number(quote.discountTotal ?? 0);
+  const discountValue = Number(quote.discountValue ?? 0);
 
   return {
     ...quote,
@@ -100,8 +113,8 @@ function normaliseQuote(quote: Quote): Quote {
     subtotal: Number(quote.subtotal ?? 0),
     vatTotal: Number(quote.vatTotal ?? 0),
     discountType: quote.discountType ?? "Amount",
-    discountValue: Number(quote.discountValue ?? quote.discountTotal ?? 0),
-    discountTotal: Number(quote.discountTotal ?? 0),
+    discountValue: discountValue > 0 ? discountValue : discountTotal,
+    discountTotal,
     total: Number(quote.total ?? quote.amount ?? 0),
     lineItems: lineItems.map(normaliseLineItem),
   };

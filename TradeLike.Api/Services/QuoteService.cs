@@ -122,12 +122,14 @@ public class QuoteService : IQuoteService
 
         await _context.SaveChangesAsync();
 
-        return quote;
+        return await GetByIdAsync(id);
     }
 
     public async Task<Quote?> DeleteAsync(int id)
     {
-        var quote = await _context.Quotes.FindAsync(id);
+        var quote = await _context.Quotes
+            .Include(existingQuote => existingQuote.LineItems)
+            .FirstOrDefaultAsync(existingQuote => existingQuote.Id == id);
 
         if (quote is null)
         {
@@ -172,19 +174,23 @@ public class QuoteService : IQuoteService
 
         var customer = await _context.Customers
             .AsNoTracking()
-            .FirstOrDefaultAsync(c => c.Id == quote.CustomerId);
+            .FirstOrDefaultAsync(customer => customer.Id == quote.CustomerId);
+
+        var priority = Canonicalise(
+            string.IsNullOrWhiteSpace(request.Priority)
+                ? "Normal"
+                : request.Priority,
+            AllowedJobPriorities);
 
         var job = new Job
         {
-            Customer = quote.CustomerName,
+            Customer = quote.CustomerName.Trim(),
             Phone = FirstNonBlank(request.Phone, customer?.Phone),
             JobTitle = FirstNonBlank(request.JobTitle, quote.Title),
             Address = FirstNonBlank(request.Address, customer?.Address),
             ScheduledDate = request.ScheduledDate,
             Status = "Scheduled",
-            Priority = Canonicalise(
-                string.IsNullOrWhiteSpace(request.Priority) ? "Normal" : request.Priority,
-                AllowedJobPriorities),
+            Priority = priority,
             Notes = BuildJobNotes(quote, request.Notes),
             QuoteId = quote.Id,
             EngineerId = request.EngineerId
@@ -202,23 +208,42 @@ public class QuoteService : IQuoteService
     {
         quote.CustomerName = quote.CustomerName.Trim();
         quote.Title = quote.Title.Trim();
+
         quote.Description = string.IsNullOrWhiteSpace(quote.Description)
             ? null
             : quote.Description.Trim();
+
         quote.Status = Canonicalise(quote.Status, AllowedStatuses);
+
         quote.DiscountType = Canonicalise(
-            string.IsNullOrWhiteSpace(quote.DiscountType) ? "Amount" : quote.DiscountType,
+            string.IsNullOrWhiteSpace(quote.DiscountType)
+                ? "Amount"
+                : quote.DiscountType,
             AllowedDiscountTypes);
+
         quote.DiscountValue = RoundMoney(quote.DiscountValue);
+        quote.DiscountTotal = RoundMoney(quote.DiscountTotal);
+
+        if (quote.DiscountType == "Amount" &&
+            quote.DiscountValue == 0 &&
+            quote.DiscountTotal > 0)
+        {
+            quote.DiscountValue = quote.DiscountTotal;
+        }
+
         quote.Notes = string.IsNullOrWhiteSpace(quote.Notes)
             ? null
             : quote.Notes.Trim();
+
+        quote.LineItems ??= new List<QuoteLineItem>();
 
         quote.LineItems = quote.LineItems
             .Select(item => new QuoteLineItem
             {
                 Type = Canonicalise(
-                    string.IsNullOrWhiteSpace(item.Type) ? "Other" : item.Type,
+                    string.IsNullOrWhiteSpace(item.Type)
+                        ? "Other"
+                        : item.Type,
                     AllowedLineTypes),
                 Description = item.Description?.Trim() ?? string.Empty,
                 Quantity = item.Quantity,
@@ -241,9 +266,25 @@ public class QuoteService : IQuoteService
             throw new ValidationException("Customer name is required.");
         }
 
+        if (quote.CustomerName.Length > 150)
+        {
+            throw new ValidationException("Customer name must be 150 characters or fewer.");
+        }
+
         if (string.IsNullOrWhiteSpace(quote.Title))
         {
             throw new ValidationException("Quote title is required.");
+        }
+
+        if (quote.Title.Length > 200)
+        {
+            throw new ValidationException("Quote title must be 200 characters or fewer.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(quote.Description) &&
+            quote.Description.Length > 4000)
+        {
+            throw new ValidationException("Quote description must be 4000 characters or fewer.");
         }
 
         if (!AllowedStatuses.Contains(quote.Status, StringComparer.OrdinalIgnoreCase))
@@ -254,17 +295,23 @@ public class QuoteService : IQuoteService
 
         if (!AllowedDiscountTypes.Contains(quote.DiscountType, StringComparer.OrdinalIgnoreCase))
         {
-            throw new ValidationException("Discount type is invalid. Use Amount or Percentage.");
+            throw new ValidationException(
+                "Discount type is invalid. Use Amount or Percentage.");
         }
 
         if (quote.DiscountValue < 0)
         {
-            throw new ValidationException("Discount cannot be negative.");
+            throw new ValidationException("Discount value cannot be negative.");
         }
 
         if (quote.DiscountType == "Percentage" && quote.DiscountValue > 100)
         {
             throw new ValidationException("Percentage discount cannot be more than 100%.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(quote.Notes) && quote.Notes.Length > 4000)
+        {
+            throw new ValidationException("Quote notes must be 4000 characters or fewer.");
         }
 
         if (quote.LineItems.Count == 0)
@@ -287,6 +334,12 @@ public class QuoteService : IQuoteService
             {
                 throw new ValidationException(
                     $"Line {lineNumber} needs a line item description.");
+            }
+
+            if (item.Description.Length > 250)
+            {
+                throw new ValidationException(
+                    $"Line {lineNumber} description must be 250 characters or fewer.");
             }
 
             if (item.Quantity <= 0)
@@ -326,20 +379,18 @@ public class QuoteService : IQuoteService
             quote.LineItems.Sum(item =>
                 item.Quantity * item.UnitPrice * (item.VatRate / 100)));
 
-        var beforeDiscount = quote.Subtotal + quote.VatTotal;
+        var preDiscountTotal = RoundMoney(quote.Subtotal + quote.VatTotal);
 
         quote.DiscountTotal = quote.DiscountType == "Percentage"
-            ? RoundMoney(beforeDiscount * (quote.DiscountValue / 100))
+            ? RoundMoney(preDiscountTotal * (quote.DiscountValue / 100))
             : RoundMoney(quote.DiscountValue);
 
-        if (quote.DiscountTotal > beforeDiscount)
+        if (quote.DiscountTotal > preDiscountTotal)
         {
-            quote.DiscountTotal = RoundMoney(beforeDiscount);
+            quote.DiscountTotal = preDiscountTotal;
         }
 
-        quote.Total = RoundMoney(
-            Math.Max(0, beforeDiscount - quote.DiscountTotal));
-
+        quote.Total = RoundMoney(preDiscountTotal - quote.DiscountTotal);
         quote.Amount = quote.Total;
     }
 
@@ -350,16 +401,37 @@ public class QuoteService : IQuoteService
             throw new ValidationException("Scheduled date must be between 2024 and 2099.");
         }
 
+        if (string.IsNullOrWhiteSpace(job.Customer))
+        {
+            throw new ValidationException("Customer is required.");
+        }
+
         if (string.IsNullOrWhiteSpace(job.Phone))
         {
             throw new ValidationException(
                 "Phone number is required. Add it to the conversion form or the customer record.");
         }
 
+        if (string.IsNullOrWhiteSpace(job.JobTitle))
+        {
+            throw new ValidationException("Job title is required.");
+        }
+
         if (string.IsNullOrWhiteSpace(job.Address))
         {
             throw new ValidationException(
                 "Address is required. Add it to the conversion form or the customer record.");
+        }
+
+        if (!AllowedJobPriorities.Contains(job.Priority, StringComparer.OrdinalIgnoreCase))
+        {
+            throw new ValidationException(
+                "Job priority is invalid. Use Low, Normal, High, or Urgent.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(job.Notes) && job.Notes.Length > 4000)
+        {
+            throw new ValidationException("Job notes must be 4000 characters or fewer.");
         }
     }
 
@@ -368,7 +440,10 @@ public class QuoteService : IQuoteService
         var parts = new List<string>
         {
             $"Created from Quote #{quote.Id}: {quote.Title}",
-            $"Quote total: £{quote.Total:0.00}"
+            $"Quote subtotal: {quote.Subtotal:0.00}",
+            $"Quote VAT: {quote.VatTotal:0.00}",
+            $"Quote discount: {quote.DiscountTotal:0.00}",
+            $"Quote total: {quote.Total:0.00}"
         };
 
         if (!string.IsNullOrWhiteSpace(quote.Description))
@@ -386,7 +461,7 @@ public class QuoteService : IQuoteService
             foreach (var item in quote.LineItems.OrderBy(item => item.Id))
             {
                 parts.Add(
-                    $"- [{item.Type}] {item.Description} | Qty: {item.Quantity:0.##} | Unit: £{item.UnitPrice:0.00} | VAT: {item.VatRate:0.##}% | Line total: £{item.LineTotal:0.00}");
+                    $"- [{item.Type}] {item.Description} | Qty: {item.Quantity:0.##} | Unit: {item.UnitPrice:0.00} | VAT: {item.VatRate:0.##}% | Line total: {item.LineTotal:0.00}");
             }
         }
 
@@ -406,9 +481,7 @@ public class QuoteService : IQuoteService
 
         var notes = string.Join(Environment.NewLine, parts);
 
-        return notes.Length <= 4000
-            ? notes
-            : notes[..4000];
+        return notes.Length <= 4000 ? notes : notes[..4000];
     }
 
     private static string FirstNonBlank(params string?[] values)

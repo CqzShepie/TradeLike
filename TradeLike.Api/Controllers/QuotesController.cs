@@ -20,7 +20,7 @@ public class QuotesController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<IReadOnlyList<QuoteResponse>>> GetQuotes()
+    public async Task<ActionResult<List<QuoteResponse>>> GetQuotes()
     {
         var quotes = await _quoteService.GetAllAsync();
 
@@ -85,7 +85,7 @@ public class QuotesController : ControllerBase
     }
 
     [HttpPost("{id:int}/convert-to-job")]
-    public async Task<ActionResult<Job>> ConvertQuoteToJob(
+    public async Task<ActionResult<object>> ConvertQuoteToJob(
         int id,
         [FromBody] ConvertQuoteToJobRequest request)
     {
@@ -98,11 +98,13 @@ public class QuotesController : ControllerBase
                 return NotFound();
             }
 
+            var response = ToJobCreatedResponse(job);
+
             return CreatedAtAction(
                 "GetJob",
                 "Jobs",
                 new { id = job.Id },
-                job);
+                response);
         }
         catch (ValidationException ex)
         {
@@ -131,6 +133,8 @@ public class QuotesController : ControllerBase
             CustomerName = request.CustomerName,
             Title = request.Title,
             Description = request.Description,
+            DiscountType = request.DiscountType,
+            DiscountValue = request.DiscountValue,
             DiscountTotal = request.DiscountTotal,
             Status = request.Status,
             Notes = request.Notes,
@@ -148,6 +152,8 @@ public class QuotesController : ControllerBase
             CustomerName = request.CustomerName,
             Title = request.Title,
             Description = request.Description,
+            DiscountType = request.DiscountType,
+            DiscountValue = request.DiscountValue,
             DiscountTotal = request.DiscountTotal,
             Status = request.Status,
             Notes = request.Notes,
@@ -181,6 +187,8 @@ public class QuotesController : ControllerBase
             Amount = quote.Amount,
             Subtotal = quote.Subtotal,
             VatTotal = quote.VatTotal,
+            DiscountType = quote.DiscountType,
+            DiscountValue = quote.DiscountValue,
             DiscountTotal = quote.DiscountTotal,
             Total = quote.Total,
             Status = quote.Status,
@@ -205,6 +213,25 @@ public class QuotesController : ControllerBase
             UnitPrice = item.UnitPrice,
             VatRate = item.VatRate,
             LineTotal = item.LineTotal
+        };
+    }
+
+    private static object ToJobCreatedResponse(Job job)
+    {
+        return new
+        {
+            job.Id,
+            job.Customer,
+            job.Phone,
+            job.JobTitle,
+            job.Address,
+            job.ScheduledDate,
+            job.Status,
+            job.Priority,
+            job.Notes,
+            job.QuoteId,
+            job.EngineerId,
+            SourceQuote = (object?)null
         };
     }
 }
