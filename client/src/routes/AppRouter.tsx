@@ -1,4 +1,5 @@
-import { Route, Routes } from "react-router-dom";
+import { useEffect } from "react";
+import { Route, Routes, useLocation } from "react-router-dom";
 
 import Home from "../pages/Home";
 import Dashboard from "../pages/Dashboard";
@@ -13,67 +14,75 @@ import Quotes from "../pages/Quotes";
 import QuoteDetails from "../pages/QuoteDetails";
 
 function AppRouter() {
-    return (
-        <Routes>
-            <Route path="/" element={<Home />} />
+  return (
+    <>
+      <ScrollToTop />
 
-            <Route path="/signup" element={<Signup />} />
-            <Route path="/login" element={<Login />} />
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/signup" element={<Signup />} />
+        <Route path="/login" element={<Login />} />
 
-            <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/dashboard" element={<Dashboard />} />
 
-            <Route path="/jobs" element={<Jobs />} />
-            <Route path="/jobs/:id" element={<JobDetails />} />
+        <Route path="/jobs" element={<Jobs />} />
+        <Route path="/jobs/:id" element={<JobDetails />} />
 
-            <Route path="/customers" element={<Customers />} />
-            <Route path="/customers/:id" element={<CustomerDetails />} />
+        <Route path="/customers" element={<Customers />} />
+        <Route path="/customers/:id" element={<CustomerDetails />} />
 
-            <Route path="/calendar" element={<CalendarPage />} />
+        <Route path="/calendar" element={<CalendarPage />} />
 
-            <Route path="/quotes" element={<Quotes />} />
-            <Route path="/quotes/:id" element={<QuoteDetails />} />
+        <Route path="/quotes" element={<Quotes />} />
+        <Route path="/quotes/:id" element={<QuoteDetails />} />
 
-            <Route
-                path="/invoices"
-                element={<PlaceholderPage title="Invoices" />}
-            />
+        <Route path="/invoices" element={<PlaceholderPage title="Invoices" />} />
+        <Route path="/settings" element={<PlaceholderPage title="Settings" />} />
 
-            <Route
-                path="/settings"
-                element={<PlaceholderPage title="Settings" />}
-            />
+        <Route path="*" element={<NotFoundPage />} />
+      </Routes>
+    </>
+  );
+}
 
-            <Route path="*" element={<NotFoundPage />} />
-        </Routes>
-    );
+function ScrollToTop() {
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    window.scrollTo({
+      top: 0,
+      left: 0,
+      behavior: "instant",
+    });
+  }, [pathname]);
+
+  return null;
 }
 
 function PlaceholderPage({ title }: { title: string }) {
-    return (
-        <main className="min-h-screen bg-slate-50 p-10">
-            <h1 className="text-3xl font-bold text-gray-900">
-                {title}
-            </h1>
-
-            <p className="mt-2 text-sm text-gray-600">
-                This section is not built yet.
-            </p>
-        </main>
-    );
+  return (
+    <main className="min-h-screen bg-slate-50 pl-64">
+      <section className="p-10">
+        <h1 className="text-3xl font-bold text-gray-900">{title}</h1>
+        <p className="mt-2 text-sm text-gray-600">
+          This section is not built yet.
+        </p>
+      </section>
+    </main>
+  );
 }
 
 function NotFoundPage() {
-    return (
-        <main className="min-h-screen bg-slate-50 p-10">
-            <h1 className="text-3xl font-bold text-gray-900">
-                Page not found
-            </h1>
-
-            <p className="mt-2 text-sm text-gray-600">
-                The page you requested does not exist.
-            </p>
-        </main>
-    );
+  return (
+    <main className="min-h-screen bg-slate-50 pl-64">
+      <section className="p-10">
+        <h1 className="text-3xl font-bold text-gray-900">Page not found</h1>
+        <p className="mt-2 text-sm text-gray-600">
+          The page you requested does not exist.
+        </p>
+      </section>
+    </main>
+  );
 }
 
 export default AppRouter;
