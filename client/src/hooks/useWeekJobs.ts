@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { jobAssignmentsService } from "../services/jobAssignmentsService";
 import { jobsService } from "../services/jobsService";
 import type { Job } from "../types/job";
 
@@ -15,17 +16,26 @@ export function useWeekJobs(weekStart: Date) {
                 setLoading(true);
                 setError(null);
 
-                const [weekRows, allRows] = await Promise.allSettled([
+                const [weekRows, allRows, assignmentRows] = await Promise.allSettled([
                     jobsService.getWeek(toLocalDateOnly(weekStart)),
                     jobsService.getAll(),
+                    jobAssignmentsService.getAll(),
                 ]);
+
+                const assignmentMap = new Map(
+                    assignmentRows.status === "fulfilled"
+                        ? assignmentRows.value.map(assignment => [assignment.jobId, assignment])
+                        : []
+                );
 
                 const map = new Map<number, Job>();
                 if (weekRows.status === "fulfilled") {
-                    weekRows.value.forEach(job => map.set(job.id, job));
+                    weekRows.value.forEach(job => map.set(job.id, withAssignmentMeta(job, assignmentMap)));
                 }
                 if (allRows.status === "fulfilled") {
-                    allRows.value.filter(job => isInWeek(job, weekStart)).forEach(job => map.set(job.id, job));
+                    allRows.value
+                        .filter(job => isInWeek(job, weekStart))
+                        .forEach(job => map.set(job.id, withAssignmentMeta(job, assignmentMap)));
                 }
 
                 if (isMounted) {
@@ -50,6 +60,17 @@ export function useWeekJobs(weekStart: Date) {
     }, [weekStart]);
 
     return { jobs, loading, error };
+}
+
+function withAssignmentMeta(job: Job, assignmentMap: Map<number, { calendarColour?: string | null; leadStaffMemberId?: number | null; assignedStaffMemberIds: number[] }>) {
+    const assignment = assignmentMap.get(job.id);
+    if (!assignment) return job;
+
+    return {
+        ...job,
+        calendarColour: assignment.calendarColour ?? job.calendarColour ?? null,
+        engineerId: assignment.leadStaffMemberId ?? assignment.assignedStaffMemberIds[0] ?? job.engineerId ?? null,
+    };
 }
 
 function toLocalDateOnly(date: Date) {
