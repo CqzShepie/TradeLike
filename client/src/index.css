@@ -14,3 +14,135 @@ body,
 * {
   box-sizing: border-box;
 }
+
+.tradelike-skip-link {
+  position: fixed;
+  left: 1rem;
+  top: 1rem;
+  z-index: 9999;
+  transform: translateY(-200%);
+  border-radius: 0.75rem;
+  background: #1d4ed8;
+  color: #fff;
+  padding: 0.75rem 1rem;
+  font-weight: 800;
+  box-shadow: 0 10px 25px rgb(15 23 42 / 0.25);
+}
+
+.tradelike-skip-link:focus {
+  transform: translateY(0);
+}
+
+html[data-accessibility-text-size="large"] { font-size: 17px; }
+html[data-accessibility-text-size="extra-large"] { font-size: 19px; }
+
+html[data-accessibility-dyslexia-font="true"] body,
+html[data-accessibility-dyslexia-font="true"] button,
+html[data-accessibility-dyslexia-font="true"] input,
+html[data-accessibility-dyslexia-font="true"] select,
+html[data-accessibility-dyslexia-font="true"] textarea {
+  font-family: Arial, Verdana, Tahoma, sans-serif !important;
+  letter-spacing: 0.01em;
+}
+
+html[data-accessibility-line-spacing="comfortable"] p,
+html[data-accessibility-line-spacing="comfortable"] li,
+html[data-accessibility-line-spacing="comfortable"] label { line-height: 1.7 !important; }
+html[data-accessibility-line-spacing="wide"] p,
+html[data-accessibility-line-spacing="wide"] li,
+html[data-accessibility-line-spacing="wide"] label { line-height: 2 !important; }
+
+html[data-accessibility-reduce-motion="true"] *,
+html[data-accessibility-reduce-motion="true"] *::before,
+html[data-accessibility-reduce-motion="true"] *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  scroll-behavior: auto !important;
+  transition-duration: 0.001ms !important;
+}
+
+html[data-accessibility-underline-links="true"] a { text-decoration: underline !important; text-underline-offset: 0.18em; }
+
+html[data-accessibility-large-controls="true"] button,
+html[data-accessibility-large-controls="true"] input,
+html[data-accessibility-large-controls="true"] select,
+html[data-accessibility-large-controls="true"] textarea {
+  min-height: 44px;
+  font-size: 1rem !important;
+}
+
+html[data-accessibility-keyboard-focus="true"] :focus-visible {
+  outline: 3px solid #f59e0b !important;
+  outline-offset: 3px !important;
+}
+
+html[data-accessibility-theme="dark"] body,
+html[data-accessibility-theme="dark"] .bg-slate-50,
+html[data-accessibility-theme="dark"] .bg-white {
+  background-color: #0f172a !important;
+}
+
+html[data-accessibility-theme="dark"] .text-slate-900,
+html[data-accessibility-theme="dark"] .text-gray-900,
+html[data-accessibility-theme="dark"] .text-slate-800 {
+  color: #f8fafc !important;
+}
+
+html[data-accessibility-theme="dark"] .text-slate-600,
+html[data-accessibility-theme="dark"] .text-gray-600,
+html[data-accessibility-theme="dark"] .text-slate-500 {
+  color: #cbd5e1 !important;
+}
+
+html[data-accessibility-theme="dark"] .border-slate-200,
+html[data-accessibility-theme="dark"] .border-gray-200 {
+  border-color: #334155 !important;
+}
+
+html[data-accessibility-high-contrast="true"] body,
+html[data-accessibility-high-contrast="true"] .bg-white,
+html[data-accessibility-high-contrast="true"] .bg-slate-50,
+html[data-accessibility-high-contrast="true"] .bg-gray-50 {
+  background: #000 !important;
+  color: #fff !important;
+}
+
+html[data-accessibility-high-contrast="true"] .text-slate-900,
+html[data-accessibility-high-contrast="true"] .text-slate-700,
+html[data-accessibility-high-contrast="true"] .text-gray-900,
+html[data-accessibility-high-contrast="true"] .text-gray-700,
+html[data-accessibility-high-contrast="true"] p,
+html[data-accessibility-high-contrast="true"] label,
+html[data-accessibility-high-contrast="true"] h1,
+html[data-accessibility-high-contrast="true"] h2,
+html[data-accessibility-high-contrast="true"] h3 {
+  color: #fff !important;
+}
+
+html[data-accessibility-high-contrast="true"] .border-slate-200,
+html[data-accessibility-high-contrast="true"] .border-gray-200,
+html[data-accessibility-high-contrast="true"] .border-slate-300 {
+  border-color: #fff !important;
+}
+
+html[data-accessibility-high-contrast="true"] button,
+html[data-accessibility-high-contrast="true"] input,
+html[data-accessibility-high-contrast="true"] select,
+html[data-accessibility-high-contrast="true"] textarea {
+  border: 2px solid #fff !important;
+}
+
+html[data-accessibility-spacing="comfortable"] main,
+html[data-accessibility-spacing="comfortable"] section,
+html[data-accessibility-spacing="comfortable"] article { gap: 1.25rem; }
+html[data-accessibility-spacing="roomy"] main,
+html[data-accessibility-spacing="roomy"] section,
+html[data-accessibility-spacing="roomy"] article { gap: 1.75rem; }
+
+html[data-accessibility-extra-help="false"] .text-slate-500,
+html[data-accessibility-extra-help="false"] .text-gray-500 { display: none; }
+
+html[data-accessibility-large-calendar-cards="true"] [data-calendar-card="true"] {
+  padding: 0.9rem !important;
+  font-size: 0.9rem !important;
+}
