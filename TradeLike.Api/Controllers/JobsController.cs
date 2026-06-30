@@ -24,7 +24,6 @@ public class JobsController : ControllerBase
     public async Task<ActionResult<List<JobResponse>>> GetJobs()
     {
         var jobs = await _jobService.GetAllAsync();
-
         return Ok(jobs.Select(ToResponse).ToList());
     }
 
@@ -32,12 +31,7 @@ public class JobsController : ControllerBase
     public async Task<ActionResult<JobResponse>> GetJob(int id)
     {
         var job = await _jobService.GetByIdAsync(id);
-
-        if (job is null)
-        {
-            return NotFound();
-        }
-
+        if (job is null) return NotFound();
         return Ok(ToResponse(job));
     }
 
@@ -48,11 +42,7 @@ public class JobsController : ControllerBase
         {
             var created = await _jobService.CreateAsync(job);
             var response = ToResponse(created);
-
-            return CreatedAtAction(
-                nameof(GetJob),
-                new { id = response.Id },
-                response);
+            return CreatedAtAction(nameof(GetJob), new { id = response.Id }, response);
         }
         catch (ValidationException ex)
         {
@@ -66,12 +56,7 @@ public class JobsController : ControllerBase
         try
         {
             var updated = await _jobService.UpdateAsync(id, job);
-
-            if (updated is null)
-            {
-                return NotFound();
-            }
-
+            if (updated is null) return NotFound();
             return Ok(ToResponse(updated));
         }
         catch (ValidationException ex)
@@ -84,12 +69,7 @@ public class JobsController : ControllerBase
     public async Task<ActionResult<JobResponse>> DeleteJob(int id)
     {
         var deleted = await _jobService.DeleteAsync(id);
-
-        if (deleted is null)
-        {
-            return NotFound();
-        }
-
+        if (deleted is null) return NotFound();
         return Ok(ToResponse(deleted));
     }
 
@@ -97,34 +77,24 @@ public class JobsController : ControllerBase
     public async Task<ActionResult<List<JobResponse>>> GetTodayJobs()
     {
         var jobs = await _jobService.GetTodayAsync();
-
         return Ok(jobs.Select(ToResponse).ToList());
     }
 
     [HttpGet("week")]
-    public async Task<ActionResult<List<JobResponse>>> GetWeekJobs(
-        [FromQuery] DateTime? start)
+    public async Task<ActionResult<List<JobResponse>>> GetWeekJobs([FromQuery] DateTime? start)
     {
         var weekStart = start?.Date ?? DateTime.Today;
         var jobs = await _jobService.GetWeekAsync(weekStart);
-
         return Ok(jobs.Select(ToResponse).ToList());
     }
 
     [HttpPut("{id:int}/source-quote")]
-    public async Task<ActionResult<JobResponse>> LinkSourceQuote(
-        int id,
-        [FromBody] LinkQuoteToJobRequest request)
+    public async Task<ActionResult<JobResponse>> LinkSourceQuote(int id, [FromBody] LinkQuoteToJobRequest request)
     {
         try
         {
             var updated = await _jobService.LinkQuoteAsync(id, request.QuoteId);
-
-            if (updated is null)
-            {
-                return NotFound();
-            }
-
+            if (updated is null) return NotFound();
             return Ok(ToResponse(updated));
         }
         catch (ValidationException ex)
@@ -137,12 +107,7 @@ public class JobsController : ControllerBase
     public async Task<ActionResult<JobResponse>> UnlinkSourceQuote(int id)
     {
         var updated = await _jobService.UnlinkQuoteAsync(id);
-
-        if (updated is null)
-        {
-            return NotFound();
-        }
-
+        if (updated is null) return NotFound();
         return Ok(ToResponse(updated));
     }
 
@@ -151,6 +116,7 @@ public class JobsController : ControllerBase
         return new JobResponse
         {
             Id = job.Id,
+            CustomerId = job.Quote?.CustomerId,
             Customer = job.Customer,
             Phone = job.Phone,
             JobTitle = job.JobTitle,
@@ -182,10 +148,7 @@ public class JobsController : ControllerBase
             Status = quote.Status,
             Notes = quote.Notes,
             CreatedAt = quote.CreatedAt,
-            LineItems = quote.LineItems
-                .OrderBy(item => item.Id)
-                .Select(ToQuoteLineItemResponse)
-                .ToList()
+            LineItems = quote.LineItems.OrderBy(item => item.Id).Select(ToQuoteLineItemResponse).ToList()
         };
     }
 
@@ -208,6 +171,8 @@ public class JobsController : ControllerBase
 public sealed class JobResponse
 {
     public int Id { get; init; }
+
+    public int? CustomerId { get; init; }
 
     public string Customer { get; init; } = string.Empty;
 
