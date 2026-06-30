@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using TradeLike.Api.Data;
 
@@ -11,9 +12,11 @@ using TradeLike.Api.Data;
 namespace TradeLike.Api.Migrations
 {
     [DbContext(typeof(TradeLikeDbContext))]
-    partial class TradeLikeDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260630060857_AddAuthRegisterAndStaffPortalFixes")]
+    partial class AddAuthRegisterAndStaffPortalFixes
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -47,8 +50,8 @@ namespace TradeLike.Api.Migrations
 
                     b.Property<string>("ActorRole")
                         .IsRequired()
-                        .HasMaxLength(40)
-                        .HasColumnType("nvarchar(40)");
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
 
                     b.Property<int>("ActorUserId")
                         .HasColumnType("int");
@@ -87,13 +90,9 @@ namespace TradeLike.Api.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ActorEmail");
-
                     b.HasIndex("ActorUserId");
 
                     b.HasIndex("CreatedAt");
-
-                    b.HasIndex("TargetEmail");
 
                     b.HasIndex("TargetId");
 
@@ -342,10 +341,6 @@ namespace TradeLike.Api.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("AccountSource")
-                        .HasMaxLength(120)
-                        .HasColumnType("nvarchar(120)");
-
                     b.Property<string>("AccountStatus")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
@@ -357,61 +352,10 @@ namespace TradeLike.Api.Migrations
                         .HasMaxLength(4000)
                         .HasColumnType("nvarchar(4000)");
 
-                    b.Property<string>("AdminTags")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<string>("BillingStatus")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(40)
-                        .HasColumnType("nvarchar(40)")
-                        .HasDefaultValue("Trial");
-
-                    b.Property<string>("BusinessName")
-                        .HasMaxLength(180)
-                        .HasColumnType("nvarchar(180)");
-
-                    b.Property<bool>("CanCancelCustomers")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("CanCancelStaff")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("CanCreateCustomers")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("CanCreateStaff")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("CanDeleteData")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("CanEditCustomerNotes")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("CanEditCustomers")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("CanEditStaffPermissions")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("CanExportData")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("CanImpersonateCustomer")
-                        .HasColumnType("bit");
-
                     b.Property<bool>("CanManageAccounts")
                         .HasColumnType("bit");
 
                     b.Property<bool>("CanManageBilling")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("CanManageDiscounts")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("CanManageFreeMonths")
                         .HasColumnType("bit");
 
                     b.Property<bool>("CanManageSecurity")
@@ -420,36 +364,8 @@ namespace TradeLike.Api.Migrations
                     b.Property<bool>("CanManageStaff")
                         .HasColumnType("bit");
 
-                    b.Property<bool>("CanManageSubscriptions")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("CanResetPasswords")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("CanSendEmails")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("CanVerifyEmails")
-                        .HasColumnType("bit");
-
                     b.Property<bool>("CanViewAuditLogs")
                         .HasColumnType("bit");
-
-                    b.Property<bool>("CanViewBilling")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("CanViewCustomerNotes")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("CanViewSecurityLogs")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("CanViewStaff")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("CancelReason")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
@@ -485,37 +401,13 @@ namespace TradeLike.Api.Migrations
                         .HasColumnType("int")
                         .HasDefaultValue(0);
 
-                    b.Property<DateTime?>("FreeMonthsExpireAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("HealthStatus")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)")
-                        .HasDefaultValue("Green");
-
                     b.Property<bool>("IsEmailVerified")
                         .HasColumnType("bit");
-
-                    b.Property<DateTime?>("LastLoginAt")
-                        .HasColumnType("datetime2");
 
                     b.Property<string>("LastName")
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
-
-                    b.Property<DateTime?>("OnboardingEmailSentAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("OwnerName")
-                        .HasMaxLength(180)
-                        .HasColumnType("nvarchar(180)");
-
-                    b.Property<string>("OwnerPhone")
-                        .HasMaxLength(40)
-                        .HasColumnType("nvarchar(40)");
 
                     b.Property<string>("PasswordHash")
                         .IsRequired()
@@ -524,44 +416,20 @@ namespace TradeLike.Api.Migrations
                     b.Property<bool>("PasswordResetRequired")
                         .HasColumnType("bit");
 
-                    b.Property<string>("PersonalAssistantTo")
-                        .HasMaxLength(220)
-                        .HasColumnType("nvarchar(220)");
-
                     b.Property<string>("Role")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
-                        .HasMaxLength(40)
-                        .HasColumnType("nvarchar(40)")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)")
                         .HasDefaultValue("Customer");
-
-                    b.Property<string>("SubscriptionPlan")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(40)
-                        .HasColumnType("nvarchar(40)")
-                        .HasDefaultValue("Trial");
-
-                    b.Property<string>("SupportNotes")
-                        .HasMaxLength(4000)
-                        .HasColumnType("nvarchar(4000)");
-
-                    b.Property<DateTime?>("TrialEndsAt")
-                        .HasColumnType("datetime2");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("AccountStatus");
-
-                    b.HasIndex("BillingStatus");
-
                     b.HasIndex("Email")
                         .IsUnique();
-
-                    b.HasIndex("Role");
 
                     b.ToTable("Users");
                 });

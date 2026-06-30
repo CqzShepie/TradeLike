@@ -21,7 +21,14 @@ public class AdminUserController : ControllerBase
     {
         "Director",
         "Admin",
-        "Support"
+        "Support",
+        "Junior Developer",
+        "Developer",
+        "Senior Developer",
+        "Marketing",
+        "Customer Service",
+        "Operations Coordinator",
+        "Personal Assistant"
     };
 
     private static readonly string[] AllowedAccountStatuses =
@@ -38,6 +45,34 @@ public class AdminUserController : ControllerBase
         "None",
         "Amount",
         "Percentage"
+    };
+
+    private static readonly string[] AllowedSubscriptionPlans =
+    {
+        "Trial",
+        "Solo",
+        "Team",
+        "Business",
+        "Enterprise",
+        "Internal"
+    };
+
+    private static readonly string[] AllowedBillingStatuses =
+    {
+        "Trial",
+        "Active",
+        "PastDue",
+        "GracePeriod",
+        "Suspended",
+        "Cancelled",
+        "Internal"
+    };
+
+    private static readonly string[] AllowedHealthStatuses =
+    {
+        "Green",
+        "Amber",
+        "Red"
     };
 
     private readonly TradeLikeDbContext _context;
@@ -58,7 +93,7 @@ public class AdminUserController : ControllerBase
             return Forbid();
         }
 
-        if (!CanManageAccounts(actor) && !CanManageBilling(actor) && !CanManageSecurity(actor))
+        if (!CanSeeCustomerAccounts(actor))
         {
             return Forbid();
         }
@@ -75,12 +110,19 @@ public class AdminUserController : ControllerBase
                 user.FirstName.Contains(trimmedSearch) ||
                 user.LastName.Contains(trimmedSearch) ||
                 user.Email.Contains(trimmedSearch) ||
-                user.AccountStatus.Contains(trimmedSearch));
+                user.AccountStatus.Contains(trimmedSearch) ||
+                (user.BusinessName != null && user.BusinessName.Contains(trimmedSearch)) ||
+                (user.OwnerName != null && user.OwnerName.Contains(trimmedSearch)) ||
+                user.SubscriptionPlan.Contains(trimmedSearch) ||
+                user.BillingStatus.Contains(trimmedSearch) ||
+                user.HealthStatus.Contains(trimmedSearch) ||
+                (user.AdminTags != null && user.AdminTags.Contains(trimmedSearch)) ||
+                (user.AccountSource != null && user.AccountSource.Contains(trimmedSearch)));
         }
 
         var users = await query
             .OrderByDescending(user => user.CreatedAt)
-            .Take(200)
+            .Take(300)
             .ToListAsync();
 
         return Ok(users.Select(ToResponse).ToList());
@@ -97,7 +139,7 @@ public class AdminUserController : ControllerBase
             return Forbid();
         }
 
-        if (!CanManageAccounts(actor))
+        if (!CanCreateCustomers(actor))
         {
             return Forbid();
         }
@@ -113,14 +155,11 @@ public class AdminUserController : ControllerBase
                 user.Id,
                 user.Email,
                 $"Created customer account for {user.Email}.",
-                $"Status: {user.AccountStatus}");
+                BuildCustomerDetails(user));
 
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction(
-                nameof(GetUsers),
-                new { id = user.Id },
-                ToResponse(user));
+            return Ok(ToResponse(user));
         }
         catch (ValidationException ex)
         {
@@ -140,7 +179,11 @@ public class AdminUserController : ControllerBase
             return Forbid();
         }
 
-        if (!CanManageAccounts(actor) && !CanManageBilling(actor))
+        if (!CanEditCustomers(actor) &&
+            !CanManageDiscounts(actor) &&
+            !CanManageFreeMonths(actor) &&
+            !CanManageSubscriptions(actor) &&
+            !CanEditCustomerNotes(actor))
         {
             return Forbid();
         }
@@ -154,22 +197,41 @@ public class AdminUserController : ControllerBase
                 return NotFound();
             }
 
-            var before =
-                $"Status={user.AccountStatus}; Discount={user.DiscountType}:{user.DiscountValue}; FreeMonths={user.FreeMonths}";
+            if (string.Equals(request.AccountStatus, "Cancelled", StringComparison.OrdinalIgnoreCase) &&
+                !CanCancelCustomers(actor))
+            {
+                return Forbid();
+            }
+
+            var before = BuildCustomerDetails(user);
 
             user.AccountStatus = Canonicalise(request.AccountStatus, AllowedAccountStatuses);
             user.DiscountType = Canonicalise(request.DiscountType, AllowedDiscountTypes);
             user.DiscountValue = RoundMoney(request.DiscountValue);
             user.FreeMonths = request.FreeMonths;
-            user.AdminNotes = string.IsNullOrWhiteSpace(request.AdminNotes)
-                ? null
-                : request.AdminNotes.Trim();
+            user.FreeMonthsExpireAt = request.FreeMonthsExpireAt;
+            user.BusinessName = CleanOptional(request.BusinessName);
+            user.OwnerName = CleanOptional(request.OwnerName);
+            user.OwnerPhone = CleanOptional(request.OwnerPhone);
+            user.SubscriptionPlan = Canonicalise(request.SubscriptionPlan, AllowedSubscriptionPlans);
+            user.BillingStatus = Canonicalise(request.BillingStatus, AllowedBillingStatuses);
+            user.TrialEndsAt = request.TrialEndsAt;
+            user.AdminTags = CleanOptional(request.AdminTags);
+            user.SupportNotes = CleanOptional(request.SupportNotes);
+            user.HealthStatus = Canonicalise(request.HealthStatus, AllowedHealthStatuses);
+            user.AccountSource = CleanOptional(request.AccountSource);
+            user.CancelReason = CleanOptional(request.CancelReason);
+            user.AdminNotes = CleanOptional(request.AdminNotes);
             user.UpdatedAt = DateTime.UtcNow;
+
+            if (user.AccountStatus != "Cancelled" && user.BillingStatus != "Cancelled")
+            {
+                user.CancelReason = null;
+            }
 
             ValidateAccount(user);
 
-            var after =
-                $"Status={user.AccountStatus}; Discount={user.DiscountType}:{user.DiscountValue}; FreeMonths={user.FreeMonths}";
+            var after = BuildCustomerDetails(user);
 
             await LogAsync(
                 actor,
@@ -190,6 +252,87 @@ public class AdminUserController : ControllerBase
         }
     }
 
+    [HttpPost("users/{id:int}/reactivate")]
+    public async Task<ActionResult<AdminUserResponse>> ReactivateCustomer(int id)
+    {
+        var actor = await GetCurrentStaffUserAsync();
+
+        if (actor is null)
+        {
+            return Forbid();
+        }
+
+        if (!CanEditCustomers(actor))
+        {
+            return Forbid();
+        }
+
+        var user = await _context.Users.FindAsync(id);
+
+        if (user is null || user.Role != "Customer")
+        {
+            return NotFound();
+        }
+
+        var before = BuildCustomerDetails(user);
+
+        user.AccountStatus = "Active";
+        user.BillingStatus = "Active";
+        user.CancelReason = null;
+        user.HealthStatus = "Green";
+        user.UpdatedAt = DateTime.UtcNow;
+
+        await LogAsync(
+            actor,
+            "CustomerReactivated",
+            "User",
+            user.Id,
+            user.Email,
+            $"Reactivated customer account for {user.Email}.",
+            $"Before: {before}. After: {BuildCustomerDetails(user)}.");
+
+        await _context.SaveChangesAsync();
+
+        return Ok(ToResponse(user));
+    }
+
+    [HttpGet("users/{id:int}/timeline")]
+    public async Task<ActionResult<IReadOnlyList<AdminAuditLogResponse>>> GetCustomerTimeline(
+        int id)
+    {
+        var actor = await GetCurrentStaffUserAsync();
+
+        if (actor is null)
+        {
+            return Forbid();
+        }
+
+        if (!CanSeeCustomerAccounts(actor))
+        {
+            return Forbid();
+        }
+
+        var user = await _context.Users
+            .AsNoTracking()
+            .FirstOrDefaultAsync(existingUser => existingUser.Id == id && existingUser.Role == "Customer");
+
+        if (user is null)
+        {
+            return NotFound();
+        }
+
+        var logs = await _context.AdminAuditLogs
+            .AsNoTracking()
+            .Where(log =>
+                log.TargetId == user.Id ||
+                log.TargetEmail == user.Email)
+            .OrderByDescending(log => log.CreatedAt)
+            .Take(200)
+            .ToListAsync();
+
+        return Ok(logs.Select(ToAuditLogResponse).ToList());
+    }
+
     [HttpPost("users/{id:int}/reset-password")]
     public async Task<ActionResult<AdminUserResponse>> ResetPassword(
         int id,
@@ -202,7 +345,7 @@ public class AdminUserController : ControllerBase
             return Forbid();
         }
 
-        if (!CanManageSecurity(actor))
+        if (!CanResetPasswords(actor))
         {
             return Forbid();
         }
@@ -210,7 +353,7 @@ public class AdminUserController : ControllerBase
         try
         {
             if (string.IsNullOrWhiteSpace(request.NewPassword) ||
-                request.NewPassword.Length < 8)
+                request.NewPassword.Trim().Length < 8)
             {
                 throw new ValidationException("New password must be at least 8 characters.");
             }
@@ -227,7 +370,7 @@ public class AdminUserController : ControllerBase
                 return Forbid();
             }
 
-            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
+            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword.Trim());
             user.PasswordResetRequired = request.RequirePasswordReset;
             user.UpdatedAt = DateTime.UtcNow;
 
@@ -260,7 +403,7 @@ public class AdminUserController : ControllerBase
             return Forbid();
         }
 
-        if (!CanManageSecurity(actor))
+        if (!CanVerifyEmails(actor))
         {
             return Forbid();
         }
@@ -304,7 +447,7 @@ public class AdminUserController : ControllerBase
             return Forbid();
         }
 
-        if (!CanManageSecurity(actor))
+        if (!CanSendEmails(actor) && !CanVerifyEmails(actor))
         {
             return Forbid();
         }
@@ -342,6 +485,49 @@ public class AdminUserController : ControllerBase
         });
     }
 
+    [HttpPost("users/{id:int}/send-onboarding-email")]
+    public async Task<ActionResult<object>> SendOnboardingEmail(int id)
+    {
+        var actor = await GetCurrentStaffUserAsync();
+
+        if (actor is null)
+        {
+            return Forbid();
+        }
+
+        if (!CanSendEmails(actor))
+        {
+            return Forbid();
+        }
+
+        var user = await _context.Users.FindAsync(id);
+
+        if (user is null || user.Role != "Customer")
+        {
+            return NotFound();
+        }
+
+        user.OnboardingEmailSentAt = DateTime.UtcNow;
+        user.UpdatedAt = DateTime.UtcNow;
+
+        await LogAsync(
+            actor,
+            "OnboardingEmailSendRecorded",
+            "User",
+            user.Id,
+            user.Email,
+            $"Recorded onboarding email send for {user.Email}.",
+            "Real onboarding email sending will be wired when the email provider is added.");
+
+        await _context.SaveChangesAsync();
+
+        return Ok(new
+        {
+            message = "Onboarding email send action recorded. Real email sending will be wired when we add the email provider.",
+            user = ToResponse(user)
+        });
+    }
+
     [HttpGet("staff")]
     public async Task<ActionResult<IReadOnlyList<AdminUserResponse>>> GetStaff()
     {
@@ -352,7 +538,7 @@ public class AdminUserController : ControllerBase
             return Forbid();
         }
 
-        if (!CanManageStaff(actor))
+        if (!CanViewStaff(actor))
         {
             return Forbid();
         }
@@ -360,7 +546,8 @@ public class AdminUserController : ControllerBase
         var staff = await _context.Users
             .AsNoTracking()
             .Where(user => StaffRoles.Contains(user.Role))
-            .OrderBy(user => user.Role == "Director" ? 0 : 1)
+            .OrderBy(user => user.AccountStatus == "Cancelled" ? 1 : 0)
+            .ThenBy(user => user.Role == "Director" ? 0 : 1)
             .ThenBy(user => user.FirstName)
             .ToListAsync();
 
@@ -378,7 +565,13 @@ public class AdminUserController : ControllerBase
             return Forbid();
         }
 
-        if (!IsDirector(actor))
+        if (!CanCreateStaff(actor))
+        {
+            return Forbid();
+        }
+
+        if (string.Equals(request.Role, "Director", StringComparison.OrdinalIgnoreCase) &&
+            !IsPermanentDirector(actor))
         {
             return Forbid();
         }
@@ -418,7 +611,7 @@ public class AdminUserController : ControllerBase
             return Forbid();
         }
 
-        if (!IsDirector(actor))
+        if (!CanEditStaffPermissions(actor))
         {
             return Forbid();
         }
@@ -442,12 +635,33 @@ public class AdminUserController : ControllerBase
                 request = new UpdateStaffPermissionsRequest
                 {
                     Role = "Director",
+                    PersonalAssistantTo = string.Empty,
                     AccountStatus = "Active",
                     CanManageAccounts = true,
                     CanManageStaff = true,
                     CanManageBilling = true,
                     CanManageSecurity = true,
                     CanViewAuditLogs = true,
+                    CanCreateCustomers = true,
+                    CanEditCustomers = true,
+                    CanCancelCustomers = true,
+                    CanResetPasswords = true,
+                    CanVerifyEmails = true,
+                    CanSendEmails = true,
+                    CanManageDiscounts = true,
+                    CanManageFreeMonths = true,
+                    CanViewCustomerNotes = true,
+                    CanEditCustomerNotes = true,
+                    CanViewBilling = true,
+                    CanManageSubscriptions = true,
+                    CanExportData = true,
+                    CanImpersonateCustomer = true,
+                    CanDeleteData = true,
+                    CanViewStaff = true,
+                    CanCreateStaff = true,
+                    CanCancelStaff = true,
+                    CanEditStaffPermissions = true,
+                    CanViewSecurityLogs = true,
                     AdminNotes = request.AdminNotes
                 };
             }
@@ -458,18 +672,51 @@ public class AdminUserController : ControllerBase
                 throw new ValidationException("You cannot remove your own Director role.");
             }
 
+            if (string.Equals(request.Role, "Director", StringComparison.OrdinalIgnoreCase) &&
+                !IsPermanentDirector(actor))
+            {
+                return Forbid();
+            }
+
+            if (string.Equals(request.AccountStatus, "Cancelled", StringComparison.OrdinalIgnoreCase) &&
+                !CanCancelStaff(actor))
+            {
+                return Forbid();
+            }
+
             var before = BuildPermissionDetails(staff);
 
             staff.Role = Canonicalise(request.Role, StaffRoles);
+            staff.PersonalAssistantTo = staff.Role == "Personal Assistant"
+                ? CleanOptional(request.PersonalAssistantTo)
+                : null;
             staff.AccountStatus = Canonicalise(request.AccountStatus, AllowedAccountStatuses);
             staff.CanManageAccounts = request.CanManageAccounts;
             staff.CanManageStaff = request.CanManageStaff;
             staff.CanManageBilling = request.CanManageBilling;
             staff.CanManageSecurity = request.CanManageSecurity;
             staff.CanViewAuditLogs = request.CanViewAuditLogs;
-            staff.AdminNotes = string.IsNullOrWhiteSpace(request.AdminNotes)
-                ? null
-                : request.AdminNotes.Trim();
+            staff.CanCreateCustomers = request.CanCreateCustomers;
+            staff.CanEditCustomers = request.CanEditCustomers;
+            staff.CanCancelCustomers = request.CanCancelCustomers;
+            staff.CanResetPasswords = request.CanResetPasswords;
+            staff.CanVerifyEmails = request.CanVerifyEmails;
+            staff.CanSendEmails = request.CanSendEmails;
+            staff.CanManageDiscounts = request.CanManageDiscounts;
+            staff.CanManageFreeMonths = request.CanManageFreeMonths;
+            staff.CanViewCustomerNotes = request.CanViewCustomerNotes;
+            staff.CanEditCustomerNotes = request.CanEditCustomerNotes;
+            staff.CanViewBilling = request.CanViewBilling;
+            staff.CanManageSubscriptions = request.CanManageSubscriptions;
+            staff.CanExportData = request.CanExportData;
+            staff.CanImpersonateCustomer = request.CanImpersonateCustomer;
+            staff.CanDeleteData = request.CanDeleteData;
+            staff.CanViewStaff = request.CanViewStaff;
+            staff.CanCreateStaff = request.CanCreateStaff;
+            staff.CanCancelStaff = request.CanCancelStaff;
+            staff.CanEditStaffPermissions = request.CanEditStaffPermissions;
+            staff.CanViewSecurityLogs = request.CanViewSecurityLogs;
+            staff.AdminNotes = CleanOptional(request.AdminNotes);
             staff.UpdatedAt = DateTime.UtcNow;
 
             if (staff.Role == "Director" || IsPermanentDirector(staff))
@@ -477,6 +724,7 @@ public class AdminUserController : ControllerBase
                 GiveDirectorPermissions(staff);
                 staff.Role = "Director";
                 staff.AccountStatus = "Active";
+                staff.PersonalAssistantTo = null;
             }
 
             ValidateStaff(staff);
@@ -525,10 +773,13 @@ public class AdminUserController : ControllerBase
             var trimmedSearch = search.Trim();
 
             query = query.Where(log =>
+                log.ActorName.Contains(trimmedSearch) ||
                 log.ActorEmail.Contains(trimmedSearch) ||
+                log.ActorRole.Contains(trimmedSearch) ||
                 (log.TargetEmail != null && log.TargetEmail.Contains(trimmedSearch)) ||
                 log.Action.Contains(trimmedSearch) ||
-                log.Summary.Contains(trimmedSearch));
+                log.Summary.Contains(trimmedSearch) ||
+                (log.Details != null && log.Details.Contains(trimmedSearch)));
         }
 
         var logs = await query
@@ -556,24 +807,57 @@ public class AdminUserController : ControllerBase
             throw new ValidationException("A user with this email already exists.");
         }
 
+        var accountStatus = Canonicalise(request.AccountStatus, AllowedAccountStatuses);
+        var subscriptionPlan = Canonicalise(request.SubscriptionPlan, AllowedSubscriptionPlans);
+        var billingStatus = Canonicalise(request.BillingStatus, AllowedBillingStatuses);
+        var healthStatus = Canonicalise(request.HealthStatus, AllowedHealthStatuses);
+
+        var now = DateTime.UtcNow;
+
         var user = new User
         {
             FirstName = firstName,
             LastName = lastName,
             Email = email,
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password.Trim()),
             Role = "Customer",
-            AccountStatus = Canonicalise(request.AccountStatus, AllowedAccountStatuses),
+            AccountStatus = accountStatus,
             DiscountType = "None",
             DiscountValue = 0,
             FreeMonths = 0,
+            FreeMonthsExpireAt = request.FreeMonthsExpireAt,
             IsEmailVerified = false,
             PasswordResetRequired = false,
-            AdminNotes = string.IsNullOrWhiteSpace(request.AdminNotes)
-                ? null
-                : request.AdminNotes.Trim(),
-            CreatedAt = DateTime.UtcNow
+            BusinessName = CleanOptional(request.BusinessName),
+            OwnerName = CleanOptional(request.OwnerName),
+            OwnerPhone = CleanOptional(request.OwnerPhone),
+            SubscriptionPlan = subscriptionPlan,
+            BillingStatus = billingStatus,
+            TrialEndsAt = request.TrialEndsAt,
+            AdminTags = CleanOptional(request.AdminTags),
+            SupportNotes = CleanOptional(request.SupportNotes),
+            HealthStatus = healthStatus,
+            AccountSource = CleanOptional(request.AccountSource),
+            CancelReason = CleanOptional(request.CancelReason),
+            AdminNotes = CleanOptional(request.AdminNotes),
+            CreatedAt = now,
+            UpdatedAt = now
         };
+
+        if (string.IsNullOrWhiteSpace(user.BusinessName))
+        {
+            user.BusinessName = $"{firstName} {lastName}".Trim();
+        }
+
+        if (string.IsNullOrWhiteSpace(user.OwnerName))
+        {
+            user.OwnerName = $"{firstName} {lastName}".Trim();
+        }
+
+        if (user.TrialEndsAt is null && user.AccountStatus == "Trial")
+        {
+            user.TrialEndsAt = now.AddDays(14);
+        }
 
         ValidateAccount(user);
 
@@ -605,27 +889,54 @@ public class AdminUserController : ControllerBase
             throw new ValidationException("A user with this email already exists.");
         }
 
+        var role = Canonicalise(request.Role, StaffRoles);
+
         var staff = new User
         {
             FirstName = firstName,
             LastName = lastName,
             Email = email,
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
-            Role = Canonicalise(request.Role, StaffRoles),
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password.Trim()),
+            Role = role,
+            PersonalAssistantTo = role == "Personal Assistant"
+                ? CleanOptional(request.PersonalAssistantTo)
+                : null,
             AccountStatus = "Active",
             IsEmailVerified = true,
             DiscountType = "None",
             DiscountValue = 0,
             FreeMonths = 0,
+            SubscriptionPlan = "Internal",
+            BillingStatus = "Internal",
+            HealthStatus = "Green",
             CanManageAccounts = request.CanManageAccounts,
             CanManageStaff = request.CanManageStaff,
             CanManageBilling = request.CanManageBilling,
             CanManageSecurity = request.CanManageSecurity,
             CanViewAuditLogs = request.CanViewAuditLogs,
-            AdminNotes = string.IsNullOrWhiteSpace(request.AdminNotes)
-                ? null
-                : request.AdminNotes.Trim(),
-            CreatedAt = DateTime.UtcNow
+            CanCreateCustomers = request.CanCreateCustomers,
+            CanEditCustomers = request.CanEditCustomers,
+            CanCancelCustomers = request.CanCancelCustomers,
+            CanResetPasswords = request.CanResetPasswords,
+            CanVerifyEmails = request.CanVerifyEmails,
+            CanSendEmails = request.CanSendEmails,
+            CanManageDiscounts = request.CanManageDiscounts,
+            CanManageFreeMonths = request.CanManageFreeMonths,
+            CanViewCustomerNotes = request.CanViewCustomerNotes,
+            CanEditCustomerNotes = request.CanEditCustomerNotes,
+            CanViewBilling = request.CanViewBilling,
+            CanManageSubscriptions = request.CanManageSubscriptions,
+            CanExportData = request.CanExportData,
+            CanImpersonateCustomer = request.CanImpersonateCustomer,
+            CanDeleteData = request.CanDeleteData,
+            CanViewStaff = request.CanViewStaff,
+            CanCreateStaff = request.CanCreateStaff,
+            CanCancelStaff = request.CanCancelStaff,
+            CanEditStaffPermissions = request.CanEditStaffPermissions,
+            CanViewSecurityLogs = request.CanViewSecurityLogs,
+            AdminNotes = CleanOptional(request.AdminNotes),
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
         };
 
         if (staff.Role == "Director")
@@ -662,7 +973,7 @@ public class AdminUserController : ControllerBase
             throw new ValidationException("A valid email address is required.");
         }
 
-        if (string.IsNullOrWhiteSpace(password) || password.Length < 8)
+        if (string.IsNullOrWhiteSpace(password) || password.Trim().Length < 8)
         {
             throw new ValidationException("Password must be at least 8 characters.");
         }
@@ -678,6 +989,21 @@ public class AdminUserController : ControllerBase
         if (!AllowedDiscountTypes.Contains(user.DiscountType, StringComparer.OrdinalIgnoreCase))
         {
             throw new ValidationException("Discount type is invalid. Use None, Amount, or Percentage.");
+        }
+
+        if (!AllowedSubscriptionPlans.Contains(user.SubscriptionPlan, StringComparer.OrdinalIgnoreCase))
+        {
+            throw new ValidationException("Subscription plan is invalid. Use Trial, Solo, Team, Business, Enterprise, or Internal.");
+        }
+
+        if (!AllowedBillingStatuses.Contains(user.BillingStatus, StringComparer.OrdinalIgnoreCase))
+        {
+            throw new ValidationException("Billing status is invalid. Use Trial, Active, PastDue, GracePeriod, Suspended, Cancelled, or Internal.");
+        }
+
+        if (!AllowedHealthStatuses.Contains(user.HealthStatus, StringComparer.OrdinalIgnoreCase))
+        {
+            throw new ValidationException("Health status is invalid. Use Green, Amber, or Red.");
         }
 
         if (user.DiscountValue < 0)
@@ -705,18 +1031,27 @@ public class AdminUserController : ControllerBase
             throw new ValidationException("Free months cannot be more than 120.");
         }
 
-        if (!string.IsNullOrWhiteSpace(user.AdminNotes) &&
-            user.AdminNotes.Length > 4000)
+        if ((user.AccountStatus == "Cancelled" || user.BillingStatus == "Cancelled") &&
+            string.IsNullOrWhiteSpace(user.CancelReason))
         {
-            throw new ValidationException("Admin notes must be 4000 characters or fewer.");
+            throw new ValidationException("Cancel reason is required when cancelling an account.");
         }
+
+        ValidateMaxLength(user.BusinessName, 180, "Business name");
+        ValidateMaxLength(user.OwnerName, 180, "Owner name");
+        ValidateMaxLength(user.OwnerPhone, 40, "Owner phone");
+        ValidateMaxLength(user.AdminTags, 500, "Admin tags");
+        ValidateMaxLength(user.SupportNotes, 4000, "Support notes");
+        ValidateMaxLength(user.AccountSource, 120, "Account source");
+        ValidateMaxLength(user.CancelReason, 500, "Cancel reason");
+        ValidateMaxLength(user.AdminNotes, 4000, "Admin notes");
     }
 
     private static void ValidateStaff(User staff)
     {
         if (!StaffRoles.Contains(staff.Role, StringComparer.OrdinalIgnoreCase))
         {
-            throw new ValidationException("Staff role is invalid. Use Director, Admin, or Support.");
+            throw new ValidationException("Staff role is invalid.");
         }
 
         if (!AllowedAccountStatuses.Contains(staff.AccountStatus, StringComparer.OrdinalIgnoreCase))
@@ -724,11 +1059,14 @@ public class AdminUserController : ControllerBase
             throw new ValidationException("Account status is invalid. Use Trial, Active, PastDue, Suspended, or Cancelled.");
         }
 
-        if (!string.IsNullOrWhiteSpace(staff.AdminNotes) &&
-            staff.AdminNotes.Length > 4000)
+        if (staff.Role == "Personal Assistant" &&
+            string.IsNullOrWhiteSpace(staff.PersonalAssistantTo))
         {
-            throw new ValidationException("Admin notes must be 4000 characters or fewer.");
+            throw new ValidationException("Personal Assistant accounts must say who they are PA to.");
         }
+
+        ValidateMaxLength(staff.PersonalAssistantTo, 220, "PA to");
+        ValidateMaxLength(staff.AdminNotes, 4000, "Admin notes");
     }
 
     private async Task<User?> GetCurrentStaffUserAsync()
@@ -819,6 +1157,97 @@ public class AdminUserController : ControllerBase
         return IsDirector(user) || user.CanManageSecurity;
     }
 
+    private static bool CanSeeCustomerAccounts(User user)
+    {
+        return
+            CanManageAccounts(user) ||
+            CanCreateCustomers(user) ||
+            CanEditCustomers(user) ||
+            CanCancelCustomers(user) ||
+            CanViewBilling(user) ||
+            CanViewCustomerNotes(user);
+    }
+
+    private static bool CanCreateCustomers(User user)
+    {
+        return IsDirector(user) || user.CanCreateCustomers || user.CanManageAccounts;
+    }
+
+    private static bool CanEditCustomers(User user)
+    {
+        return IsDirector(user) || user.CanEditCustomers || user.CanManageAccounts;
+    }
+
+    private static bool CanCancelCustomers(User user)
+    {
+        return IsDirector(user) || user.CanCancelCustomers || user.CanManageAccounts;
+    }
+
+    private static bool CanResetPasswords(User user)
+    {
+        return IsDirector(user) || user.CanResetPasswords || user.CanManageSecurity;
+    }
+
+    private static bool CanVerifyEmails(User user)
+    {
+        return IsDirector(user) || user.CanVerifyEmails || user.CanManageSecurity;
+    }
+
+    private static bool CanSendEmails(User user)
+    {
+        return IsDirector(user) || user.CanSendEmails || user.CanManageSecurity;
+    }
+
+    private static bool CanManageDiscounts(User user)
+    {
+        return IsDirector(user) || user.CanManageDiscounts || user.CanManageBilling;
+    }
+
+    private static bool CanManageFreeMonths(User user)
+    {
+        return IsDirector(user) || user.CanManageFreeMonths || user.CanManageBilling;
+    }
+
+    private static bool CanViewCustomerNotes(User user)
+    {
+        return IsDirector(user) || user.CanViewCustomerNotes || user.CanManageAccounts;
+    }
+
+    private static bool CanEditCustomerNotes(User user)
+    {
+        return IsDirector(user) || user.CanEditCustomerNotes || user.CanManageAccounts;
+    }
+
+    private static bool CanViewBilling(User user)
+    {
+        return IsDirector(user) || user.CanViewBilling || user.CanManageBilling;
+    }
+
+    private static bool CanManageSubscriptions(User user)
+    {
+        return IsDirector(user) || user.CanManageSubscriptions || user.CanManageBilling;
+    }
+
+    private static bool CanViewStaff(User user)
+    {
+        return IsDirector(user) || user.CanViewStaff || CanManageStaff(user);
+    }
+
+    private static bool CanCreateStaff(User user)
+    {
+        return IsDirector(user) || user.CanCreateStaff || CanManageStaff(user);
+    }
+
+    private static bool CanCancelStaff(User user)
+    {
+        return IsDirector(user) || user.CanCancelStaff || CanManageStaff(user);
+    }
+
+    private static bool CanEditStaffPermissions(User user)
+    {
+        return IsDirector(user) || user.CanEditStaffPermissions || CanManageStaff(user);
+    }
+
     private static bool CanViewAuditLogs(User user)
     {
         return IsDirector(user) || user.CanViewAuditLogs;
@@ -831,15 +1260,48 @@ public class AdminUserController : ControllerBase
         user.CanManageBilling = true;
         user.CanManageSecurity = true;
         user.CanViewAuditLogs = true;
+        user.CanCreateCustomers = true;
+        user.CanEditCustomers = true;
+        user.CanCancelCustomers = true;
+        user.CanResetPasswords = true;
+        user.CanVerifyEmails = true;
+        user.CanSendEmails = true;
+        user.CanManageDiscounts = true;
+        user.CanManageFreeMonths = true;
+        user.CanViewCustomerNotes = true;
+        user.CanEditCustomerNotes = true;
+        user.CanViewBilling = true;
+        user.CanManageSubscriptions = true;
+        user.CanExportData = true;
+        user.CanImpersonateCustomer = true;
+        user.CanDeleteData = true;
+        user.CanViewStaff = true;
+        user.CanCreateStaff = true;
+        user.CanCancelStaff = true;
+        user.CanEditStaffPermissions = true;
+        user.CanViewSecurityLogs = true;
     }
 
     private static string BuildPermissionDetails(User user)
     {
         return
-            $"Role={user.Role}; Status={user.AccountStatus}; " +
-            $"Accounts={user.CanManageAccounts}; Staff={user.CanManageStaff}; " +
-            $"Billing={user.CanManageBilling}; Security={user.CanManageSecurity}; " +
-            $"AuditLogs={user.CanViewAuditLogs}";
+            $"Role={user.Role}; PAto={user.PersonalAssistantTo}; Status={user.AccountStatus}; " +
+            $"ManageAccounts={user.CanManageAccounts}; ManageStaff={user.CanManageStaff}; ManageBilling={user.CanManageBilling}; ManageSecurity={user.CanManageSecurity}; ViewAuditLogs={user.CanViewAuditLogs}; " +
+            $"CreateCustomers={user.CanCreateCustomers}; EditCustomers={user.CanEditCustomers}; CancelCustomers={user.CanCancelCustomers}; " +
+            $"ResetPasswords={user.CanResetPasswords}; VerifyEmails={user.CanVerifyEmails}; SendEmails={user.CanSendEmails}; " +
+            $"ManageDiscounts={user.CanManageDiscounts}; ManageFreeMonths={user.CanManageFreeMonths}; " +
+            $"ViewCustomerNotes={user.CanViewCustomerNotes}; EditCustomerNotes={user.CanEditCustomerNotes}; " +
+            $"ViewBilling={user.CanViewBilling}; ManageSubscriptions={user.CanManageSubscriptions}; ExportData={user.CanExportData}; " +
+            $"ImpersonateCustomer={user.CanImpersonateCustomer}; DeleteData={user.CanDeleteData}; " +
+            $"ViewStaff={user.CanViewStaff}; CreateStaff={user.CanCreateStaff}; CancelStaff={user.CanCancelStaff}; EditStaffPermissions={user.CanEditStaffPermissions}; ViewSecurityLogs={user.CanViewSecurityLogs}";
+    }
+
+    private static string BuildCustomerDetails(User user)
+    {
+        return
+            $"Status={user.AccountStatus}; BillingStatus={user.BillingStatus}; Plan={user.SubscriptionPlan}; " +
+            $"Discount={user.DiscountType}:{user.DiscountValue}; FreeMonths={user.FreeMonths}; FreeMonthsExpireAt={user.FreeMonthsExpireAt}; " +
+            $"TrialEndsAt={user.TrialEndsAt}; Health={user.HealthStatus}; Source={user.AccountSource}; Tags={user.AdminTags}; CancelReason={user.CancelReason}";
     }
 
     private static AdminUserResponse ToResponse(User user)
@@ -852,18 +1314,53 @@ public class AdminUserController : ControllerBase
             FullName = $"{user.FirstName} {user.LastName}".Trim(),
             Email = user.Email,
             Role = user.Role,
+            PersonalAssistantTo = user.PersonalAssistantTo,
             AccountStatus = user.AccountStatus,
             IsEmailVerified = user.IsEmailVerified,
             EmailVerificationSentAt = user.EmailVerificationSentAt,
             DiscountType = user.DiscountType,
             DiscountValue = user.DiscountValue,
             FreeMonths = user.FreeMonths,
+            FreeMonthsExpireAt = user.FreeMonthsExpireAt,
             PasswordResetRequired = user.PasswordResetRequired,
+            BusinessName = user.BusinessName,
+            OwnerName = user.OwnerName,
+            OwnerPhone = user.OwnerPhone,
+            SubscriptionPlan = user.SubscriptionPlan,
+            BillingStatus = user.BillingStatus,
+            TrialEndsAt = user.TrialEndsAt,
+            AdminTags = user.AdminTags,
+            SupportNotes = user.SupportNotes,
+            HealthStatus = user.HealthStatus,
+            LastLoginAt = user.LastLoginAt,
+            AccountSource = user.AccountSource,
+            CancelReason = user.CancelReason,
+            OnboardingEmailSentAt = user.OnboardingEmailSentAt,
             CanManageAccounts = user.CanManageAccounts,
             CanManageStaff = user.CanManageStaff,
             CanManageBilling = user.CanManageBilling,
             CanManageSecurity = user.CanManageSecurity,
             CanViewAuditLogs = user.CanViewAuditLogs,
+            CanCreateCustomers = user.CanCreateCustomers,
+            CanEditCustomers = user.CanEditCustomers,
+            CanCancelCustomers = user.CanCancelCustomers,
+            CanResetPasswords = user.CanResetPasswords,
+            CanVerifyEmails = user.CanVerifyEmails,
+            CanSendEmails = user.CanSendEmails,
+            CanManageDiscounts = user.CanManageDiscounts,
+            CanManageFreeMonths = user.CanManageFreeMonths,
+            CanViewCustomerNotes = user.CanViewCustomerNotes,
+            CanEditCustomerNotes = user.CanEditCustomerNotes,
+            CanViewBilling = user.CanViewBilling,
+            CanManageSubscriptions = user.CanManageSubscriptions,
+            CanExportData = user.CanExportData,
+            CanImpersonateCustomer = user.CanImpersonateCustomer,
+            CanDeleteData = user.CanDeleteData,
+            CanViewStaff = user.CanViewStaff,
+            CanCreateStaff = user.CanCreateStaff,
+            CanCancelStaff = user.CanCancelStaff,
+            CanEditStaffPermissions = user.CanEditStaffPermissions,
+            CanViewSecurityLogs = user.CanViewSecurityLogs,
             AdminNotes = user.AdminNotes,
             CreatedAt = user.CreatedAt,
             UpdatedAt = user.UpdatedAt
@@ -898,6 +1395,21 @@ public class AdminUserController : ControllerBase
         return allowedValues.FirstOrDefault(
             allowed => string.Equals(allowed, trimmed, StringComparison.OrdinalIgnoreCase))
             ?? trimmed;
+    }
+
+    private static string? CleanOptional(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value)
+            ? null
+            : value.Trim();
+    }
+
+    private static void ValidateMaxLength(string? value, int maxLength, string fieldName)
+    {
+        if (!string.IsNullOrWhiteSpace(value) && value.Length > maxLength)
+        {
+            throw new ValidationException($"{fieldName} must be {maxLength} characters or fewer.");
+        }
     }
 
     private static decimal RoundMoney(decimal value)

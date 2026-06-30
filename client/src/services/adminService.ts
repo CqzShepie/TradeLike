@@ -9,6 +9,10 @@ import type {
   UpdateStaffPermissionsRequest,
 } from "../types/admin";
 
+function cleanDate(value?: string | null) {
+  return value && value.trim() !== "" ? value : null;
+}
+
 export const adminService = {
   async getUsers(search = "") {
     const query = search.trim();
@@ -28,6 +32,18 @@ export const adminService = {
       email: request.email.trim().toLowerCase(),
       password: request.password,
       accountStatus: request.accountStatus,
+      businessName: request.businessName.trim(),
+      ownerName: request.ownerName.trim(),
+      ownerPhone: request.ownerPhone.trim(),
+      subscriptionPlan: request.subscriptionPlan,
+      billingStatus: request.billingStatus,
+      trialEndsAt: cleanDate(request.trialEndsAt),
+      freeMonthsExpireAt: cleanDate(request.freeMonthsExpireAt),
+      adminTags: request.adminTags.trim(),
+      supportNotes: request.supportNotes.trim(),
+      healthStatus: request.healthStatus,
+      accountSource: request.accountSource.trim(),
+      cancelReason: request.cancelReason.trim(),
       adminNotes: request.adminNotes.trim(),
     })) as AdminUser;
   },
@@ -38,8 +54,33 @@ export const adminService = {
       discountType: request.discountType,
       discountValue: Number(request.discountValue || 0),
       freeMonths: Number(request.freeMonths || 0),
+      freeMonthsExpireAt: cleanDate(request.freeMonthsExpireAt),
+      businessName: request.businessName.trim(),
+      ownerName: request.ownerName.trim(),
+      ownerPhone: request.ownerPhone.trim(),
+      subscriptionPlan: request.subscriptionPlan,
+      billingStatus: request.billingStatus,
+      trialEndsAt: cleanDate(request.trialEndsAt),
+      adminTags: request.adminTags.trim(),
+      supportNotes: request.supportNotes.trim(),
+      healthStatus: request.healthStatus,
+      accountSource: request.accountSource.trim(),
+      cancelReason: request.cancelReason.trim(),
       adminNotes: request.adminNotes.trim(),
     })) as AdminUser;
+  },
+
+  async reactivateCustomer(userId: number) {
+    return (await apiClient.post(
+      `/admin/users/${userId}/reactivate`,
+      {}
+    )) as AdminUser;
+  },
+
+  async getCustomerTimeline(userId: number) {
+    return (await apiClient.get(
+      `/admin/users/${userId}/timeline`
+    )) as AdminAuditLog[];
   },
 
   async resetPassword(userId: number, request: ResetAdminUserPasswordRequest) {
@@ -68,6 +109,18 @@ export const adminService = {
     return response;
   },
 
+  async sendOnboardingEmail(userId: number) {
+    const response = (await apiClient.post(
+      `/admin/users/${userId}/send-onboarding-email`,
+      {}
+    )) as {
+      message: string;
+      user: AdminUser;
+    };
+
+    return response;
+  },
+
   async getStaff() {
     return (await apiClient.get("/admin/staff")) as AdminUser[];
   },
@@ -78,6 +131,7 @@ export const adminService = {
       firstName: request.firstName.trim(),
       lastName: request.lastName.trim(),
       email: request.email.trim().toLowerCase(),
+      personalAssistantTo: request.personalAssistantTo.trim(),
       adminNotes: request.adminNotes.trim(),
     })) as AdminUser;
   },
@@ -88,6 +142,7 @@ export const adminService = {
   ) {
     return (await apiClient.put(`/admin/staff/${staffId}/permissions`, {
       ...request,
+      personalAssistantTo: request.personalAssistantTo.trim(),
       adminNotes: request.adminNotes.trim(),
     })) as AdminUser;
   },

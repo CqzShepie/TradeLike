@@ -50,8 +50,11 @@ public class TradeLikeDbContext : DbContext
 
             entity.Property(user => user.Role)
                 .IsRequired()
-                .HasMaxLength(30)
+                .HasMaxLength(40)
                 .HasDefaultValue("Customer");
+
+            entity.Property(user => user.PersonalAssistantTo)
+                .HasMaxLength(220);
 
             entity.Property(user => user.AccountStatus)
                 .IsRequired()
@@ -70,8 +73,50 @@ public class TradeLikeDbContext : DbContext
             entity.Property(user => user.FreeMonths)
                 .HasDefaultValue(0);
 
+            entity.Property(user => user.BusinessName)
+                .HasMaxLength(180);
+
+            entity.Property(user => user.OwnerName)
+                .HasMaxLength(180);
+
+            entity.Property(user => user.OwnerPhone)
+                .HasMaxLength(40);
+
+            entity.Property(user => user.SubscriptionPlan)
+                .IsRequired()
+                .HasMaxLength(40)
+                .HasDefaultValue("Trial");
+
+            entity.Property(user => user.BillingStatus)
+                .IsRequired()
+                .HasMaxLength(40)
+                .HasDefaultValue("Trial");
+
+            entity.Property(user => user.AdminTags)
+                .HasMaxLength(500);
+
+            entity.Property(user => user.SupportNotes)
+                .HasMaxLength(4000);
+
+            entity.Property(user => user.HealthStatus)
+                .IsRequired()
+                .HasMaxLength(30)
+                .HasDefaultValue("Green");
+
+            entity.Property(user => user.AccountSource)
+                .HasMaxLength(120);
+
+            entity.Property(user => user.CancelReason)
+                .HasMaxLength(500);
+
             entity.Property(user => user.AdminNotes)
                 .HasMaxLength(4000);
+
+            entity.HasIndex(user => user.Role);
+
+            entity.HasIndex(user => user.AccountStatus);
+
+            entity.HasIndex(user => user.BillingStatus);
         });
 
         modelBuilder.Entity<AdminAuditLog>(entity =>
@@ -86,7 +131,7 @@ public class TradeLikeDbContext : DbContext
 
             entity.Property(log => log.ActorRole)
                 .IsRequired()
-                .HasMaxLength(30);
+                .HasMaxLength(40);
 
             entity.Property(log => log.Action)
                 .IsRequired()
@@ -116,7 +161,11 @@ public class TradeLikeDbContext : DbContext
 
             entity.HasIndex(log => log.ActorUserId);
 
+            entity.HasIndex(log => log.ActorEmail);
+
             entity.HasIndex(log => log.TargetId);
+
+            entity.HasIndex(log => log.TargetEmail);
         });
 
         modelBuilder.Entity<Job>(entity =>

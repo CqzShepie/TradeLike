@@ -7,7 +7,39 @@ export type AdminAccountStatus =
 
 export type AdminDiscountType = "None" | "Amount" | "Percentage";
 
-export type AdminRole = "Customer" | "Director" | "Admin" | "Support";
+export type AdminRole =
+  | "Customer"
+  | "Director"
+  | "Admin"
+  | "Support"
+  | "Junior Developer"
+  | "Developer"
+  | "Senior Developer"
+  | "Marketing"
+  | "Customer Service"
+  | "Operations Coordinator"
+  | "Personal Assistant";
+
+export type StaffRole = Exclude<AdminRole, "Customer">;
+
+export type SubscriptionPlan =
+  | "Trial"
+  | "Starter"
+  | "Pro"
+  | "Business"
+  | "Enterprise"
+  | "Internal";
+
+export type BillingStatus =
+  | "Trial"
+  | "Active"
+  | "PastDue"
+  | "GracePeriod"
+  | "Suspended"
+  | "Cancelled"
+  | "Internal";
+
+export type HealthStatus = "Green" | "Amber" | "Red";
 
 export type AdminUser = {
   id: number;
@@ -16,18 +48,57 @@ export type AdminUser = {
   fullName: string;
   email: string;
   role: AdminRole;
+  personalAssistantTo?: string | null;
   accountStatus: AdminAccountStatus;
   isEmailVerified: boolean;
   emailVerificationSentAt?: string | null;
   discountType: AdminDiscountType;
   discountValue: number;
   freeMonths: number;
+  freeMonthsExpireAt?: string | null;
   passwordResetRequired: boolean;
+
+  businessName?: string | null;
+  ownerName?: string | null;
+  ownerPhone?: string | null;
+  subscriptionPlan: SubscriptionPlan;
+  billingStatus: BillingStatus;
+  trialEndsAt?: string | null;
+  adminTags?: string | null;
+  supportNotes?: string | null;
+  healthStatus: HealthStatus;
+  lastLoginAt?: string | null;
+  accountSource?: string | null;
+  cancelReason?: string | null;
+  onboardingEmailSentAt?: string | null;
+
   canManageAccounts: boolean;
   canManageStaff: boolean;
   canManageBilling: boolean;
   canManageSecurity: boolean;
   canViewAuditLogs: boolean;
+
+  canCreateCustomers: boolean;
+  canEditCustomers: boolean;
+  canCancelCustomers: boolean;
+  canResetPasswords: boolean;
+  canVerifyEmails: boolean;
+  canSendEmails: boolean;
+  canManageDiscounts: boolean;
+  canManageFreeMonths: boolean;
+  canViewCustomerNotes: boolean;
+  canEditCustomerNotes: boolean;
+  canViewBilling: boolean;
+  canManageSubscriptions: boolean;
+  canExportData: boolean;
+  canImpersonateCustomer: boolean;
+  canDeleteData: boolean;
+  canViewStaff: boolean;
+  canCreateStaff: boolean;
+  canCancelStaff: boolean;
+  canEditStaffPermissions: boolean;
+  canViewSecurityLogs: boolean;
+
   adminNotes?: string | null;
   createdAt: string;
   updatedAt?: string | null;
@@ -39,6 +110,18 @@ export type CreateAdminUserRequest = {
   email: string;
   password: string;
   accountStatus: AdminAccountStatus;
+  businessName: string;
+  ownerName: string;
+  ownerPhone: string;
+  subscriptionPlan: SubscriptionPlan;
+  billingStatus: BillingStatus;
+  trialEndsAt?: string | null;
+  freeMonthsExpireAt?: string | null;
+  adminTags: string;
+  supportNotes: string;
+  healthStatus: HealthStatus;
+  accountSource: string;
+  cancelReason: string;
   adminNotes: string;
 };
 
@@ -47,6 +130,18 @@ export type UpdateAdminUserAccountRequest = {
   discountType: AdminDiscountType;
   discountValue: number;
   freeMonths: number;
+  freeMonthsExpireAt?: string | null;
+  businessName: string;
+  ownerName: string;
+  ownerPhone: string;
+  subscriptionPlan: SubscriptionPlan;
+  billingStatus: BillingStatus;
+  trialEndsAt?: string | null;
+  adminTags: string;
+  supportNotes: string;
+  healthStatus: HealthStatus;
+  accountSource: string;
+  cancelReason: string;
   adminNotes: string;
 };
 
@@ -60,23 +155,71 @@ export type CreateStaffUserRequest = {
   lastName: string;
   email: string;
   password: string;
-  role: "Director" | "Admin" | "Support";
+  role: StaffRole;
+  personalAssistantTo: string;
+
   canManageAccounts: boolean;
   canManageStaff: boolean;
   canManageBilling: boolean;
   canManageSecurity: boolean;
   canViewAuditLogs: boolean;
+
+  canCreateCustomers: boolean;
+  canEditCustomers: boolean;
+  canCancelCustomers: boolean;
+  canResetPasswords: boolean;
+  canVerifyEmails: boolean;
+  canSendEmails: boolean;
+  canManageDiscounts: boolean;
+  canManageFreeMonths: boolean;
+  canViewCustomerNotes: boolean;
+  canEditCustomerNotes: boolean;
+  canViewBilling: boolean;
+  canManageSubscriptions: boolean;
+  canExportData: boolean;
+  canImpersonateCustomer: boolean;
+  canDeleteData: boolean;
+  canViewStaff: boolean;
+  canCreateStaff: boolean;
+  canCancelStaff: boolean;
+  canEditStaffPermissions: boolean;
+  canViewSecurityLogs: boolean;
+
   adminNotes: string;
 };
 
 export type UpdateStaffPermissionsRequest = {
-  role: "Director" | "Admin" | "Support";
+  role: StaffRole;
+  personalAssistantTo: string;
   accountStatus: AdminAccountStatus;
+
   canManageAccounts: boolean;
   canManageStaff: boolean;
   canManageBilling: boolean;
   canManageSecurity: boolean;
   canViewAuditLogs: boolean;
+
+  canCreateCustomers: boolean;
+  canEditCustomers: boolean;
+  canCancelCustomers: boolean;
+  canResetPasswords: boolean;
+  canVerifyEmails: boolean;
+  canSendEmails: boolean;
+  canManageDiscounts: boolean;
+  canManageFreeMonths: boolean;
+  canViewCustomerNotes: boolean;
+  canEditCustomerNotes: boolean;
+  canViewBilling: boolean;
+  canManageSubscriptions: boolean;
+  canExportData: boolean;
+  canImpersonateCustomer: boolean;
+  canDeleteData: boolean;
+  canViewStaff: boolean;
+  canCreateStaff: boolean;
+  canCancelStaff: boolean;
+  canEditStaffPermissions: boolean;
+  canViewSecurityLogs: boolean;
+
   adminNotes: string;
 };
 

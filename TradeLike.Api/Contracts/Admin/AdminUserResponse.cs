@@ -14,6 +14,8 @@ public sealed class AdminUserResponse
 
     public string Role { get; init; } = string.Empty;
 
+    public string? PersonalAssistantTo { get; init; }
+
     public string AccountStatus { get; init; } = string.Empty;
 
     public bool IsEmailVerified { get; init; }
@@ -26,7 +28,35 @@ public sealed class AdminUserResponse
 
     public int FreeMonths { get; init; }
 
+    public DateTime? FreeMonthsExpireAt { get; init; }
+
     public bool PasswordResetRequired { get; init; }
+
+    public string? BusinessName { get; init; }
+
+    public string? OwnerName { get; init; }
+
+    public string? OwnerPhone { get; init; }
+
+    public string SubscriptionPlan { get; init; } = string.Empty;
+
+    public string BillingStatus { get; init; } = string.Empty;
+
+    public DateTime? TrialEndsAt { get; init; }
+
+    public string? AdminTags { get; init; }
+
+    public string? SupportNotes { get; init; }
+
+    public string HealthStatus { get; init; } = string.Empty;
+
+    public DateTime? LastLoginAt { get; init; }
+
+    public string? AccountSource { get; init; }
+
+    public string? CancelReason { get; init; }
+
+    public DateTime? OnboardingEmailSentAt { get; init; }
 
     public bool CanManageAccounts { get; init; }
 
@@ -37,6 +67,46 @@ public sealed class AdminUserResponse
     public bool CanManageSecurity { get; init; }
 
     public bool CanViewAuditLogs { get; init; }
+
+    public bool CanCreateCustomers { get; init; }
+
+    public bool CanEditCustomers { get; init; }
+
+    public bool CanCancelCustomers { get; init; }
+
+    public bool CanResetPasswords { get; init; }
+
+    public bool CanVerifyEmails { get; init; }
+
+    public bool CanSendEmails { get; init; }
+
+    public bool CanManageDiscounts { get; init; }
+
+    public bool CanManageFreeMonths { get; init; }
+
+    public bool CanViewCustomerNotes { get; init; }
+
+    public bool CanEditCustomerNotes { get; init; }
+
+    public bool CanViewBilling { get; init; }
+
+    public bool CanManageSubscriptions { get; init; }
+
+    public bool CanExportData { get; init; }
+
+    public bool CanImpersonateCustomer { get; init; }
+
+    public bool CanDeleteData { get; init; }
+
+    public bool CanViewStaff { get; init; }
+
+    public bool CanCreateStaff { get; init; }
+
+    public bool CanCancelStaff { get; init; }
+
+    public bool CanEditStaffPermissions { get; init; }
+
+    public bool CanViewSecurityLogs { get; init; }
 
     public string? AdminNotes { get; init; }
 

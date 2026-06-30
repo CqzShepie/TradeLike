@@ -1,45 +1,119 @@
-import { apiClient, setToken } from "./apiClient";
+import { apiClient, clearToken, setToken } from "./apiClient";
+
+export type UserRole =
+  | "Customer"
+  | "Director"
+  | "Admin"
+  | "Support"
+  | "Junior Developer"
+  | "Developer"
+  | "Senior Developer"
+  | "Marketing"
+  | "Customer Service"
+  | "Operations Coordinator"
+  | "Personal Assistant";
 
 export interface LoginRequest {
   email: string;
   password: string;
 }
 
+export interface RegisterRequest {
+  businessName: string;
+  email: string;
+  password: string;
+}
+
+export interface AuthUser {
+  id: number;
+  email: string;
+  name: string;
+  role: UserRole;
+  personalAssistantTo?: string | null;
+  accountStatus: string;
+  passwordResetRequired: boolean;
+
+  canManageAccounts: boolean;
+  canManageStaff: boolean;
+  canManageBilling: boolean;
+  canManageSecurity: boolean;
+  canViewAuditLogs: boolean;
+
+  canCreateCustomers: boolean;
+  canEditCustomers: boolean;
+  canCancelCustomers: boolean;
+  canResetPasswords: boolean;
+  canVerifyEmails: boolean;
+  canSendEmails: boolean;
+  canManageDiscounts: boolean;
+  canManageFreeMonths: boolean;
+  canViewCustomerNotes: boolean;
+  canEditCustomerNotes: boolean;
+  canViewBilling: boolean;
+  canManageSubscriptions: boolean;
+  canExportData: boolean;
+  canImpersonateCustomer: boolean;
+  canDeleteData: boolean;
+  canViewStaff: boolean;
+  canCreateStaff: boolean;
+  canCancelStaff: boolean;
+  canEditStaffPermissions: boolean;
+  canViewSecurityLogs: boolean;
+}
+
 export interface LoginResponse {
   token: string;
-  user: {
-    id: number;
-    email: string;
-    name: string;
-    role: "Customer" | "Director" | "Admin" | "Support";
-    accountStatus: string;
-    passwordResetRequired: boolean;
-    canManageAccounts: boolean;
-    canManageStaff: boolean;
-    canManageBilling: boolean;
-    canManageSecurity: boolean;
-    canViewAuditLogs: boolean;
-  };
+  user: AuthUser;
+}
+
+function saveSession(response: LoginResponse) {
+  localStorage.setItem("tradelike_token", response.token);
+  localStorage.setItem("tradelike_user", JSON.stringify(response.user));
+
+  setToken(response.token);
+}
+
+function readStoredUser() {
+  const rawUser = localStorage.getItem("tradelike_user");
+
+  if (!rawUser) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(rawUser) as AuthUser;
+  } catch {
+    localStorage.removeItem("tradelike_user");
+    return null;
+  }
 }
 
 export const authService = {
   async login(request: LoginRequest): Promise<LoginResponse> {
     const response = await apiClient.post<LoginResponse>("/auth/login", {
       email: request.email.trim().toLowerCase(),
-      password: request.password.trim(),
+      password: request.password,
     });
 
-    localStorage.setItem("tradelike_token", response.token);
-    localStorage.setItem("tradelike_user", JSON.stringify(response.user));
+    saveSession(response);
 
-    setToken(response.token);
+    return response;
+  },
+
+  async register(request: RegisterRequest): Promise<LoginResponse> {
+    const response = await apiClient.post<LoginResponse>("/auth/register", {
+      businessName: request.businessName.trim(),
+      email: request.email.trim().toLowerCase(),
+      password: request.password,
+    });
+
+    saveSession(response);
 
     return response;
   },
 
   logout() {
-    localStorage.removeItem("tradelike_token");
-    localStorage.removeItem("tradelike_user");
+    clearToken();
   },
 
   getToken() {
@@ -47,17 +121,34 @@ export const authService = {
   },
 
   getUser() {
-    const rawUser = localStorage.getItem("tradelike_user");
+    return readStoredUser();
+  },
 
-    if (!rawUser) {
-      return null;
+  isLoggedIn() {
+    return Boolean(localStorage.getItem("tradelike_token"));
+  },
+
+  isStaffUser(user = readStoredUser()) {
+    if (!user) {
+      return false;
     }
 
-    try {
-      return JSON.parse(rawUser) as LoginResponse["user"];
-    } catch {
-      localStorage.removeItem("tradelike_user");
-      return null;
+    return user.role !== "Customer";
+  },
+
+  isDirector(user = readStoredUser()) {
+    return user?.role === "Director";
+  },
+
+  hasPermission(permission: keyof AuthUser, user = readStoredUser()) {
+    if (!user) {
+      return false;
     }
+
+    if (user.role === "Director") {
+      return true;
+    }
+
+    return Boolean(user[permission]);
   },
 };

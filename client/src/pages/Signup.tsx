@@ -1,6 +1,7 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import Logo from "../components/layout/Logo";
+import { authService } from "../services/authService";
 
 function Signup() {
   const [businessName, setBusinessName] = useState("");
@@ -8,39 +9,62 @@ function Signup() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const navigate = useNavigate();
 
-  function handleSubmit(event: React.FormEvent) {
+  async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
 
-    if (businessName.trim() === "") {
+    const trimmedBusinessName = businessName.trim();
+    const trimmedEmail = email.trim();
+    const trimmedPassword = password.trim();
+    const trimmedConfirmPassword = confirmPassword.trim();
+
+    if (trimmedBusinessName === "") {
       setError("Please enter your business name.");
       return;
     }
 
-    if (email.trim() === "") {
+    if (trimmedEmail === "") {
       setError("Please enter your email address.");
       return;
     }
 
-    if (!email.includes("@")) {
+    if (!trimmedEmail.includes("@")) {
       setError("Please enter a valid email address.");
       return;
     }
 
-    if (password.length < 8) {
+    if (trimmedPassword.length < 8) {
       setError("Password must be at least 8 characters.");
       return;
     }
 
-    if (password !== confirmPassword) {
+    if (trimmedPassword !== trimmedConfirmPassword) {
       setError("Passwords do not match.");
       return;
     }
 
-    setError("");
-    navigate("/dashboard");
+    try {
+      setLoading(true);
+      setError("");
+
+      const response = await authService.register({
+        businessName: trimmedBusinessName,
+        email: trimmedEmail,
+        password: trimmedPassword,
+      });
+
+      navigate(
+        authService.isStaffUser(response.user) ? "/admin" : "/dashboard",
+        { replace: true }
+      );
+    } catch (err) {
+      setError(getErrorMessage(err, "Unable to create your account."));
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -73,7 +97,7 @@ function Signup() {
                 type="text"
                 placeholder="Smith Plumbing"
                 value={businessName}
-                onChange={(event) => {
+                onChange={event => {
                   setBusinessName(event.target.value);
                   setError("");
                 }}
@@ -94,7 +118,7 @@ function Signup() {
                 type="email"
                 placeholder="you@example.com"
                 value={email}
-                onChange={(event) => {
+                onChange={event => {
                   setEmail(event.target.value);
                   setError("");
                 }}
@@ -113,9 +137,9 @@ function Signup() {
               <input
                 id="password"
                 type="password"
-                placeholder="••••••••"
+                placeholder="Minimum 8 characters"
                 value={password}
-                onChange={(event) => {
+                onChange={event => {
                   setPassword(event.target.value);
                   setError("");
                 }}
@@ -134,9 +158,9 @@ function Signup() {
               <input
                 id="confirmPassword"
                 type="password"
-                placeholder="••••••••"
+                placeholder="Repeat your password"
                 value={confirmPassword}
-                onChange={(event) => {
+                onChange={event => {
                   setConfirmPassword(event.target.value);
                   setError("");
                 }}
@@ -145,16 +169,17 @@ function Signup() {
             </div>
 
             {error && (
-              <p className="text-sm font-medium text-red-600">
+              <p className="rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-600">
                 {error}
               </p>
             )}
 
             <button
               type="submit"
-              className="w-full rounded-lg bg-blue-600 py-3 font-semibold text-white hover:bg-blue-700"
+              disabled={loading}
+              className="w-full rounded-lg bg-blue-600 py-3 font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-400"
             >
-              Create Account
+              {loading ? "Creating Account..." : "Create Account"}
             </button>
           </form>
 
@@ -171,6 +196,12 @@ function Signup() {
       </div>
     </main>
   );
+}
+
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error && error.message.trim() !== ""
+    ? error.message
+    : fallback;
 }
 
 export default Signup;

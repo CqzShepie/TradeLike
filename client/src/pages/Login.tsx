@@ -1,6 +1,5 @@
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useState } from "react";
-
 import Logo from "../components/layout/Logo";
 import { authService } from "../services/authService";
 
@@ -11,24 +10,17 @@ function Login() {
   const [loading, setLoading] = useState(false);
 
   const navigate = useNavigate();
+  const location = useLocation();
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
 
-    const trimmedEmail = email.trim();
-    const trimmedPassword = password.trim();
-
-    if (trimmedEmail === "") {
+    if (email.trim() === "") {
       setError("Please enter your email address.");
       return;
     }
 
-    if (!trimmedEmail.includes("@")) {
-      setError("Please enter a valid email address.");
-      return;
-    }
-
-    if (trimmedPassword === "") {
+    if (password.trim() === "") {
       setError("Please enter your password.");
       return;
     }
@@ -38,48 +30,57 @@ function Login() {
       setError("");
 
       const response = await authService.login({
-        email: trimmedEmail,
-        password: trimmedPassword,
+        email,
+        password,
       });
 
-      const isStaff =
-        response.user.role === "Director" ||
-        response.user.role === "Admin" ||
-        response.user.role === "Support";
+      const params = new URLSearchParams(location.search);
+      const returnUrl = params.get("returnUrl");
 
-      navigate(isStaff ? "/admin" : "/dashboard", { replace: true });
+      if (returnUrl) {
+        navigate(returnUrl, { replace: true });
+        return;
+      }
+
+      navigate(
+        authService.isStaffUser(response.user) ? "/admin" : "/dashboard",
+        { replace: true }
+      );
     } catch (err) {
-      console.error(err);
-      setError("Invalid email or password.");
+      setError(getErrorMessage(err, "Unable to sign in."));
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <main className="flex min-h-screen flex-col bg-slate-50">
+    <main className="min-h-screen bg-slate-50">
       <header className="px-8 py-6">
         <Logo />
       </header>
 
-      <div className="flex flex-1 justify-center px-6">
+      <div className="flex justify-center px-6">
         <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
-          <h1 className="mb-2 text-3xl font-bold">Welcome back</h1>
+          <h1 className="mb-2 text-3xl font-bold">
+            Sign in
+          </h1>
 
           <p className="mb-8 text-slate-600">
-            Sign in to your TradeLike account.
+            Access your TradeLike account.
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label htmlFor="email" className="mb-2 block text-sm font-medium">
+              <label
+                htmlFor="email"
+                className="mb-2 block text-sm font-medium"
+              >
                 Email Address
               </label>
 
               <input
                 id="email"
                 type="email"
-                placeholder="you@example.com"
                 value={email}
                 onChange={event => {
                   setEmail(event.target.value);
@@ -100,7 +101,6 @@ function Login() {
               <input
                 id="password"
                 type="password"
-                placeholder="••••••••"
                 value={password}
                 onChange={event => {
                   setPassword(event.target.value);
@@ -126,27 +126,33 @@ function Login() {
           </form>
 
           <p className="mt-6 text-center text-sm text-slate-600">
-            Don't have an account?{" "}
+            No account yet?{" "}
             <Link
               to="/signup"
               className="font-semibold text-blue-600 hover:underline"
             >
-              Create one
+              Create Account
+            </Link>
+          </p>
+
+          <p className="mt-4 text-center">
+            <Link
+              to="/admin"
+              className="text-xs font-medium text-slate-400 hover:text-slate-700"
+            >
+              Staff Admin Portal
             </Link>
           </p>
         </div>
       </div>
-
-      <footer className="px-6 py-5 text-center">
-        <Link
-          to="/admin"
-          className="text-xs font-medium text-slate-400 hover:text-slate-600"
-        >
-          Staff Admin Portal
-        </Link>
-      </footer>
     </main>
   );
+}
+
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error && error.message.trim() !== ""
+    ? error.message
+    : fallback;
 }
 
 export default Login;
