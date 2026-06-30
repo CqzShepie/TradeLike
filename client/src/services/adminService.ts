@@ -149,6 +149,12 @@ export const adminService = {
     return response.user;
   },
 
+  async removeStaffRecord(staffId: number) {
+    return (await apiClient.post(`/admin/staff/${staffId}/remove-record`, {})) as {
+      message: string;
+    };
+  },
+
   async updateStaffPermissions(staffId: number, request: UpdateStaffPermissionsRequest) {
     return (await apiClient.put(`/admin/staff/${staffId}/permissions`, {
       ...request,
