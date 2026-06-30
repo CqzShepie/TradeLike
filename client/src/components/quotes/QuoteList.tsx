@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import type { Quote } from "../../types/quote";
+import { quoteEmailHref } from "../../utils/documentMessaging";
 import { formatMoney } from "../../utils/formatMoney";
 
 interface QuoteListProps {
@@ -83,7 +84,14 @@ export default function QuoteList({
             </div>
           </Link>
 
-          <div className="mt-5 flex justify-end gap-2 border-t border-slate-100 pt-4">
+          <div className="mt-5 flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-4">
+            <a
+              href={quoteEmailHref(quote)}
+              className="rounded-lg border border-blue-200 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-50"
+            >
+              Email quote
+            </a>
+
             <button
               type="button"
               onClick={() => onEditQuote(quote)}
