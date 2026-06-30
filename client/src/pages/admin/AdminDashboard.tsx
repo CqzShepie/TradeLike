@@ -127,14 +127,14 @@ function AttentionCard({ label, value, danger = false }: { label: string; value:
 }
 
 function DashboardPanel({ title, children, actionLabel, onAction }: { title: string; children: React.ReactNode; actionLabel?: string; onAction?: () => void }) {
-  return <section className="rounded-xl border border-slate-800 bg-slate-900 p-5 shadow-sm"><div className="flex items-center justify-between gap-4"><h2 className="text-lg font-bold text-white">{title}</h2>{actionLabel && onAction && <button type="button" onClick={onAction} className="text-xs font-semibold text-blue-300 hover:text-blue-200">{actionLabel}</button>}</div><div className="mt-4">{children}</div></section>;
+  return <section className="rounded-xl border border-slate-800 bg-slate-900 p-5 shadow-sm"><div className="flex items-center justify-between gap-4"><h2 className="text-lg font-bold text-white">{title}</h2>{actionLabel && onAction && <button type="button" onClick={onAction} className="shrink-0 text-xs font-semibold text-blue-300 hover:text-blue-200">{actionLabel}</button>}</div><div className="mt-4">{children}</div></section>;
 }
 
 function MiniUserList({ users, emptyText }: { users: AdminUser[]; emptyText: string }) {
   if (users.length === 0) {
     return <p className="text-sm text-slate-400">{emptyText}</p>;
   }
-  return <div className="space-y-3">{users.map(user => <div key={user.id} className="rounded-lg border border-slate-800 bg-slate-950 p-3"><div className="flex items-start justify-between gap-3"><div><p className="text-sm font-semibold text-white">{user.businessName || user.fullName || user.email}</p><p className="mt-1 text-xs text-slate-500">{user.email}</p></div><span className="rounded-full bg-slate-800 px-2 py-1 text-xs font-semibold text-slate-300">{formatStatus(user.accountStatus)}</span></div></div>)}</div>;
+  return <div className="space-y-3">{users.map(user => <div key={user.id} className="rounded-lg border border-slate-800 bg-slate-950 p-3"><div className="flex min-w-0 items-start justify-between gap-3"><div className="min-w-0"><p className="truncate text-sm font-semibold text-white">{user.businessName || user.fullName || user.email}</p><p className="mt-1 truncate text-xs text-slate-500">{user.email}</p></div><span className="max-w-[96px] shrink-0 truncate rounded-full bg-slate-800 px-2 py-1 text-center text-xs font-semibold text-slate-300">{formatStatus(user.accountStatus)}</span></div></div>)}</div>;
 }
 
 function AuditList({ logs, emptyText = "No audit activity yet." }: { logs: AdminAuditLog[]; emptyText?: string }) {
