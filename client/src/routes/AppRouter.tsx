@@ -5,6 +5,7 @@ import Home from "../pages/Home";
 import Dashboard from "../pages/Dashboard";
 import Jobs from "../pages/Jobs";
 import JobDetails from "../pages/JobDetails";
+import PreviousJobs from "../pages/PreviousJobs";
 import Customers from "../pages/Customers";
 import CustomerDetails from "../pages/CustomerDetails";
 import CalendarPage from "../pages/Calendar";
@@ -15,6 +16,9 @@ import QuoteDetails from "../pages/QuoteDetails";
 import AdminPortal from "../pages/AdminPortal";
 import Settings from "../pages/Settings";
 import CompanyInvite from "../pages/CompanyInvite";
+import CustomerStaff from "../pages/CustomerStaff";
+import Reports from "../pages/Reports";
+import SupportCenter from "../pages/SupportCenter";
 import StaffRoute from "./StaffRoute";
 
 function AppRouter() {
@@ -32,12 +36,16 @@ function AppRouter() {
         <Route path="/dashboard" element={<Dashboard />} />
 
         <Route path="/jobs" element={<Jobs />} />
+        <Route path="/job-history" element={<PreviousJobs />} />
         <Route path="/jobs/:id" element={<JobDetails />} />
 
         <Route path="/customers" element={<Customers />} />
         <Route path="/customers/:id" element={<CustomerDetails />} />
 
         <Route path="/calendar" element={<CalendarPage />} />
+        <Route path="/team" element={<CustomerStaff />} />
+        <Route path="/reports" element={<Reports />} />
+        <Route path="/support" element={<SupportCenter />} />
 
         <Route path="/quotes" element={<Quotes />} />
         <Route path="/quotes/:id" element={<QuoteDetails />} />
