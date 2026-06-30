@@ -100,14 +100,21 @@ html[data-accessibility-theme="dark"] .border-gray-200 {
 }
 
 html[data-accessibility-high-contrast="true"] body,
-html[data-accessibility-high-contrast="true"] .bg-white,
 html[data-accessibility-high-contrast="true"] .bg-slate-50,
 html[data-accessibility-high-contrast="true"] .bg-gray-50 {
-  background: #000 !important;
-  color: #fff !important;
+  background: #020617 !important;
+  color: #f8fafc !important;
+}
+
+html[data-accessibility-high-contrast="true"] .bg-white,
+html[data-accessibility-high-contrast="true"] .bg-slate-100,
+html[data-accessibility-high-contrast="true"] .bg-gray-100 {
+  background: #0f172a !important;
+  color: #f8fafc !important;
 }
 
 html[data-accessibility-high-contrast="true"] .text-slate-900,
+html[data-accessibility-high-contrast="true"] .text-slate-800,
 html[data-accessibility-high-contrast="true"] .text-slate-700,
 html[data-accessibility-high-contrast="true"] .text-gray-900,
 html[data-accessibility-high-contrast="true"] .text-gray-700,
@@ -116,20 +123,41 @@ html[data-accessibility-high-contrast="true"] label,
 html[data-accessibility-high-contrast="true"] h1,
 html[data-accessibility-high-contrast="true"] h2,
 html[data-accessibility-high-contrast="true"] h3 {
-  color: #fff !important;
+  color: #f8fafc !important;
+}
+
+html[data-accessibility-high-contrast="true"] .text-slate-600,
+html[data-accessibility-high-contrast="true"] .text-slate-500,
+html[data-accessibility-high-contrast="true"] .text-gray-600,
+html[data-accessibility-high-contrast="true"] .text-gray-500 {
+  color: #dbeafe !important;
+}
+
+html[data-accessibility-high-contrast="true"] a,
+html[data-accessibility-high-contrast="true"] .text-blue-600,
+html[data-accessibility-high-contrast="true"] .text-blue-700 {
+  color: #93c5fd !important;
 }
 
 html[data-accessibility-high-contrast="true"] .border-slate-200,
 html[data-accessibility-high-contrast="true"] .border-gray-200,
-html[data-accessibility-high-contrast="true"] .border-slate-300 {
-  border-color: #fff !important;
+html[data-accessibility-high-contrast="true"] .border-slate-300,
+html[data-accessibility-high-contrast="true"] .border-gray-300 {
+  border-color: #e5e7eb !important;
 }
 
 html[data-accessibility-high-contrast="true"] button,
 html[data-accessibility-high-contrast="true"] input,
 html[data-accessibility-high-contrast="true"] select,
 html[data-accessibility-high-contrast="true"] textarea {
-  border: 2px solid #fff !important;
+  border: 2px solid #e5e7eb !important;
+  background-color: #020617 !important;
+  color: #f8fafc !important;
+}
+
+html[data-accessibility-high-contrast="true"] .bg-blue-100 {
+  background: #dbeafe !important;
+  color: #1d4ed8 !important;
 }
 
 html[data-accessibility-spacing="comfortable"] main,
