@@ -1,6 +1,7 @@
 import type { CustomerStaffMember, CustomerTeam } from "../../services/customerStaffService";
 import type { JobAssignment } from "../../services/jobAssignmentsService";
 import type { Job } from "../../types/job";
+import { getTeamColourLabel } from "../../utils/teamColours";
 
 type Props = {
   job: Job;
@@ -13,7 +14,9 @@ type Props = {
 export default function JobCardAssignmentControls({ job, teams, members, assignment, onUpdateAssignment }: Props) {
   if (!onUpdateAssignment || (teams.length === 0 && members.length === 0)) return null;
 
-  const selectedStaffIds = assignment?.assignedStaffMemberIds ?? [];
+  const leadStaffMemberId = assignment?.leadStaffMemberId ?? null;
+  const selectedStaffIds = (assignment?.assignedStaffMemberIds ?? []).filter(id => id !== leadStaffMemberId);
+  const extraMembers = members.filter(member => member.id !== leadStaffMemberId);
 
   function toggleStaff(memberId: number) {
     onUpdateAssignment?.(job, {
@@ -23,24 +26,35 @@ export default function JobCardAssignmentControls({ job, teams, members, assignm
     });
   }
 
+  function updateLead(memberId: number | null) {
+    onUpdateAssignment?.(job, {
+      leadStaffMemberId: memberId,
+      assignedStaffMemberIds: selectedStaffIds.filter(id => id !== memberId),
+    });
+  }
+
   return (
     <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3" onClick={event => event.stopPropagation()}>
       <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Assign staff/team</p>
       <div className="mt-3 grid gap-2">
         <select value={assignment?.assignedTeamId ?? ""} onChange={event => onUpdateAssignment(job, { assignedTeamId: event.target.value ? Number(event.target.value) : null })} className="rounded-lg border border-slate-300 px-2 py-2 text-xs">
           <option value="">No team</option>
-          {teams.map(team => <option key={team.id} value={team.id}>{team.name}</option>)}
+          {teams.map(team => <option key={team.id} value={team.id}>{team.name} · {getTeamColourLabel(team.colour)}</option>)}
         </select>
-        <select value={assignment?.leadStaffMemberId ?? ""} onChange={event => onUpdateAssignment(job, { leadStaffMemberId: event.target.value ? Number(event.target.value) : null })} className="rounded-lg border border-slate-300 px-2 py-2 text-xs">
+        <select value={leadStaffMemberId ?? ""} onChange={event => updateLead(event.target.value ? Number(event.target.value) : null)} className="rounded-lg border border-slate-300 px-2 py-2 text-xs">
           <option value="">No lead engineer</option>
           {members.map(member => <option key={member.id} value={member.id}>{member.firstName} {member.lastName}</option>)}
         </select>
-        <div className="flex flex-wrap gap-1.5">
-          {members.map(member => (
-            <button key={member.id} type="button" onClick={() => toggleStaff(member.id)} className={`rounded-full border px-2 py-1 text-[11px] font-semibold ${selectedStaffIds.includes(member.id) ? "border-blue-600 bg-blue-600 text-white" : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"}`}>
-              {member.firstName}
-            </button>
-          ))}
+        <div>
+          <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">Extra staff</p>
+          <div className="flex flex-wrap gap-1.5">
+            {extraMembers.map(member => (
+              <button key={member.id} type="button" onClick={() => toggleStaff(member.id)} className={`rounded-full border px-2 py-1 text-[11px] font-semibold ${selectedStaffIds.includes(member.id) ? "border-blue-600 bg-blue-600 text-white" : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"}`}>
+                {member.firstName}
+              </button>
+            ))}
+            {extraMembers.length === 0 && <span className="text-[11px] text-slate-500">No extra staff available.</span>}
+          </div>
         </div>
       </div>
     </div>
