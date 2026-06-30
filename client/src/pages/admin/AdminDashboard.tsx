@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { authService } from "../../services/authService";
 import type { AdminAuditLog, AdminUser } from "../../types/admin";
 import { formatDateTime, formatStatus } from "./adminPortalHelpers";
@@ -17,12 +18,14 @@ export default function AdminDashboard({
 }) {
   const currentUser = authService.getUser();
 
+  useEffect(() => {
+    if (currentUser?.role !== "Director") {
+      onOpenAccounts();
+    }
+  }, [currentUser?.role, onOpenAccounts]);
+
   if (currentUser?.role !== "Director") {
-    return (
-      <div className="rounded-xl border border-slate-800 bg-slate-900 p-6 text-sm text-slate-300">
-        Overview is restricted to Director users.
-      </div>
-    );
+    return null;
   }
 
   const now = new Date();
