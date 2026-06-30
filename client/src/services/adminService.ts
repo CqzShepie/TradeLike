@@ -131,14 +131,19 @@ export const adminService = {
       firstName: request.firstName.trim(),
       lastName: request.lastName.trim(),
       email: request.email.trim().toLowerCase(),
-      password: request.password ?? "",
       personalAssistantTo: request.personalAssistantTo.trim(),
       adminNotes: request.adminNotes.trim(),
     })) as {
       message: string;
+      inviteLink?: string;
       inviteExpiresAt?: string | null;
       user: AdminUser;
     };
+
+    if (response.inviteLink) {
+      await navigator.clipboard?.writeText(response.inviteLink).catch(() => undefined);
+      window.alert(`Staff invite created. Invite link copied if your browser allowed it:\n\n${response.inviteLink}`);
+    }
 
     return response.user;
   },
