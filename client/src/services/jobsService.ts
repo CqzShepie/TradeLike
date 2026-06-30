@@ -67,11 +67,14 @@ export const jobsService = {
 };
 
 function normaliseJob(job: Job): Job {
+  const sourceQuote = job.sourceQuote ? normaliseQuote(job.sourceQuote) : null;
+
   return {
     ...job,
-    quoteId: job.quoteId ?? null,
+    customerId: job.customerId ?? sourceQuote?.customerId ?? null,
+    quoteId: job.quoteId ?? sourceQuote?.id ?? null,
     engineerId: job.engineerId ?? null,
-    sourceQuote: job.sourceQuote ? normaliseQuote(job.sourceQuote) : null,
+    sourceQuote,
   };
 }
 
