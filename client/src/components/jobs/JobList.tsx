@@ -1,3 +1,5 @@
+import type { CustomerStaffMember, CustomerTeam } from "../../services/customerStaffService";
+import type { JobAssignment } from "../../services/jobAssignmentsService";
 import type { Job } from "../../types/job";
 import JobCard from "./JobCard";
 
@@ -6,6 +8,10 @@ type JobListProps = {
     onViewJob?: (job: Job) => void;
     onDeleteJob?: (id: number) => void;
     onEditJob?: (job: Job) => void;
+    teams?: CustomerTeam[];
+    members?: CustomerStaffMember[];
+    getAssignment?: (jobId: number) => JobAssignment | undefined;
+    onUpdateAssignment?: (job: Job, patch: Partial<JobAssignment>) => void;
 };
 
 function JobList({
@@ -13,6 +19,10 @@ function JobList({
     onViewJob,
     onDeleteJob,
     onEditJob,
+    teams = [],
+    members = [],
+    getAssignment,
+    onUpdateAssignment,
 }: JobListProps) {
     if (jobs.length === 0) {
         return (
@@ -31,6 +41,10 @@ function JobList({
                     onViewJob={onViewJob}
                     onDeleteJob={onDeleteJob}
                     onEditJob={onEditJob}
+                    teams={teams}
+                    members={members}
+                    assignment={getAssignment?.(job.id)}
+                    onUpdateAssignment={onUpdateAssignment}
                 />
             ))}
         </div>
