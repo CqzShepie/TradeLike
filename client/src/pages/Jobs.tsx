@@ -73,9 +73,14 @@ function Jobs() {
                 title="Jobs"
                 subtitle="Manage scheduled work, site notes, priorities, quote references, staff assignment, and team scheduling."
                 action={
-                  <Button onClick={() => setShowForm(prev => !prev)}>
-                    {showForm ? "Close Form" : "+ New Job"}
-                  </Button>
+                  <div className="flex flex-wrap gap-2">
+                    <button type="button" onClick={() => navigate("/job-history")} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-white">
+                      Previous Jobs
+                    </button>
+                    <Button onClick={() => setShowForm(prev => !prev)}>
+                      {showForm ? "Close Form" : "+ New Job"}
+                    </Button>
+                  </div>
                 }
               />
 
