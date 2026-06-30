@@ -54,8 +54,6 @@ public class JobService : IJobService
         NormaliseJob(job);
         ValidateJob(job);
 
-        // Normal manually-created jobs are not linked to a quote.
-        // Quote-linked jobs are created through QuoteService.ConvertAcceptedQuoteToJobAsync.
         job.QuoteId = null;
 
         await _context.Jobs.AddAsync(job);
@@ -86,9 +84,6 @@ public class JobService : IJobService
         job.Notes = updatedJob.Notes;
         job.EngineerId = updatedJob.EngineerId;
 
-        // Do not overwrite QuoteId here.
-        // A job created from a quote must keep its source QuoteId.
-
         await _context.SaveChangesAsync();
 
         return await GetByIdAsync(id);
@@ -96,10 +91,7 @@ public class JobService : IJobService
 
     public async Task<Job?> DeleteAsync(int id)
     {
-        var job = await _context.Jobs
-            .Include(existingJob => existingJob.Quote)
-                .ThenInclude(quote => quote!.LineItems)
-            .FirstOrDefaultAsync(existingJob => existingJob.Id == id);
+        var job = await _context.Jobs.FindAsync(id);
 
         if (job is null)
         {
@@ -145,6 +137,64 @@ public class JobService : IJobService
             .Where(job => job.ScheduledDate >= start && job.ScheduledDate < end)
             .OrderBy(job => job.ScheduledDate)
             .ToListAsync();
+    }
+
+    public async Task<Job?> LinkQuoteAsync(int jobId, int quoteId)
+    {
+        if (quoteId <= 0)
+        {
+            throw new ValidationException("Enter a valid quote number.");
+        }
+
+        var job = await _context.Jobs.FindAsync(jobId);
+
+        if (job is null)
+        {
+            return null;
+        }
+
+        var quoteExists = await _context.Quotes
+            .AsNoTracking()
+            .AnyAsync(quote => quote.Id == quoteId);
+
+        if (!quoteExists)
+        {
+            throw new ValidationException($"Quote #{quoteId} was not found.");
+        }
+
+        var existingLinkedJob = await _context.Jobs
+            .AsNoTracking()
+            .FirstOrDefaultAsync(existingJob =>
+                existingJob.QuoteId == quoteId &&
+                existingJob.Id != jobId);
+
+        if (existingLinkedJob is not null)
+        {
+            throw new ValidationException(
+                $"Quote #{quoteId} is already linked to Job #{existingLinkedJob.Id}.");
+        }
+
+        job.QuoteId = quoteId;
+
+        await _context.SaveChangesAsync();
+
+        return await GetByIdAsync(jobId);
+    }
+
+    public async Task<Job?> UnlinkQuoteAsync(int jobId)
+    {
+        var job = await _context.Jobs.FindAsync(jobId);
+
+        if (job is null)
+        {
+            return null;
+        }
+
+        job.QuoteId = null;
+
+        await _context.SaveChangesAsync();
+
+        return await GetByIdAsync(jobId);
     }
 
     private static void NormaliseJob(Job job)

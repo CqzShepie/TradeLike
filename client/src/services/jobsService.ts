@@ -48,6 +48,22 @@ export const jobsService = {
     const jobs = (await apiClient.get(`/jobs/week?start=${start}`)) as Job[];
     return jobs.map(normaliseJob);
   },
+
+  async linkQuote(jobId: number, quoteId: number) {
+    const updated = (await apiClient.put(`/jobs/${jobId}/source-quote`, {
+      quoteId,
+    })) as Job;
+
+    return normaliseJob(updated);
+  },
+
+  async unlinkQuote(jobId: number) {
+    const updated = (await apiClient.delete(
+      `/jobs/${jobId}/source-quote`
+    )) as Job;
+
+    return normaliseJob(updated);
+  },
 };
 
 function normaliseJob(job: Job): Job {
@@ -60,17 +76,12 @@ function normaliseJob(job: Job): Job {
 }
 
 function normaliseQuote(quote: Quote): Quote {
-  const discountTotal = Number(quote.discountTotal ?? 0);
-  const discountValue = Number(quote.discountValue ?? 0);
-
   return {
     ...quote,
     amount: Number(quote.amount ?? quote.total ?? 0),
     subtotal: Number(quote.subtotal ?? 0),
     vatTotal: Number(quote.vatTotal ?? 0),
-    discountType: quote.discountType ?? "Amount",
-    discountValue: discountValue > 0 ? discountValue : discountTotal,
-    discountTotal,
+    discountTotal: Number(quote.discountTotal ?? 0),
     total: Number(quote.total ?? quote.amount ?? 0),
     lineItems: (quote.lineItems ?? []).map(normaliseLineItem),
   };

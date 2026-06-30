@@ -1,17 +1,14 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-
 import Sidebar from "../components/layout/Sidebar";
 import SectionHeader from "../components/ui/SectionHeader";
 import StatsGrid from "../components/ui/StatsGrid";
 import JobList from "../components/jobs/JobList";
 import NewJobForm from "../components/jobs/NewJobForm";
-
 import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
-
 import { useJobs } from "../hooks/useJobs";
-import type { JobPriority, JobStatus } from "../types/job";
+import type { Job, JobPriority, JobStatus } from "../types/job";
 
 function Jobs() {
   const {
@@ -27,148 +24,169 @@ function Jobs() {
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<JobStatus | "All">("All");
-  const [priorityFilter, setPriorityFilter] = useState<JobPriority | "All">("All");
-
+  const [priorityFilter, setPriorityFilter] = useState<JobPriority | "All">(
+    "All"
+  );
   const [showForm, setShowForm] = useState(false);
 
   const navigate = useNavigate();
 
-  const filteredJobs = jobs.filter((job) => {
+  const filteredJobs = jobs.filter(job => {
+    const searchText = search.trim().toLowerCase();
+
+    const searchableText = [
+      `job ${job.id}`,
+      `job #${job.id}`,
+      job.customer,
+      job.phone,
+      job.jobTitle,
+      job.address,
+      job.status,
+      job.priority,
+      job.quoteId ? `quote ${job.quoteId}` : "",
+      job.quoteId ? `quote #${job.quoteId}` : "",
+      job.sourceQuote?.title ?? "",
+      job.sourceQuote?.customerName ?? "",
+    ]
+      .join(" ")
+      .toLowerCase();
+
     const matchesSearch =
-      job.customer.toLowerCase().includes(search.toLowerCase()) ||
-      job.phone.toLowerCase().includes(search.toLowerCase()) ||
-      job.jobTitle.toLowerCase().includes(search.toLowerCase()) ||
-      job.address.toLowerCase().includes(search.toLowerCase());
+      searchText === "" || searchableText.includes(searchText);
 
     const matchesStatus =
-      statusFilter === "All" ||
-      job.status === statusFilter;
+      statusFilter === "All" || job.status === statusFilter;
 
     const matchesPriority =
-      priorityFilter === "All" ||
-      job.priority === priorityFilter;
+      priorityFilter === "All" || job.priority === priorityFilter;
 
     return matchesSearch && matchesStatus && matchesPriority;
   });
 
   return (
-    <main className="flex min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-slate-50">
       <Sidebar />
 
-      <section className="flex-1 p-10">
-        <SectionHeader
-          title="Jobs"
-          subtitle="View and manage all your jobs."
-        />
-
-        {loading ? (
-          <p>Loading...</p>
-        ) : (
-          <>
-            <StatsGrid
-              stats={[
-                {
-                  title: "Total Jobs",
-                  value: jobs.length,
-                },
-                {
-                  title: "Scheduled",
-                  value: jobs.filter(j => j.status === "Scheduled").length,
-                },
-                {
-                  title: "In Progress",
-                  value: jobs.filter(j => j.status === "InProgress").length,
-                },
-                {
-                  title: "Completed",
-                  value: jobs.filter(j => j.status === "Completed").length,
-                },
-              ]}
-            />
-
-            {editingJob && (
-              <p className="mb-4 text-sm text-blue-600">
-                Editing: {editingJob.jobTitle}
-              </p>
-            )}
-
-            <div className="mb-8">
-              <Button onClick={() => setShowForm(prev => !prev)}>
-                {showForm ? "Close Form" : "+ New Job"}
-              </Button>
+      <main className="md:pl-64">
+        <section className="mx-auto max-w-7xl px-6 py-8">
+          {loading ? (
+            <div className="rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-600 shadow-sm">
+              Loading...
             </div>
-
-            {(showForm || editingJob) && (
-              <NewJobForm
-                onAddJob={addJob}
-                onUpdateJob={updateJob}
-                editingJob={editingJob}
-                onCancelEdit={() => {
-                  cancelEdit();
-                  setShowForm(false);
-                }}
+          ) : (
+            <>
+              <SectionHeader
+                title="Jobs"
+                subtitle="Manage scheduled work, site notes, priorities, and linked quote references."
+                action={
+                  <Button onClick={() => setShowForm(prev => !prev)}>
+                    {showForm ? "Close Form" : "+ New Job"}
+                  </Button>
+                }
               />
-            )}
 
-            <div className="my-8 flex flex-col gap-4 lg:flex-row">
-              <div className="flex-1">
-                <Input
-                  type="text"
-                  placeholder="🔍 Search customer, phone, job or address..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                />
+              <StatsGrid
+                stats={[
+                  {
+                    title: "Scheduled",
+                    value: jobs.filter(job => job.status === "Scheduled")
+                      .length,
+                  },
+                  {
+                    title: "In Progress",
+                    value: jobs.filter(job => job.status === "InProgress")
+                      .length,
+                  },
+                  {
+                    title: "Completed",
+                    value: jobs.filter(job => job.status === "Completed")
+                      .length,
+                  },
+                ]}
+              />
+
+              {editingJob && (
+                <div className="mt-6 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-medium text-blue-800">
+                  Editing: {editingJob.jobTitle}
+                </div>
+              )}
+
+              {(showForm || editingJob) && (
+                <div className="mt-6">
+                  <NewJobForm
+                    onAddJob={addJob}
+                    onUpdateJob={updateJob}
+                    editingJob={editingJob}
+                    onCancelEdit={() => {
+                      cancelEdit();
+                      setShowForm(false);
+                    }}
+                  />
+                </div>
+              )}
+
+              <div className="mt-8 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                <div className="grid gap-3 md:grid-cols-[1fr_220px_220px]">
+                  <Input
+                    placeholder="Search jobs, customer, phone, address, job number, or quote number..."
+                    value={search}
+                    onChange={event => setSearch(event.target.value)}
+                  />
+
+                  <select
+                    value={statusFilter}
+                    onChange={event =>
+                      setStatusFilter(event.target.value as JobStatus | "All")
+                    }
+                    className="rounded-xl border border-slate-300 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="All">All Statuses</option>
+                    <option value="Scheduled">Scheduled</option>
+                    <option value="InProgress">In Progress</option>
+                    <option value="Completed">Completed</option>
+                    <option value="Cancelled">Cancelled</option>
+                  </select>
+
+                  <select
+                    value={priorityFilter}
+                    onChange={event =>
+                      setPriorityFilter(
+                        event.target.value as JobPriority | "All"
+                      )
+                    }
+                    className="rounded-xl border border-slate-300 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="All">All Priorities</option>
+                    <option value="Low">Low</option>
+                    <option value="Normal">Normal</option>
+                    <option value="High">High</option>
+                    <option value="Urgent">Urgent</option>
+                  </select>
+                </div>
               </div>
 
-              {/* STATUS FILTER */}
-              <select
-                value={statusFilter}
-                onChange={(e) =>
-                  setStatusFilter(e.target.value as JobStatus | "All")
-                }
-                className="rounded-xl border border-slate-300 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="All">All Statuses</option>
-                <option value="Scheduled">Scheduled</option>
-                <option value="InProgress">In Progress</option>
-                <option value="Completed">Completed</option>
-              </select>
+              <div className="mt-6">
+                <JobList
+                  jobs={filteredJobs}
+                  onViewJob={(job: Job) => navigate(`/jobs/${job.id}`)}
+                  onDeleteJob={deleteJob}
+                  onEditJob={(job: Job) => {
+                    startEdit(job);
+                    setShowForm(true);
+                  }}
+                />
 
-              {/* PRIORITY FILTER */}
-              <select
-                value={priorityFilter}
-                onChange={(e) =>
-                  setPriorityFilter(e.target.value as JobPriority | "All")
-                }
-                className="rounded-xl border border-slate-300 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="All">All Priorities</option>
-                <option value="Low">Low</option>
-                <option value="Normal">Normal</option>
-                <option value="High">High</option>
-                <option value="Urgent">Urgent</option>
-              </select>
-            </div>
-
-            <JobList
-              jobs={filteredJobs}
-              onViewJob={(job) => navigate(`/jobs/${job.id}`)}
-              onDeleteJob={deleteJob}
-              onEditJob={(job) => {
-                startEdit(job);
-                setShowForm(true);
-              }}
-            />
-
-            {filteredJobs.length === 0 && (
-              <p className="mt-10 text-center text-slate-500">
-                No matching jobs found.
-              </p>
-            )}
-          </>
-        )}
-      </section>
-    </main>
+                {filteredJobs.length === 0 && (
+                  <div className="mt-6 rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-500 shadow-sm">
+                    No matching jobs found.
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </section>
+      </main>
+    </div>
   );
 }
 

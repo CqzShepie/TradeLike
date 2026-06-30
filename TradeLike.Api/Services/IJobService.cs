@@ -17,4 +17,8 @@ public interface IJobService
     Task<IReadOnlyList<Job>> GetTodayAsync();
 
     Task<IReadOnlyList<Job>> GetWeekAsync(DateTime weekStart);
+
+    Task<Job?> LinkQuoteAsync(int jobId, int quoteId);
+
+    Task<Job?> UnlinkQuoteAsync(int jobId);
 }

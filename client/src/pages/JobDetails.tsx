@@ -22,6 +22,10 @@ export default function JobDetails() {
   const [form, setForm] = useState<Job | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [quoteNumber, setQuoteNumber] = useState("");
+  const [linkingQuote, setLinkingQuote] = useState(false);
+  const [quoteLinkMessage, setQuoteLinkMessage] = useState("");
+  const [quoteLinkError, setQuoteLinkError] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -110,6 +114,57 @@ export default function JobDetails() {
     }
   }
 
+  async function handleLinkQuote(event: FormEvent) {
+    event.preventDefault();
+
+    if (!job) return;
+
+    const quoteId = Number(quoteNumber);
+
+    if (!Number.isInteger(quoteId) || quoteId <= 0) {
+      setQuoteLinkError("Enter a valid quote number.");
+      setQuoteLinkMessage("");
+      return;
+    }
+
+    try {
+      setLinkingQuote(true);
+      setQuoteLinkError("");
+      setQuoteLinkMessage("");
+
+      const updated = await jobsService.linkQuote(job.id, quoteId);
+
+      setJob(updated);
+      setForm(updated);
+      setQuoteNumber("");
+      setQuoteLinkMessage(`Linked Quote #${quoteId} to this job.`);
+    } catch (err) {
+      setQuoteLinkError(getErrorMessage(err, "Unable to link quote."));
+    } finally {
+      setLinkingQuote(false);
+    }
+  }
+
+  async function handleUnlinkQuote() {
+    if (!job) return;
+
+    try {
+      setLinkingQuote(true);
+      setQuoteLinkError("");
+      setQuoteLinkMessage("");
+
+      const updated = await jobsService.unlinkQuote(job.id);
+
+      setJob(updated);
+      setForm(updated);
+      setQuoteLinkMessage("Quote link removed. The quote itself was not deleted.");
+    } catch (err) {
+      setQuoteLinkError(getErrorMessage(err, "Unable to unlink quote."));
+    } finally {
+      setLinkingQuote(false);
+    }
+  }
+
   return (
     <div className="min-h-screen bg-slate-50">
       <Sidebar />
@@ -142,9 +197,11 @@ export default function JobDetails() {
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
                     Job #{job.id}
                   </p>
+
                   <h1 className="mt-1 text-3xl font-bold text-slate-900">
                     {job.jobTitle}
                   </h1>
+
                   <p className="mt-2 text-sm text-slate-600">
                     {job.customer} · {formatDateTime(job.scheduledDate)}
                   </p>
@@ -321,7 +378,7 @@ export default function JobDetails() {
                       <Snapshot label="Status" value={formatStatus(job.status)} />
                       <Snapshot label="Priority" value={job.priority} />
                       <Snapshot
-                        label="Source quote"
+                        label="Linked quote"
                         value={
                           job.quoteId ? (
                             <Link
@@ -338,6 +395,61 @@ export default function JobDetails() {
                     </div>
                   </div>
 
+                  <form
+                    onSubmit={handleLinkQuote}
+                    className="rounded-xl border border-blue-200 bg-blue-50 p-6"
+                  >
+                    <h2 className="text-lg font-bold text-slate-900">
+                      Link quote by number
+                    </h2>
+
+                    <p className="mt-1 text-sm text-blue-900">
+                      Add an existing quote to this job by entering the quote
+                      number. The quote is not deleted or converted.
+                    </p>
+
+                    {quoteLinkError && (
+                      <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700">
+                        {quoteLinkError}
+                      </div>
+                    )}
+
+                    {quoteLinkMessage && (
+                      <div className="mt-4 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm font-medium text-green-700">
+                        {quoteLinkMessage}
+                      </div>
+                    )}
+
+                    <div className="mt-4 flex gap-2">
+                      <input
+                        value={quoteNumber}
+                        onChange={event => setQuoteNumber(event.target.value)}
+                        placeholder="Quote number, e.g. 12"
+                        inputMode="numeric"
+                        className="min-w-0 flex-1 rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-600"
+                      />
+
+                      <button
+                        type="submit"
+                        disabled={linkingQuote}
+                        className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-400"
+                      >
+                        {linkingQuote ? "Linking..." : "Link"}
+                      </button>
+                    </div>
+
+                    {job.quoteId && (
+                      <button
+                        type="button"
+                        onClick={handleUnlinkQuote}
+                        disabled={linkingQuote}
+                        className="mt-3 rounded-lg border border-blue-300 px-3 py-1.5 text-xs font-semibold text-blue-800 hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        Remove quote link
+                      </button>
+                    )}
+                  </form>
+
                   <div className="rounded-xl border border-amber-200 bg-amber-50 p-6">
                     <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">
                       Notes
@@ -353,7 +465,7 @@ export default function JobDetails() {
                 <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                      Invoice-ready source quote
+                      Invoice-ready linked quote
                     </p>
                     <h2 className="mt-1 text-xl font-bold text-slate-900">
                       {sourceQuote
@@ -363,9 +475,8 @@ export default function JobDetails() {
                         : "No linked quote"}
                     </h2>
                     <p className="mt-2 text-sm text-slate-500">
-                      Converted jobs keep the original quote. This panel is here
-                      so invoicing can be created later from the linked quote
-                      totals and line items.
+                      This panel shows the quote totals and priced rows that can
+                      later be used when we add invoice creation.
                     </p>
                   </div>
 
@@ -374,16 +485,15 @@ export default function JobDetails() {
                       to={`/quotes/${sourceQuote.id}`}
                       className="inline-flex rounded-lg border border-blue-200 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-50"
                     >
-                      Open source quote
+                      Open linked quote
                     </Link>
                   )}
                 </div>
 
                 {!sourceQuote && (
                   <div className="mt-5 rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
-                    This job is not linked to a quote. Existing jobs still work
-                    normally; they just do not have quote totals or line items to
-                    show here.
+                    This job is not linked to a quote yet. Use the quote number
+                    box above to attach an existing quote.
                   </div>
                 )}
 
@@ -396,11 +506,7 @@ export default function JobDetails() {
                       />
                       <MoneyCard label="VAT total" value={sourceQuote.vatTotal} />
                       <MoneyCard
-                        label={
-                          sourceQuote.discountType === "Percentage"
-                            ? `Discount (${sourceQuote.discountValue}%)`
-                            : "Discount"
-                        }
+                        label="Discount"
                         value={sourceQuote.discountTotal}
                         negative
                       />
@@ -423,7 +529,7 @@ export default function JobDetails() {
 
                       {quoteLineItems.length === 0 ? (
                         <div className="px-4 py-5 text-sm text-slate-500">
-                          No quote line items were found for this source quote.
+                          No quote line items were found for this linked quote.
                         </div>
                       ) : (
                         quoteLineItems.map((item, index) => (

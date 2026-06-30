@@ -50,9 +50,11 @@ function JobCard({
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
               Job #{job.id}
             </p>
+
             <h3 className="mt-1 text-lg font-bold text-slate-900">
               {job.jobTitle}
             </h3>
+
             <p className="mt-1 text-sm font-medium text-slate-600">
               {job.customer}
             </p>
@@ -95,9 +97,9 @@ function JobCard({
           {job.quoteId && (
             <div>
               <dt className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                Source quote
+                Linked quote
               </dt>
-              <dd className="mt-1 font-medium text-blue-700">
+              <dd className="mt-1 font-semibold text-blue-700">
                 Quote #{job.quoteId}
               </dd>
             </div>
@@ -140,6 +142,7 @@ function JobCard({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
           <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
             <h2 className="text-lg font-bold text-slate-900">Delete Job</h2>
+
             <p className="mt-2 text-sm text-slate-600">
               Are you sure you want to delete{" "}
               <span className="font-semibold">{job.jobTitle}</span>?

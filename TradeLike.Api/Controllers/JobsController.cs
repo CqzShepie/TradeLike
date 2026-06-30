@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using TradeLike.Api.Contracts.Jobs;
 using TradeLike.Api.Contracts.Quotes;
 using TradeLike.Api.Models;
 using TradeLike.Api.Services;
@@ -110,6 +111,41 @@ public class JobsController : ControllerBase
         return Ok(jobs.Select(ToResponse).ToList());
     }
 
+    [HttpPut("{id:int}/source-quote")]
+    public async Task<ActionResult<JobResponse>> LinkSourceQuote(
+        int id,
+        [FromBody] LinkQuoteToJobRequest request)
+    {
+        try
+        {
+            var updated = await _jobService.LinkQuoteAsync(id, request.QuoteId);
+
+            if (updated is null)
+            {
+                return NotFound();
+            }
+
+            return Ok(ToResponse(updated));
+        }
+        catch (ValidationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    [HttpDelete("{id:int}/source-quote")]
+    public async Task<ActionResult<JobResponse>> UnlinkSourceQuote(int id)
+    {
+        var updated = await _jobService.UnlinkQuoteAsync(id);
+
+        if (updated is null)
+        {
+            return NotFound();
+        }
+
+        return Ok(ToResponse(updated));
+    }
+
     private static JobResponse ToResponse(Job job)
     {
         return new JobResponse
@@ -141,8 +177,6 @@ public class JobsController : ControllerBase
             Amount = quote.Amount,
             Subtotal = quote.Subtotal,
             VatTotal = quote.VatTotal,
-            DiscountType = quote.DiscountType,
-            DiscountValue = quote.DiscountValue,
             DiscountTotal = quote.DiscountTotal,
             Total = quote.Total,
             Status = quote.Status,
