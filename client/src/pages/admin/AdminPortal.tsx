@@ -54,7 +54,6 @@ export default function AdminPortal() {
   const staffFirstName = staffFullName.split(" ")[0] || "Staff";
   const staffRole = currentUser?.role || "Staff";
   const paTo = currentUser?.personalAssistantTo?.trim();
-
   const isDirector = staffRole === "Director";
 
   const canSeeAccounts =
@@ -73,9 +72,7 @@ export default function AdminPortal() {
     Boolean(currentUser?.canCreateStaff) ||
     Boolean(currentUser?.canEditStaffPermissions);
 
-  const canSeeAuditLogs =
-    isDirector ||
-    Boolean(currentUser?.canViewAuditLogs);
+  const canSeeAuditLogs = isDirector || Boolean(currentUser?.canViewAuditLogs);
 
   const availableSections = useMemo(() => {
     const sections: AdminSection[] = [];
@@ -121,13 +118,12 @@ export default function AdminPortal() {
   const [createLastName, setCreateLastName] = useState("");
   const [createEmail, setCreateEmail] = useState("");
   const [createPassword, setCreatePassword] = useState("");
-  const [createStatus, setCreateStatus] =
-    useState<AdminAccountStatus>("Trial");
+  const [createStatus, setCreateStatus] = useState<AdminAccountStatus>("Trial");
   const [createBusinessName, setCreateBusinessName] = useState("");
   const [createOwnerName, setCreateOwnerName] = useState("");
   const [createOwnerPhone, setCreateOwnerPhone] = useState("");
   const [createSubscriptionPlan, setCreateSubscriptionPlan] =
-    useState<SubscriptionPlan>("Trial");
+    useState<SubscriptionPlan>("Solo");
   const [createBillingStatus, setCreateBillingStatus] =
     useState<BillingStatus>("Trial");
   const [createTrialEndsAt, setCreateTrialEndsAt] = useState("");
@@ -140,10 +136,8 @@ export default function AdminPortal() {
   const [createCancelReason, setCreateCancelReason] = useState("");
   const [createNotes, setCreateNotes] = useState("");
 
-  const [accountStatus, setAccountStatus] =
-    useState<AdminAccountStatus>("Trial");
-  const [discountType, setDiscountType] =
-    useState<AdminDiscountType>("None");
+  const [accountStatus, setAccountStatus] = useState<AdminAccountStatus>("Trial");
+  const [discountType, setDiscountType] = useState<AdminDiscountType>("None");
   const [discountValue, setDiscountValue] = useState("0");
   const [freeMonths, setFreeMonths] = useState("0");
   const [freeMonthsExpireAt, setFreeMonthsExpireAt] = useState("");
@@ -151,9 +145,8 @@ export default function AdminPortal() {
   const [ownerName, setOwnerName] = useState("");
   const [ownerPhone, setOwnerPhone] = useState("");
   const [subscriptionPlan, setSubscriptionPlan] =
-    useState<SubscriptionPlan>("Trial");
-  const [billingStatus, setBillingStatus] =
-    useState<BillingStatus>("Trial");
+    useState<SubscriptionPlan>("Solo");
+  const [billingStatus, setBillingStatus] = useState<BillingStatus>("Trial");
   const [trialEndsAt, setTrialEndsAt] = useState("");
   const [adminTags, setAdminTags] = useState("");
   const [supportNotes, setSupportNotes] = useState("");
@@ -168,15 +161,13 @@ export default function AdminPortal() {
   const [createStaffLastName, setCreateStaffLastName] = useState("");
   const [createStaffEmail, setCreateStaffEmail] = useState("");
   const [createStaffPassword, setCreateStaffPassword] = useState("");
-  const [createStaffRole, setCreateStaffRole] =
-    useState<StaffRole>("Support");
+  const [createStaffRole, setCreateStaffRole] = useState<StaffRole>("Support");
   const [createStaffPaTo, setCreateStaffPaTo] = useState("");
   const [createStaffPermissions, setCreateStaffPermissions] =
     useState<PermissionFlags>(blankPermissions);
   const [createStaffNotes, setCreateStaffNotes] = useState("");
 
-  const [staffEditRole, setStaffEditRole] =
-    useState<StaffRole>("Support");
+  const [staffEditRole, setStaffEditRole] = useState<StaffRole>("Support");
   const [staffEditPaTo, setStaffEditPaTo] = useState("");
   const [staffEditStatus, setStaffEditStatus] =
     useState<AdminAccountStatus>("Active");
@@ -218,19 +209,6 @@ export default function AdminPortal() {
     };
   }, [staffSearch, staffUsers]);
 
-  const staffStats = useMemo(() => {
-    return {
-      current: staffUsers.filter(user => user.accountStatus !== "Cancelled").length,
-      previous: staffUsers.filter(user => user.accountStatus === "Cancelled").length,
-      directors: staffUsers.filter(user => user.role === "Director").length,
-      developers: staffUsers.filter(user =>
-        user.role === "Junior Developer" ||
-        user.role === "Developer" ||
-        user.role === "Senior Developer"
-      ).length,
-    };
-  }, [staffUsers]);
-
   useEffect(() => {
     if (!availableSections.includes(activeSection)) {
       setActiveSection(availableSections[0] ?? "accounts");
@@ -255,19 +233,13 @@ export default function AdminPortal() {
   function showError(value: string) {
     setError(value);
     setMessage("");
-
-    window.setTimeout(() => {
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    }, 0);
+    window.setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 0);
   }
 
   function showMessage(value: string) {
     setMessage(value);
     setError("");
-
-    window.setTimeout(() => {
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    }, 0);
+    window.setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 0);
   }
 
   async function refreshAuditLogs() {
@@ -284,20 +256,8 @@ export default function AdminPortal() {
     try {
       setLoadingUsers(true);
       setError("");
-
       const data = await adminService.getUsers(searchTerm);
-
       setUsers(data);
-
-      if (selectedUser) {
-        const refreshed = data.find(user => user.id === selectedUser.id) ?? null;
-        setSelectedUser(refreshed);
-
-        if (refreshed) {
-          fillSelectedUserForm(refreshed);
-          await loadCustomerTimeline(refreshed.id);
-        }
-      }
     } catch (err) {
       showError(getErrorMessage(err, "Unable to load customer accounts."));
     } finally {
@@ -313,19 +273,8 @@ export default function AdminPortal() {
     try {
       setLoadingStaff(true);
       setError("");
-
       const data = await adminService.getStaff();
-
       setStaffUsers(data);
-
-      if (selectedStaff) {
-        const refreshed = data.find(user => user.id === selectedStaff.id) ?? null;
-        setSelectedStaff(refreshed);
-
-        if (refreshed) {
-          fillSelectedStaffForm(refreshed);
-        }
-      }
     } catch (err) {
       showError(getErrorMessage(err, "Unable to load staff users."));
     } finally {
@@ -341,9 +290,7 @@ export default function AdminPortal() {
     try {
       setLoadingAuditLogs(true);
       setError("");
-
       const data = await adminService.getAuditLogs(searchTerm);
-
       setAuditLogs(data);
     } catch (err) {
       showError(getErrorMessage(err, "Unable to load audit logs."));
@@ -355,9 +302,7 @@ export default function AdminPortal() {
   async function loadCustomerTimeline(userId: number) {
     try {
       setLoadingTimeline(true);
-
       const data = await adminService.getCustomerTimeline(userId);
-
       setCustomerTimeline(data);
     } catch {
       setCustomerTimeline([]);
@@ -420,6 +365,22 @@ export default function AdminPortal() {
     setStaffEditStatus(user.accountStatus);
     setStaffEditPermissions(getPermissionsFromUser(user));
     setStaffEditNotes(user.adminNotes ?? "");
+  }
+
+  function upsertUser(user: AdminUser) {
+    setUsers(previous =>
+      previous.some(existing => existing.id === user.id)
+        ? previous.map(existing => (existing.id === user.id ? user : existing))
+        : [user, ...previous]
+    );
+  }
+
+  function upsertStaff(user: AdminUser) {
+    setStaffUsers(previous =>
+      previous.some(existing => existing.id === user.id)
+        ? previous.map(existing => (existing.id === user.id ? user : existing))
+        : [user, ...previous]
+    );
   }
 
   async function handleSearch(event: FormEvent) {
@@ -500,7 +461,7 @@ export default function AdminPortal() {
       setCreateBusinessName("");
       setCreateOwnerName("");
       setCreateOwnerPhone("");
-      setCreateSubscriptionPlan("Trial");
+      setCreateSubscriptionPlan("Solo");
       setCreateBillingStatus("Trial");
       setCreateTrialEndsAt("");
       setCreateFreeMonthsExpireAt("");
@@ -582,9 +543,7 @@ export default function AdminPortal() {
       setSaving(true);
       setError("");
       setMessage("");
-
       const updated = await adminService.reactivateCustomer(selectedUser.id);
-
       upsertUser(updated);
       setSelectedUser(updated);
       fillSelectedUserForm(updated);
@@ -614,12 +573,10 @@ export default function AdminPortal() {
       setSaving(true);
       setError("");
       setMessage("");
-
       const updated = await adminService.resetPassword(selectedUser.id, {
         newPassword,
         requirePasswordReset,
       });
-
       upsertUser(updated);
       setSelectedUser(updated);
       fillSelectedUserForm(updated);
@@ -642,9 +599,7 @@ export default function AdminPortal() {
       setSaving(true);
       setError("");
       setMessage("");
-
       const updated = await adminService.markEmailVerified(selectedUser.id);
-
       upsertUser(updated);
       setSelectedUser(updated);
       fillSelectedUserForm(updated);
@@ -667,9 +622,7 @@ export default function AdminPortal() {
       setSaving(true);
       setError("");
       setMessage("");
-
       const response = await adminService.sendVerificationEmail(selectedUser.id);
-
       upsertUser(response.user);
       setSelectedUser(response.user);
       fillSelectedUserForm(response.user);
@@ -692,9 +645,7 @@ export default function AdminPortal() {
       setSaving(true);
       setError("");
       setMessage("");
-
       const response = await adminService.sendOnboardingEmail(selectedUser.id);
-
       upsertUser(response.user);
       setSelectedUser(response.user);
       fillSelectedUserForm(response.user);
@@ -740,7 +691,6 @@ export default function AdminPortal() {
       setSaving(true);
       setError("");
       setMessage("");
-
       const created = await adminService.createStaff({
         firstName: createStaffFirstName,
         lastName: createStaffLastName,
@@ -755,7 +705,6 @@ export default function AdminPortal() {
       setStaffUsers(previous => [created, ...previous]);
       setSelectedStaff(created);
       fillSelectedStaffForm(created);
-
       setCreateStaffFirstName("");
       setCreateStaffLastName("");
       setCreateStaffEmail("");
@@ -764,7 +713,6 @@ export default function AdminPortal() {
       setCreateStaffPaTo("");
       setCreateStaffPermissions(blankPermissions);
       setCreateStaffNotes("");
-
       showMessage(`Created staff account for ${created.email}.`);
       await refreshAuditLogs();
     } catch (err) {
@@ -790,17 +738,13 @@ export default function AdminPortal() {
       setSaving(true);
       setError("");
       setMessage("");
-
-      const updated = await adminService.updateStaffPermissions(
-        selectedStaff.id,
-        {
-          role: staffEditRole,
-          personalAssistantTo: staffEditPaTo,
-          accountStatus: staffEditStatus,
-          ...staffEditPermissions,
-          adminNotes: staffEditNotes,
-        }
-      );
+      const updated = await adminService.updateStaffPermissions(selectedStaff.id, {
+        role: staffEditRole,
+        personalAssistantTo: staffEditPaTo,
+        accountStatus: staffEditStatus,
+        ...staffEditPermissions,
+        adminNotes: staffEditNotes,
+      });
 
       upsertStaff(updated);
       setSelectedStaff(updated);
@@ -812,22 +756,6 @@ export default function AdminPortal() {
     } finally {
       setSaving(false);
     }
-  }
-
-  function upsertUser(user: AdminUser) {
-    setUsers(previous =>
-      previous.some(existing => existing.id === user.id)
-        ? previous.map(existing => (existing.id === user.id ? user : existing))
-        : [user, ...previous]
-    );
-  }
-
-  function upsertStaff(user: AdminUser) {
-    setStaffUsers(previous =>
-      previous.some(existing => existing.id === user.id)
-        ? previous.map(existing => (existing.id === user.id ? user : existing))
-        : [user, ...previous]
-    );
   }
 
   function searchAuditForStaff(user: AdminUser) {
@@ -845,8 +773,7 @@ export default function AdminPortal() {
               TradeLike
             </Link>
             <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
-              {staffRole}
-              {paTo ? ` · PA to ${paTo}` : ""}
+              {staffRole}{paTo ? ` · PA to ${paTo}` : ""}
             </p>
           </div>
 
@@ -857,7 +784,6 @@ export default function AdminPortal() {
             >
               Back to Login
             </Link>
-
             <Link
               to="/dashboard"
               className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700"
@@ -869,25 +795,19 @@ export default function AdminPortal() {
       </header>
 
       <section className="mx-auto max-w-7xl px-6 py-8">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-blue-400">
-            Staff Admin Portal
-          </p>
-
-          <h1 className="mt-1 text-3xl font-bold text-white">
-            Hello {staffFirstName}
-          </h1>
-
-          <p className="mt-2 text-sm font-semibold uppercase tracking-wide text-slate-300">
-            {staffRole}
-            {paTo ? ` · PA to ${paTo}` : ""}
-          </p>
-
-          <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-400">
-            Manage SaaS customer accounts, staff permissions, free months,
-            discounts, verification status, passwords, and audit logs.
-          </p>
-        </div>
+        <p className="text-xs font-semibold uppercase tracking-wide text-blue-400">
+          Staff Admin Portal
+        </p>
+        <h1 className="mt-1 text-3xl font-bold text-white">
+          Hello {staffFirstName}
+        </h1>
+        <p className="mt-2 text-sm font-semibold uppercase tracking-wide text-slate-300">
+          {staffRole}{paTo ? ` · PA to ${paTo}` : ""}
+        </p>
+        <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-400">
+          Manage SaaS customer accounts, staff permissions, free months,
+          discounts, verification status, passwords, and audit logs.
+        </p>
 
         {error && (
           <div className="mt-6 rounded-xl border border-red-400/30 bg-red-400/10 p-4 text-sm font-medium text-red-100">
@@ -906,7 +826,6 @@ export default function AdminPortal() {
             <p className="px-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
               Admin sections
             </p>
-
             <div className="mt-3 flex flex-col gap-2">
               {canSeeAccounts && (
                 <AdminNavButton
@@ -955,10 +874,7 @@ export default function AdminPortal() {
                       onSubmit={handleSearch}
                       className="rounded-xl border border-slate-800 bg-slate-900 p-5 shadow-sm"
                     >
-                      <h2 className="text-lg font-bold text-white">
-                        Search accounts
-                      </h2>
-
+                      <h2 className="text-lg font-bold text-white">Search accounts</h2>
                       <div className="mt-4 flex gap-2">
                         <input
                           value={search}
@@ -966,7 +882,6 @@ export default function AdminPortal() {
                           placeholder="Name, email, plan, status, tag"
                           className="min-w-0 flex-1 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-blue-500"
                         />
-
                         <button
                           type="submit"
                           className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700"
@@ -994,17 +909,6 @@ export default function AdminPortal() {
                         <DarkInput value={createOwnerPhone} onChange={setCreateOwnerPhone} placeholder="Owner phone" />
 
                         <DarkSelect
-                          value={createStatus}
-                          onChange={value => setCreateStatus(value as AdminAccountStatus)}
-                        >
-                          {accountStatuses.map(status => (
-                            <option key={status} value={status}>
-                              {formatStatus(status)}
-                            </option>
-                          ))}
-                        </DarkSelect>
-
-                        <DarkSelect
                           value={createSubscriptionPlan}
                           onChange={value => setCreateSubscriptionPlan(value as SubscriptionPlan)}
                         >
@@ -1018,9 +922,7 @@ export default function AdminPortal() {
                           onChange={value => setCreateBillingStatus(value as BillingStatus)}
                         >
                           {billingStatuses.map(status => (
-                            <option key={status} value={status}>
-                              {formatStatus(status)}
-                            </option>
+                            <option key={status} value={status}>{formatStatus(status)}</option>
                           ))}
                         </DarkSelect>
 
@@ -1032,34 +934,14 @@ export default function AdminPortal() {
                           <DarkInput value={createFreeMonthsExpireAt} onChange={setCreateFreeMonthsExpireAt} type="date" />
                         </Field>
 
-                        <DarkInput
-                          value={createAdminTags}
-                          onChange={setCreateAdminTags}
-                          placeholder="Tags, comma separated"
-                        />
+                        <DarkInput value={createAdminTags} onChange={setCreateAdminTags} placeholder="Tags, comma separated" />
 
                         {(createStatus === "Cancelled" || createBillingStatus === "Cancelled") && (
-                          <DarkTextarea
-                            value={createCancelReason}
-                            onChange={setCreateCancelReason}
-                            placeholder="Cancel reason"
-                            rows={3}
-                          />
+                          <DarkTextarea value={createCancelReason} onChange={setCreateCancelReason} placeholder="Cancel reason" rows={3} />
                         )}
 
-                        <DarkTextarea
-                          value={createSupportNotes}
-                          onChange={setCreateSupportNotes}
-                          placeholder="Support notes"
-                          rows={4}
-                        />
-
-                        <DarkTextarea
-                          value={createNotes}
-                          onChange={setCreateNotes}
-                          placeholder="Internal admin notes"
-                          rows={4}
-                        />
+                        <DarkTextarea value={createSupportNotes} onChange={setCreateSupportNotes} placeholder="Support notes" rows={4} />
+                        <DarkTextarea value={createNotes} onChange={setCreateNotes} placeholder="Internal admin notes" rows={4} />
 
                         <button
                           type="submit"
@@ -1075,9 +957,7 @@ export default function AdminPortal() {
                   <div className="space-y-6">
                     <div className="rounded-xl border border-slate-800 bg-slate-900 shadow-sm">
                       <div className="border-b border-slate-800 px-5 py-4">
-                        <h2 className="text-lg font-bold text-white">
-                          Customer accounts
-                        </h2>
+                        <h2 className="text-lg font-bold text-white">Customer accounts</h2>
                         <p className="mt-1 text-sm text-slate-400">
                           Click a selected customer again to hide their details.
                         </p>
@@ -1086,9 +966,7 @@ export default function AdminPortal() {
                       {loadingUsers ? (
                         <div className="p-5 text-sm text-slate-400">Loading...</div>
                       ) : users.length === 0 ? (
-                        <div className="p-5 text-sm text-slate-400">
-                          No customer accounts found.
-                        </div>
+                        <div className="p-5 text-sm text-slate-400">No customer accounts found.</div>
                       ) : (
                         <div className="max-h-[520px] divide-y divide-slate-800 overflow-y-auto">
                           {users.map(user => (
@@ -1104,11 +982,8 @@ export default function AdminPortal() {
                                 <p className="font-semibold text-white">
                                   {user.businessName || user.fullName || user.email}
                                 </p>
-                                <p className="mt-1 text-sm text-slate-400">
-                                  {user.email}
-                                </p>
+                                <p className="mt-1 text-sm text-slate-400">{user.email}</p>
                               </div>
-
                               <Badge>{formatStatus(user.accountStatus)}</Badge>
                               <Badge>{formatStatus(user.billingStatus)}</Badge>
                               <Badge>{user.subscriptionPlan}</Badge>
@@ -1124,12 +999,8 @@ export default function AdminPortal() {
                           onSubmit={handleSaveAccount}
                           className="rounded-xl border border-slate-800 bg-slate-900 p-5 shadow-sm"
                         >
-                          <h2 className="text-lg font-bold text-white">
-                            Manage customer
-                          </h2>
-                          <p className="mt-1 text-sm text-slate-400">
-                            {selectedUser.email}
-                          </p>
+                          <h2 className="text-lg font-bold text-white">Manage customer</h2>
+                          <p className="mt-1 text-sm text-slate-400">{selectedUser.email}</p>
 
                           <div className="mt-5 grid gap-4">
                             <Field label="Business name">
@@ -1145,23 +1016,15 @@ export default function AdminPortal() {
                             </Field>
 
                             <Field label="Account status">
-                              <DarkSelect
-                                value={accountStatus}
-                                onChange={value => setAccountStatus(value as AdminAccountStatus)}
-                              >
+                              <DarkSelect value={accountStatus} onChange={value => setAccountStatus(value as AdminAccountStatus)}>
                                 {accountStatuses.map(status => (
-                                  <option key={status} value={status}>
-                                    {formatStatus(status)}
-                                  </option>
+                                  <option key={status} value={status}>{formatStatus(status)}</option>
                                 ))}
                               </DarkSelect>
                             </Field>
 
                             <Field label="Subscription plan">
-                              <DarkSelect
-                                value={subscriptionPlan}
-                                onChange={value => setSubscriptionPlan(value as SubscriptionPlan)}
-                              >
+                              <DarkSelect value={subscriptionPlan} onChange={value => setSubscriptionPlan(value as SubscriptionPlan)}>
                                 {subscriptionPlans.map(plan => (
                                   <option key={plan} value={plan}>{plan}</option>
                                 ))}
@@ -1169,14 +1032,9 @@ export default function AdminPortal() {
                             </Field>
 
                             <Field label="Billing status">
-                              <DarkSelect
-                                value={billingStatus}
-                                onChange={value => setBillingStatus(value as BillingStatus)}
-                              >
+                              <DarkSelect value={billingStatus} onChange={value => setBillingStatus(value as BillingStatus)}>
                                 {billingStatuses.map(status => (
-                                  <option key={status} value={status}>
-                                    {formatStatus(status)}
-                                  </option>
+                                  <option key={status} value={status}>{formatStatus(status)}</option>
                                 ))}
                               </DarkSelect>
                             </Field>
@@ -1186,10 +1044,7 @@ export default function AdminPortal() {
                             </Field>
 
                             <Field label="Discount type">
-                              <DarkSelect
-                                value={discountType}
-                                onChange={value => setDiscountType(value as AdminDiscountType)}
-                              >
+                              <DarkSelect value={discountType} onChange={value => setDiscountType(value as AdminDiscountType)}>
                                 {discountTypes.map(type => (
                                   <option key={type} value={type}>
                                     {type === "None" ? "No discount" : type === "Amount" ? "£ amount" : "% percentage"}
@@ -1219,11 +1074,7 @@ export default function AdminPortal() {
                             </Field>
 
                             <Field label="Tags">
-                              <DarkInput
-                                value={adminTags}
-                                onChange={setAdminTags}
-                                placeholder="High Value, Setup Help, Churn Risk"
-                              />
+                              <DarkInput value={adminTags} onChange={setAdminTags} placeholder="High Value, Setup Help, Churn Risk" />
                             </Field>
 
                             {(accountStatus === "Cancelled" || billingStatus === "Cancelled") && (
@@ -1263,10 +1114,37 @@ export default function AdminPortal() {
 
                         <div className="space-y-6">
                           <div className="rounded-xl border border-slate-800 bg-slate-900 p-5 shadow-sm">
-                            <h2 className="text-lg font-bold text-white">
-                              Account snapshot
-                            </h2>
+                            <h2 className="text-lg font-bold text-white">Account actions</h2>
+                            <div className="mt-4 grid gap-3">
+                              <button
+                                type="button"
+                                onClick={handleMarkVerified}
+                                disabled={saving || selectedUser.isEmailVerified}
+                                className="rounded-lg border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                {selectedUser.isEmailVerified ? "Email Verified" : "Mark Email Verified"}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={handleSendVerificationEmail}
+                                disabled={saving}
+                                className="rounded-lg border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                Send Verification Email
+                              </button>
+                              <button
+                                type="button"
+                                onClick={handleSendOnboardingEmail}
+                                disabled={saving}
+                                className="rounded-lg border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                Send Onboarding Email
+                              </button>
+                            </div>
+                          </div>
 
+                          <div className="rounded-xl border border-slate-800 bg-slate-900 p-5 shadow-sm">
+                            <h2 className="text-lg font-bold text-white">Account snapshot</h2>
                             <div className="mt-4 grid gap-3 text-sm text-slate-400">
                               <SnapshotRow label="Last login" value={selectedUser.lastLoginAt ? formatDateTime(selectedUser.lastLoginAt) : "Never"} />
                               <SnapshotRow label="Trial ends" value={selectedUser.trialEndsAt ? formatDateTime(selectedUser.trialEndsAt) : "Not set"} />
@@ -1274,53 +1152,15 @@ export default function AdminPortal() {
                               <SnapshotRow label="Onboarding email" value={selectedUser.onboardingEmailSentAt ? formatDateTime(selectedUser.onboardingEmailSentAt) : "Not sent"} />
                               <SnapshotRow label="Verification email" value={selectedUser.emailVerificationSentAt ? formatDateTime(selectedUser.emailVerificationSentAt) : "Never"} />
                             </div>
-
-                            <div className="mt-5 flex flex-wrap gap-2">
-                              <button
-                                type="button"
-                                onClick={handleSendVerificationEmail}
-                                disabled={saving}
-                                className="rounded-lg border border-blue-500/50 px-3 py-2 text-xs font-semibold text-blue-200 hover:bg-blue-500/10 disabled:cursor-not-allowed disabled:opacity-50"
-                              >
-                                Send verification email
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={handleMarkVerified}
-                                disabled={saving || selectedUser.isEmailVerified}
-                                className="rounded-lg border border-green-500/50 px-3 py-2 text-xs font-semibold text-green-200 hover:bg-green-500/10 disabled:cursor-not-allowed disabled:opacity-50"
-                              >
-                                Mark verified
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={handleSendOnboardingEmail}
-                                disabled={saving}
-                                className="rounded-lg border border-purple-500/50 px-3 py-2 text-xs font-semibold text-purple-200 hover:bg-purple-500/10 disabled:cursor-not-allowed disabled:opacity-50"
-                              >
-                                Send onboarding email
-                              </button>
-                            </div>
                           </div>
 
                           <form
                             onSubmit={handleResetPassword}
                             className="rounded-xl border border-slate-800 bg-slate-900 p-5 shadow-sm"
                           >
-                            <h2 className="text-lg font-bold text-white">
-                              Reset password
-                            </h2>
-
+                            <h2 className="text-lg font-bold text-white">Reset password</h2>
                             <div className="mt-4 space-y-4">
-                              <DarkInput
-                                value={newPassword}
-                                onChange={setNewPassword}
-                                type="password"
-                                placeholder="New password, minimum 8 characters"
-                              />
-
+                              <DarkInput value={newPassword} onChange={setNewPassword} type="password" placeholder="New password, minimum 8 characters" />
                               <label className="flex items-center gap-2 text-sm text-slate-300">
                                 <input
                                   type="checkbox"
@@ -1329,7 +1169,6 @@ export default function AdminPortal() {
                                 />
                                 Require password reset on next login
                               </label>
-
                               <button
                                 type="submit"
                                 disabled={saving}
@@ -1342,17 +1181,12 @@ export default function AdminPortal() {
 
                           <div className="rounded-xl border border-slate-800 bg-slate-900 shadow-sm">
                             <div className="border-b border-slate-800 px-5 py-4">
-                              <h2 className="text-lg font-bold text-white">
-                                Customer timeline
-                              </h2>
+                              <h2 className="text-lg font-bold text-white">Customer timeline</h2>
                             </div>
-
                             {loadingTimeline ? (
                               <div className="p-5 text-sm text-slate-400">Loading...</div>
                             ) : customerTimeline.length === 0 ? (
-                              <div className="p-5 text-sm text-slate-400">
-                                No timeline entries yet.
-                              </div>
+                              <div className="p-5 text-sm text-slate-400">No timeline entries yet.</div>
                             ) : (
                               <div className="max-h-[360px] divide-y divide-slate-800 overflow-y-auto">
                                 {customerTimeline.map(log => (
@@ -1371,57 +1205,32 @@ export default function AdminPortal() {
 
             {activeSection === "staff" && canSeeStaff && (
               <div className="space-y-6">
-                <div className="grid gap-4 md:grid-cols-4">
-                  <StatCard label="Current Staff" value={staffStats.current} />
-                  <StatCard label="Previous Staff" value={staffStats.previous} />
-                  <StatCard label="Directors" value={staffStats.directors} />
-                  <StatCard label="Developers" value={staffStats.developers} />
-                </div>
-
                 <div className="grid gap-6 xl:grid-cols-[420px_1fr]">
                   <aside className="space-y-6">
                     <div className="rounded-xl border border-slate-800 bg-slate-900 p-5">
-                      <h2 className="text-lg font-bold text-white">
-                        Search staff
-                      </h2>
-
-                      <DarkInput
-                        value={staffSearch}
-                        onChange={setStaffSearch}
-                        placeholder="Name, email, role, status, PA to"
-                        className="mt-4"
-                      />
+                      <h2 className="text-lg font-bold text-white">Search staff</h2>
+                      <DarkInput value={staffSearch} onChange={setStaffSearch} placeholder="Name, email, role, status, PA to" className="mt-4" />
                     </div>
 
                     <form
                       onSubmit={handleCreateStaff}
                       className="rounded-xl border border-slate-800 bg-slate-900 p-5 shadow-sm"
                     >
-                      <h2 className="text-lg font-bold text-white">
-                        Create staff user
-                      </h2>
-
+                      <h2 className="text-lg font-bold text-white">Create staff user</h2>
                       <div className="mt-4 grid gap-3">
                         <DarkInput value={createStaffFirstName} onChange={setCreateStaffFirstName} placeholder="First name" />
                         <DarkInput value={createStaffLastName} onChange={setCreateStaffLastName} placeholder="Last name" />
                         <DarkInput value={createStaffEmail} onChange={setCreateStaffEmail} placeholder="Staff email" type="email" />
                         <DarkInput value={createStaffPassword} onChange={setCreateStaffPassword} placeholder="Temporary password, minimum 8 characters" type="password" />
 
-                        <DarkSelect
-                          value={createStaffRole}
-                          onChange={value => setCreateStaffRole(value as StaffRole)}
-                        >
+                        <DarkSelect value={createStaffRole} onChange={value => setCreateStaffRole(value as StaffRole)}>
                           {staffRoles.map(role => (
                             <option key={role} value={role}>{role}</option>
                           ))}
                         </DarkSelect>
 
                         {createStaffRole === "Personal Assistant" && (
-                          <DarkInput
-                            value={createStaffPaTo}
-                            onChange={setCreateStaffPaTo}
-                            placeholder="PA to"
-                          />
+                          <DarkInput value={createStaffPaTo} onChange={setCreateStaffPaTo} placeholder="PA to" />
                         )}
 
                         <PermissionEditor
@@ -1430,12 +1239,7 @@ export default function AdminPortal() {
                           setPermissions={setCreateStaffPermissions}
                         />
 
-                        <DarkTextarea
-                          value={createStaffNotes}
-                          onChange={setCreateStaffNotes}
-                          placeholder="Internal staff notes"
-                          rows={4}
-                        />
+                        <DarkTextarea value={createStaffNotes} onChange={setCreateStaffNotes} placeholder="Internal staff notes" rows={4} />
 
                         <button
                           type="submit"
@@ -1451,7 +1255,7 @@ export default function AdminPortal() {
                   <div className="space-y-6">
                     <StaffList
                       title="Current staff"
-                      subtitle="Active and suspended staff accounts. Click the heading to hide selected details."
+                      subtitle="Active and suspended staff accounts. Click heading to hide selected details."
                       users={filteredStaffUsers.current}
                       selectedStaff={selectedStaff}
                       loading={loadingStaff}
@@ -1463,7 +1267,7 @@ export default function AdminPortal() {
 
                     <StaffList
                       title="Previous staff"
-                      subtitle="Cancelled staff accounts are kept here for history. Click the heading to hide selected details."
+                      subtitle="Cancelled staff accounts are kept here for history. Click heading to hide selected details."
                       users={filteredStaffUsers.previous}
                       selectedStaff={selectedStaff}
                       loading={loadingStaff}
@@ -1478,30 +1282,19 @@ export default function AdminPortal() {
                         onSubmit={handleSaveStaffPermissions}
                         className="rounded-xl border border-slate-800 bg-slate-900 p-5 shadow-sm"
                       >
-                        <h2 className="text-lg font-bold text-white">
-                          Staff permissions
-                        </h2>
-
-                        <p className="mt-1 text-sm text-slate-400">
-                          {selectedStaff.email}
-                        </p>
+                        <h2 className="text-lg font-bold text-white">Staff permissions</h2>
+                        <p className="mt-1 text-sm text-slate-400">{selectedStaff.email}</p>
 
                         {selectedStaff.email.toLowerCase() === permanentDirectorEmail && (
                           <div className="mt-4 rounded-lg border border-blue-500/40 bg-blue-500/10 p-3 text-sm text-blue-100">
-                            This is Thomas Kennington’s permanent Director
-                            account. It always keeps full permissions and cannot
-                            be demoted or suspended.
+                            This is Thomas Kennington’s permanent Director account. It always keeps full permissions.
                           </div>
                         )}
 
                         <div className="mt-5 grid gap-4">
                           <Field label="Role">
                             <DarkSelect
-                              value={
-                                selectedStaff.email.toLowerCase() === permanentDirectorEmail
-                                  ? "Director"
-                                  : staffEditRole
-                              }
+                              value={selectedStaff.email.toLowerCase() === permanentDirectorEmail ? "Director" : staffEditRole}
                               onChange={value => setStaffEditRole(value as StaffRole)}
                               disabled={selectedStaff.email.toLowerCase() === permanentDirectorEmail}
                             >
@@ -1523,18 +1316,12 @@ export default function AdminPortal() {
 
                           <Field label="Status">
                             <DarkSelect
-                              value={
-                                selectedStaff.email.toLowerCase() === permanentDirectorEmail
-                                  ? "Active"
-                                  : staffEditStatus
-                              }
+                              value={selectedStaff.email.toLowerCase() === permanentDirectorEmail ? "Active" : staffEditStatus}
                               onChange={value => setStaffEditStatus(value as AdminAccountStatus)}
                               disabled={selectedStaff.email.toLowerCase() === permanentDirectorEmail}
                             >
                               {staffStatuses.map(status => (
-                                <option key={status} value={status}>
-                                  {formatStatus(status)}
-                                </option>
+                                <option key={status} value={status}>{formatStatus(status)}</option>
                               ))}
                             </DarkSelect>
                           </Field>
@@ -1576,7 +1363,6 @@ export default function AdminPortal() {
                   className="rounded-xl border border-slate-800 bg-slate-900 p-5 shadow-sm"
                 >
                   <h2 className="text-lg font-bold text-white">Audit Logs</h2>
-
                   <div className="mt-4 flex gap-2">
                     <input
                       value={auditSearch}
@@ -1584,7 +1370,6 @@ export default function AdminPortal() {
                       placeholder="Search staff member, email, role, target, action"
                       className="min-w-0 flex-1 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-blue-500"
                     />
-
                     <button
                       type="submit"
                       className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700"
@@ -1592,42 +1377,16 @@ export default function AdminPortal() {
                       Search
                     </button>
                   </div>
-
-                  {staffUsers.length > 0 && (
-                    <div className="mt-4 flex flex-wrap gap-2">
-                      {staffUsers
-                        .filter(staff => staff.accountStatus !== "Cancelled")
-                        .slice(0, 12)
-                        .map(staff => (
-                          <button
-                            key={staff.id}
-                            type="button"
-                            onClick={() => {
-                              setAuditSearch(staff.email);
-                              loadAuditLogs(staff.email);
-                            }}
-                            className="rounded-full border border-slate-700 px-3 py-1 text-xs font-semibold text-slate-300 hover:bg-slate-800"
-                          >
-                            {staff.firstName || staff.email}
-                          </button>
-                        ))}
-                    </div>
-                  )}
                 </form>
 
                 <div className="rounded-xl border border-slate-800 bg-slate-900 shadow-sm">
                   <div className="border-b border-slate-800 px-5 py-4">
-                    <h2 className="text-lg font-bold text-white">
-                      Latest admin actions
-                    </h2>
+                    <h2 className="text-lg font-bold text-white">Latest admin actions</h2>
                   </div>
-
                   {loadingAuditLogs ? (
                     <div className="p-5 text-sm text-slate-400">Loading...</div>
                   ) : auditLogs.length === 0 ? (
-                    <div className="p-5 text-sm text-slate-400">
-                      No audit logs found yet.
-                    </div>
+                    <div className="p-5 text-sm text-slate-400">No audit logs found yet.</div>
                   ) : (
                     <div className="max-h-[680px] divide-y divide-slate-800 overflow-y-auto">
                       {auditLogs.map(log => (
