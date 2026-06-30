@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import Sidebar from "../components/layout/Sidebar";
 import { businessSettingsService } from "../services/businessSettingsService";
+import { staffSettingsService } from "../services/staffSettingsService";
 import type { UpdateBusinessSettingsRequest } from "../types/businessSettings";
+import type { StaffCategory, StaffRolePreset, StaffSettings } from "../types/staffSettings";
 
 type SettingsTab =
   | "business"
@@ -15,17 +17,6 @@ type SettingsTab =
   | "exports";
 
 type StaffSettingsTab = "categories" | "roles" | "permissions";
-
-type StaffCategory = {
-  name: string;
-  description: string;
-};
-
-type RolePreset = {
-  name: string;
-  category: string;
-  permissions: string[];
-};
 
 const tabs: Array<{ id: SettingsTab; label: string; description: string }> = [
   { id: "business", label: "Business", description: "Profile, logo, contact details" },
@@ -42,51 +33,6 @@ const staffSettingsTabs: Array<{ id: StaffSettingsTab; label: string; descriptio
   { id: "categories", label: "Categories", description: "Trade business staff groups" },
   { id: "roles", label: "Role presets", description: "Default permission templates" },
   { id: "permissions", label: "Permission groups", description: "What each area controls" },
-];
-
-const defaultStaffCategories: StaffCategory[] = [
-  { name: "Leadership", description: "Owners, directors, and senior decision makers" },
-  { name: "Admin & Operations", description: "Office managers, operations coordinators, and general admin staff" },
-  { name: "Scheduling & Dispatch", description: "People assigning jobs, engineers, calendars, and daily routes" },
-  { name: "Customer Support", description: "Customer-facing support, service updates, and account help" },
-  { name: "Engineers", description: "Field engineers, tradespeople, apprentices, and on-site workers" },
-  { name: "Field Supervisors", description: "Senior engineers or supervisors managing work quality and teams" },
-  { name: "Accounts & Billing", description: "Invoices, payments, subscriptions, and finance admin" },
-  { name: "Marketing", description: "Campaigns, emails, discounts, and customer growth" },
-  { name: "Personal Assistants", description: "PA users attached to a director, manager, or senior staff member" },
-  { name: "Subcontractors", description: "Limited-access external workers or partner trades" },
-];
-
-const permissionGroups = [
-  "Customer accounts",
-  "Customer notes",
-  "Jobs and scheduling",
-  "Quotes and invoices",
-  "Billing and subscriptions",
-  "Discounts and free months",
-  "Password resets",
-  "Email customers",
-  "Staff management",
-  "Staff invites",
-  "Security logs",
-  "Audit logs",
-  "Data exports",
-  "Customer impersonation",
-];
-
-const defaultRolePresets: RolePreset[] = [
-  { name: "Director / Owner", category: "Leadership", permissions: ["Full access"] },
-  { name: "Office Manager", category: "Admin & Operations", permissions: ["Customer accounts", "Jobs and scheduling", "Quotes and invoices", "Staff invites"] },
-  { name: "Operations Coordinator", category: "Admin & Operations", permissions: ["Customer accounts", "Jobs and scheduling", "Customer notes"] },
-  { name: "Scheduler / Dispatcher", category: "Scheduling & Dispatch", permissions: ["Jobs and scheduling", "Customer accounts", "Customer notes"] },
-  { name: "Customer Support", category: "Customer Support", permissions: ["Customer accounts", "Customer notes", "Password resets", "Email customers"] },
-  { name: "Lead Engineer", category: "Field Supervisors", permissions: ["Jobs and scheduling", "Customer notes", "Quotes and invoices"] },
-  { name: "Engineer", category: "Engineers", permissions: ["Jobs and scheduling", "Customer notes"] },
-  { name: "Apprentice / Junior Engineer", category: "Engineers", permissions: ["Jobs and scheduling"] },
-  { name: "Accounts / Billing", category: "Accounts & Billing", permissions: ["Quotes and invoices", "Billing and subscriptions"] },
-  { name: "Marketing", category: "Marketing", permissions: ["Discounts and free months", "Email customers", "Customer notes"] },
-  { name: "Personal Assistant", category: "Personal Assistants", permissions: ["Customer accounts", "Customer notes", "Jobs and scheduling"] },
-  { name: "Subcontractor", category: "Subcontractors", permissions: ["Jobs and scheduling"] },
 ];
 
 const blankSettings: UpdateBusinessSettingsRequest = {
@@ -114,6 +60,12 @@ const blankSettings: UpdateBusinessSettingsRequest = {
   emailFooter: "Thank you for choosing TradeLike.",
 };
 
+const blankStaffSettings: StaffSettings = {
+  categories: [],
+  rolePresets: [],
+  permissionGroups: [],
+};
+
 export default function Settings() {
   const [activeTab, setActiveTab] = useState<SettingsTab>("business");
   const [activeStaffSettingsTab, setActiveStaffSettingsTab] = useState<StaffSettingsTab>("categories");
@@ -122,9 +74,15 @@ export default function Settings() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [staffSettings, setStaffSettings] = useState<StaffSettings>(blankStaffSettings);
+  const [staffLoading, setStaffLoading] = useState(true);
+  const [staffSaving, setStaffSaving] = useState(false);
+  const [staffError, setStaffError] = useState("");
+  const [staffMessage, setStaffMessage] = useState("");
 
   useEffect(() => {
     loadSettings();
+    loadStaffSettings();
   }, []);
 
   async function loadSettings() {
@@ -160,6 +118,18 @@ export default function Settings() {
       setError(getErrorMessage(err, "Unable to load business settings."));
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function loadStaffSettings() {
+    try {
+      setStaffLoading(true);
+      setStaffError("");
+      setStaffSettings(await staffSettingsService.getSettings());
+    } catch (err) {
+      setStaffError(getErrorMessage(err, "Unable to load staff settings."));
+    } finally {
+      setStaffLoading(false);
     }
   }
 
@@ -221,6 +191,68 @@ export default function Settings() {
     }
   }
 
+  async function createStaffCategory(name: string, description: string) {
+    try {
+      setStaffSaving(true);
+      setStaffError("");
+      setStaffMessage("");
+      setStaffSettings(await staffSettingsService.createCategory({ name, description }));
+      setStaffMessage("Staff category saved.");
+    } catch (err) {
+      setStaffError(getErrorMessage(err, "Unable to save staff category."));
+      throw err;
+    } finally {
+      setStaffSaving(false);
+    }
+  }
+
+  async function deleteStaffCategory(category: StaffCategory) {
+    if (!window.confirm(`Delete ${category.name}? This will also remove any role presets in this category.`)) return;
+
+    try {
+      setStaffSaving(true);
+      setStaffError("");
+      setStaffMessage("");
+      setStaffSettings(await staffSettingsService.deleteCategory(category.id));
+      setStaffMessage("Staff category deleted.");
+    } catch (err) {
+      setStaffError(getErrorMessage(err, "Unable to delete staff category."));
+    } finally {
+      setStaffSaving(false);
+    }
+  }
+
+  async function createStaffRolePreset(name: string, categoryId: number, permissions: string[]) {
+    try {
+      setStaffSaving(true);
+      setStaffError("");
+      setStaffMessage("");
+      setStaffSettings(await staffSettingsService.createRolePreset({ name, categoryId, permissions }));
+      setStaffMessage("Role preset saved.");
+    } catch (err) {
+      setStaffError(getErrorMessage(err, "Unable to save role preset."));
+      throw err;
+    } finally {
+      setStaffSaving(false);
+    }
+  }
+
+  async function deleteStaffRolePreset(rolePreset: StaffRolePreset) {
+    if (!window.confirm(`Delete the ${rolePreset.name} role preset?`)) return;
+
+    try {
+      setStaffSaving(true);
+      setStaffError("");
+      setStaffMessage("");
+      setStaffSettings(await staffSettingsService.deleteRolePreset(rolePreset.id));
+      setStaffMessage("Role preset deleted.");
+    } catch (err) {
+      setStaffError(getErrorMessage(err, "Unable to delete role preset."));
+    } finally {
+      setStaffSaving(false);
+    }
+  }
+
   return (
     <main className="flex min-h-screen bg-slate-50">
       <Sidebar />
@@ -260,16 +292,16 @@ export default function Settings() {
             </aside>
 
             <div className="min-w-0">
-              {loading ? (
+              {loading && activeTab !== "staff" ? (
                 <p className="text-slate-500">Loading settings...</p>
               ) : (
                 <form onSubmit={handleSubmit} className="space-y-6">
-                  {error && (
+                  {error && activeTab !== "staff" && (
                     <div className="max-h-40 overflow-y-auto break-words rounded-xl border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-700">
                       {error}
                     </div>
                   )}
-                  {message && (
+                  {message && activeTab !== "staff" && (
                     <div className="rounded-xl border border-green-200 bg-green-50 p-4 text-sm font-medium text-green-700">
                       {message}
                     </div>
@@ -332,7 +364,21 @@ export default function Settings() {
                     </SettingsPanel>
                   )}
 
-                  {activeTab === "staff" && <StaffSettingsPanel activeTab={activeStaffSettingsTab} setActiveTab={setActiveStaffSettingsTab} />}
+                  {activeTab === "staff" && (
+                    <StaffSettingsPanel
+                      activeTab={activeStaffSettingsTab}
+                      setActiveTab={setActiveStaffSettingsTab}
+                      settings={staffSettings}
+                      loading={staffLoading}
+                      saving={staffSaving}
+                      error={staffError}
+                      message={staffMessage}
+                      onCreateCategory={createStaffCategory}
+                      onDeleteCategory={deleteStaffCategory}
+                      onCreateRolePreset={createStaffRolePreset}
+                      onDeleteRolePreset={deleteStaffRolePreset}
+                    />
+                  )}
                   {activeTab === "security" && <ComingSoon title="Security settings" items={["Login attempt rules", "Session expiry", "Password policy", "Security log retention"]} />}
                   {activeTab === "billing" && <ComingSoon title="Billing settings" items={["Plan defaults", "Trial length", "Free month rules", "Past-due recovery settings"]} />}
                   {activeTab === "exports" && <ComingSoon title="Export settings" items={["Customer exports", "Audit log exports", "Billing reports", "Trial expiry reports"]} />}
@@ -374,46 +420,46 @@ function SettingsPanel({ title, children }: { title: string; children: React.Rea
   );
 }
 
-function StaffSettingsPanel({ activeTab, setActiveTab }: { activeTab: StaffSettingsTab; setActiveTab: (tab: StaffSettingsTab) => void }) {
-  const [categories, setCategories] = useState<StaffCategory[]>(defaultStaffCategories);
+function StaffSettingsPanel({
+  activeTab,
+  setActiveTab,
+  settings,
+  loading,
+  saving,
+  error,
+  message,
+  onCreateCategory,
+  onDeleteCategory,
+  onCreateRolePreset,
+  onDeleteRolePreset,
+}: {
+  activeTab: StaffSettingsTab;
+  setActiveTab: (tab: StaffSettingsTab) => void;
+  settings: StaffSettings;
+  loading: boolean;
+  saving: boolean;
+  error: string;
+  message: string;
+  onCreateCategory: (name: string, description: string) => Promise<void>;
+  onDeleteCategory: (category: StaffCategory) => Promise<void>;
+  onCreateRolePreset: (name: string, categoryId: number, permissions: string[]) => Promise<void>;
+  onDeleteRolePreset: (rolePreset: StaffRolePreset) => Promise<void>;
+}) {
   const [categoryName, setCategoryName] = useState("");
   const [categoryDescription, setCategoryDescription] = useState("");
-  const [rolePresets, setRolePresets] = useState<RolePreset[]>(defaultRolePresets);
   const [roleName, setRoleName] = useState("");
-  const [roleCategory, setRoleCategory] = useState(defaultStaffCategories[0]?.name ?? "");
+  const [roleCategoryId, setRoleCategoryId] = useState("");
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
 
-  function addCategory() {
-    const name = categoryName.trim();
-    if (name === "" || categories.some(category => category.name.toLowerCase() === name.toLowerCase())) return;
+  async function addCategory() {
+    if (categoryName.trim() === "") return;
 
-    setCategories(previous => [
-      ...previous,
-      { name, description: categoryDescription.trim() || "Custom staff category" },
-    ]);
-
-    if (roleCategory === "") {
-      setRoleCategory(name);
-    }
-
-    setCategoryName("");
-    setCategoryDescription("");
-  }
-
-  function deleteCategory(categoryNameToDelete: string) {
-    const rolesUsingCategory = rolePresets.filter(role => role.category === categoryNameToDelete).length;
-    const warning = rolesUsingCategory > 0
-      ? `Delete ${categoryNameToDelete}? This will also remove ${rolesUsingCategory} role preset(s) in this category.`
-      : `Delete ${categoryNameToDelete}?`;
-
-    if (!window.confirm(warning)) return;
-
-    const fallback = categories.find(category => category.name !== categoryNameToDelete)?.name ?? "";
-    setCategories(previous => previous.filter(category => category.name !== categoryNameToDelete));
-    setRolePresets(previous => previous.filter(role => role.category !== categoryNameToDelete));
-
-    if (roleCategory === categoryNameToDelete) {
-      setRoleCategory(fallback);
+    try {
+      await onCreateCategory(categoryName, categoryDescription);
+      setCategoryName("");
+      setCategoryDescription("");
+    } catch {
+      // Parent displays the error.
     }
   }
 
@@ -425,29 +471,35 @@ function StaffSettingsPanel({ activeTab, setActiveTab }: { activeTab: StaffSetti
     );
   }
 
-  function addRolePreset() {
-    const name = roleName.trim();
-    if (name === "" || roleCategory === "" || selectedPermissions.length === 0) return;
+  async function addRolePreset() {
+    const categoryId = Number(roleCategoryId || settings.categories[0]?.id || 0);
+    if (roleName.trim() === "" || categoryId === 0 || selectedPermissions.length === 0) return;
 
-    setRolePresets(previous => [
-      { name, category: roleCategory, permissions: selectedPermissions },
-      ...previous.filter(role => role.name.toLowerCase() !== name.toLowerCase()),
-    ]);
-
-    setRoleName("");
-    setSelectedPermissions([]);
-  }
-
-  function deleteRolePreset(roleNameToDelete: string) {
-    if (!window.confirm(`Delete the ${roleNameToDelete} role preset?`)) return;
-    setRolePresets(previous => previous.filter(role => role.name !== roleNameToDelete));
+    try {
+      await onCreateRolePreset(roleName, categoryId, selectedPermissions);
+      setRoleName("");
+      setSelectedPermissions([]);
+    } catch {
+      // Parent displays the error.
+    }
   }
 
   return (
     <SettingsPanel title="Staff settings">
       <div className="rounded-lg border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900">
-        Set up trade-business staff categories and role permission presets. These are templates only — individual staff can still have custom permissions in the staff admin portal.
+        Set up trade-business staff categories and role permission presets. These are saved to the database and can be reused later when inviting or editing staff.
       </div>
+
+      {error && (
+        <div className="mt-4 max-h-40 overflow-y-auto break-words rounded-xl border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-700">
+          {error}
+        </div>
+      )}
+      {message && (
+        <div className="mt-4 rounded-xl border border-green-200 bg-green-50 p-4 text-sm font-medium text-green-700">
+          {message}
+        </div>
+      )}
 
       <div className="mt-5 grid gap-3 md:grid-cols-3">
         {staffSettingsTabs.map(tab => (
@@ -469,118 +521,126 @@ function StaffSettingsPanel({ activeTab, setActiveTab }: { activeTab: StaffSetti
         ))}
       </div>
 
-      {activeTab === "categories" && (
-        <div className="mt-6 space-y-5">
-          <div className="grid gap-3 md:grid-cols-2">
-            {categories.map(category => (
-              <div key={category.name} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <p className="font-semibold text-slate-900">{category.name}</p>
-                    <p className="mt-1 text-sm text-slate-600">{category.description}</p>
+      {loading ? (
+        <p className="mt-6 text-sm text-slate-500">Loading staff settings...</p>
+      ) : (
+        <>
+          {activeTab === "categories" && (
+            <div className="mt-6 space-y-5">
+              <div className="grid gap-3 md:grid-cols-2">
+                {settings.categories.map(category => (
+                  <div key={category.id} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <p className="font-semibold text-slate-900">{category.name}</p>
+                        <p className="mt-1 text-sm text-slate-600">{category.description}</p>
+                      </div>
+                      <button
+                        type="button"
+                        disabled={saving}
+                        onClick={() => onDeleteCategory(category)}
+                        className="rounded-lg border border-red-200 px-3 py-1 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => deleteCategory(category.name)}
-                    className="rounded-lg border border-red-200 px-3 py-1 text-xs font-semibold text-red-600 hover:bg-red-50"
-                  >
-                    Delete
-                  </button>
-                </div>
+                ))}
               </div>
-            ))}
-          </div>
 
-          <div className="rounded-lg border border-slate-200 p-4">
-            <h3 className="font-semibold text-slate-900">Create staff category</h3>
-            <div className="mt-4 grid gap-4 md:grid-cols-2">
-              <Field label="Category name"><Input value={categoryName} onChange={setCategoryName} /></Field>
-              <Field label="Description"><Input value={categoryDescription} onChange={setCategoryDescription} /></Field>
+              <div className="rounded-lg border border-slate-200 p-4">
+                <h3 className="font-semibold text-slate-900">Create staff category</h3>
+                <div className="mt-4 grid gap-4 md:grid-cols-2">
+                  <Field label="Category name"><Input value={categoryName} onChange={setCategoryName} /></Field>
+                  <Field label="Description"><Input value={categoryDescription} onChange={setCategoryDescription} /></Field>
+                </div>
+                <button type="button" disabled={saving} onClick={addCategory} className="mt-4 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300">
+                  {saving ? "Saving..." : "Add category"}
+                </button>
+              </div>
             </div>
-            <button type="button" onClick={addCategory} className="mt-4 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
-              Add category
-            </button>
-          </div>
-        </div>
-      )}
+          )}
 
-      {activeTab === "roles" && (
-        <div className="mt-6 space-y-5">
-          <div className="rounded-lg border border-slate-200 p-4">
-            <h3 className="font-semibold text-slate-900">Create role preset</h3>
-            <div className="mt-4 grid gap-4 md:grid-cols-2">
-              <Field label="Role name"><Input value={roleName} onChange={setRoleName} /></Field>
-              <label className="block">
-                <span className="mb-2 block text-sm font-medium text-slate-700">Staff category</span>
-                <select value={roleCategory} onChange={event => setRoleCategory(event.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600">
-                  {categories.map(category => <option key={category.name} value={category.name}>{category.name}</option>)}
-                </select>
-              </label>
-            </div>
+          {activeTab === "roles" && (
+            <div className="mt-6 space-y-5">
+              <div className="rounded-lg border border-slate-200 p-4">
+                <h3 className="font-semibold text-slate-900">Create role preset</h3>
+                <div className="mt-4 grid gap-4 md:grid-cols-2">
+                  <Field label="Role name"><Input value={roleName} onChange={setRoleName} /></Field>
+                  <label className="block">
+                    <span className="mb-2 block text-sm font-medium text-slate-700">Staff category</span>
+                    <select value={roleCategoryId || String(settings.categories[0]?.id ?? "")} onChange={event => setRoleCategoryId(event.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600">
+                      {settings.categories.map(category => <option key={category.id} value={category.id}>{category.name}</option>)}
+                    </select>
+                  </label>
+                </div>
 
-            <div className="mt-4">
-              <p className="mb-2 text-sm font-medium text-slate-700">Default permissions</p>
-              <div className="flex flex-wrap gap-2">
-                {permissionGroups.map(permission => (
-                  <button
-                    key={permission}
-                    type="button"
-                    onClick={() => togglePermission(permission)}
-                    className={`rounded-full border px-3 py-1 text-xs font-semibold ${
-                      selectedPermissions.includes(permission)
-                        ? "border-blue-600 bg-blue-600 text-white"
-                        : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
-                    }`}
-                  >
-                    {permission}
-                  </button>
+                <div className="mt-4">
+                  <p className="mb-2 text-sm font-medium text-slate-700">Default permissions</p>
+                  <div className="flex flex-wrap gap-2">
+                    {settings.permissionGroups.map(permission => (
+                      <button
+                        key={permission}
+                        type="button"
+                        onClick={() => togglePermission(permission)}
+                        className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+                          selectedPermissions.includes(permission)
+                            ? "border-blue-600 bg-blue-600 text-white"
+                            : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                        }`}
+                      >
+                        {permission}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <button type="button" disabled={saving || settings.categories.length === 0} onClick={addRolePreset} className="mt-4 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300">
+                  {saving ? "Saving..." : "Add role preset"}
+                </button>
+              </div>
+
+              <div className="grid gap-3">
+                {settings.rolePresets.map(role => (
+                  <div key={role.id} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <p className="font-semibold text-slate-900">{role.name}</p>
+                        <p className="text-sm text-slate-600">{role.categoryName}</p>
+                      </div>
+                      <button
+                        type="button"
+                        disabled={saving}
+                        onClick={() => onDeleteRolePreset(role)}
+                        className="rounded-lg border border-red-200 px-3 py-1 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {role.permissions.map(permission => (
+                        <span key={permission} className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-700 ring-1 ring-slate-200">
+                          {permission}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
                 ))}
               </div>
             </div>
+          )}
 
-            <button type="button" onClick={addRolePreset} className="mt-4 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300" disabled={roleCategory === ""}>
-              Add role preset
-            </button>
-          </div>
-
-          <div className="grid gap-3">
-            {rolePresets.map(role => (
-              <div key={`${role.category}-${role.name}`} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <p className="font-semibold text-slate-900">{role.name}</p>
-                    <p className="text-sm text-slate-600">{role.category}</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => deleteRolePreset(role.name)}
-                    className="rounded-lg border border-red-200 px-3 py-1 text-xs font-semibold text-red-600 hover:bg-red-50"
-                  >
-                    Delete
-                  </button>
+          {activeTab === "permissions" && (
+            <div className="mt-6 grid gap-3 md:grid-cols-2">
+              {settings.permissionGroups.map(permission => (
+                <div key={permission} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                  <p className="font-semibold text-slate-900">{permission}</p>
+                  <p className="mt-1 text-sm text-slate-600">Use this permission group when creating role presets or individual staff overrides.</p>
                 </div>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {role.permissions.map(permission => (
-                    <span key={permission} className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-700 ring-1 ring-slate-200">
-                      {permission}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {activeTab === "permissions" && (
-        <div className="mt-6 grid gap-3 md:grid-cols-2">
-          {permissionGroups.map(permission => (
-            <div key={permission} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-              <p className="font-semibold text-slate-900">{permission}</p>
-              <p className="mt-1 text-sm text-slate-600">Use this permission group when creating role presets or individual staff overrides.</p>
+              ))}
             </div>
-          ))}
-        </div>
+          )}
+        </>
       )}
     </SettingsPanel>
   );
