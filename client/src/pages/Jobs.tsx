@@ -5,6 +5,7 @@ import SectionHeader from "../components/ui/SectionHeader";
 import StatsGrid from "../components/ui/StatsGrid";
 import JobList from "../components/jobs/JobList";
 import NewJobForm from "../components/jobs/NewJobForm";
+import JobAssignmentPanel from "../components/jobs/JobAssignmentPanel";
 import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
 import { useJobs } from "../hooks/useJobs";
@@ -24,9 +25,7 @@ function Jobs() {
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<JobStatus | "All">("All");
-  const [priorityFilter, setPriorityFilter] = useState<JobPriority | "All">(
-    "All"
-  );
+  const [priorityFilter, setPriorityFilter] = useState<JobPriority | "All">("All");
   const [showForm, setShowForm] = useState(false);
 
   const navigate = useNavigate();
@@ -51,14 +50,9 @@ function Jobs() {
       .join(" ")
       .toLowerCase();
 
-    const matchesSearch =
-      searchText === "" || searchableText.includes(searchText);
-
-    const matchesStatus =
-      statusFilter === "All" || job.status === statusFilter;
-
-    const matchesPriority =
-      priorityFilter === "All" || job.priority === priorityFilter;
+    const matchesSearch = searchText === "" || searchableText.includes(searchText);
+    const matchesStatus = statusFilter === "All" || job.status === statusFilter;
+    const matchesPriority = priorityFilter === "All" || job.priority === priorityFilter;
 
     return matchesSearch && matchesStatus && matchesPriority;
   });
@@ -77,7 +71,7 @@ function Jobs() {
             <>
               <SectionHeader
                 title="Jobs"
-                subtitle="Manage scheduled work, site notes, priorities, and linked quote references."
+                subtitle="Manage scheduled work, site notes, priorities, quote references, staff assignment, and team scheduling."
                 action={
                   <Button onClick={() => setShowForm(prev => !prev)}>
                     {showForm ? "Close Form" : "+ New Job"}
@@ -87,21 +81,9 @@ function Jobs() {
 
               <StatsGrid
                 stats={[
-                  {
-                    title: "Scheduled",
-                    value: jobs.filter(job => job.status === "Scheduled")
-                      .length,
-                  },
-                  {
-                    title: "In Progress",
-                    value: jobs.filter(job => job.status === "InProgress")
-                      .length,
-                  },
-                  {
-                    title: "Completed",
-                    value: jobs.filter(job => job.status === "Completed")
-                      .length,
-                  },
+                  { title: "Scheduled", value: jobs.filter(job => job.status === "Scheduled").length },
+                  { title: "In Progress", value: jobs.filter(job => job.status === "InProgress").length },
+                  { title: "Completed", value: jobs.filter(job => job.status === "Completed").length },
                 ]}
               />
 
@@ -135,9 +117,7 @@ function Jobs() {
 
                   <select
                     value={statusFilter}
-                    onChange={event =>
-                      setStatusFilter(event.target.value as JobStatus | "All")
-                    }
+                    onChange={event => setStatusFilter(event.target.value as JobStatus | "All")}
                     className="rounded-xl border border-slate-300 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="All">All Statuses</option>
@@ -149,11 +129,7 @@ function Jobs() {
 
                   <select
                     value={priorityFilter}
-                    onChange={event =>
-                      setPriorityFilter(
-                        event.target.value as JobPriority | "All"
-                      )
-                    }
+                    onChange={event => setPriorityFilter(event.target.value as JobPriority | "All")}
                     className="rounded-xl border border-slate-300 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="All">All Priorities</option>
@@ -164,6 +140,8 @@ function Jobs() {
                   </select>
                 </div>
               </div>
+
+              <JobAssignmentPanel jobs={filteredJobs} />
 
               <div className="mt-6">
                 <JobList
