@@ -13,6 +13,8 @@ import Login from "../pages/Login";
 import Quotes from "../pages/Quotes";
 import QuoteDetails from "../pages/QuoteDetails";
 import AdminPortal from "../pages/AdminPortal";
+import Settings from "../pages/Settings";
+import StaffRoute from "./StaffRoute";
 
 function AppRouter() {
   return (
@@ -38,9 +40,16 @@ function AppRouter() {
         <Route path="/quotes/:id" element={<QuoteDetails />} />
 
         <Route path="/invoices" element={<PlaceholderPage title="Invoices" />} />
-        <Route path="/settings" element={<PlaceholderPage title="Settings" />} />
+        <Route path="/settings" element={<Settings />} />
 
-        <Route path="/admin" element={<AdminPortal />} />
+        <Route
+          path="/admin"
+          element={
+            <StaffRoute>
+              <AdminPortal />
+            </StaffRoute>
+          }
+        />
 
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
