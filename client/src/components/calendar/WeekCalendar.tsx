@@ -3,22 +3,22 @@ import WeekGrid from "./WeekGrid";
 import WeekNavigation from "./WeekNavigation";
 import { useWeekJobs } from "../../hooks/useWeekJobs";
 import { jobsService } from "../../services/jobsService";
-import { engineersService } from "../../services/engineersService";
+import { customerStaffService } from "../../services/customerStaffService";
+import type { CustomerStaffMember, CustomerTeam } from "../../services/customerStaffService";
+import { jobAssignmentsService } from "../../services/jobAssignmentsService";
+import type { JobAssignment } from "../../services/jobAssignmentsService";
 import type { Engineer } from "../../services/engineersService";
 import { getLeastLoadedEngineer } from "../../utils/engineerDispatch";
-import {
-    moveJobToDay,
-    optimiseWeekSchedule
-} from "../../utils/dispatchRules";
+import { moveJobToDay, optimiseWeekSchedule } from "../../utils/dispatchRules";
 import type { Job } from "../../types/job";
 
 export default function WeekCalendar() {
     const [currentWeek, setCurrentWeek] = useState(() => startOfWeek(new Date()));
     const [selectedJob, setSelectedJob] = useState<Job | null>(null);
-
-    const [engineers, setEngineers] = useState<Engineer[]>([]);
-    const [selectedEngineerId, setSelectedEngineerId] =
-        useState<number | "all">("all");
+    const [members, setMembers] = useState<CustomerStaffMember[]>([]);
+    const [teams, setTeams] = useState<CustomerTeam[]>([]);
+    const [assignments, setAssignments] = useState<JobAssignment[]>([]);
+    const [selectedCalendar, setSelectedCalendar] = useState("all");
 
     const { jobs: serverJobs } = useWeekJobs(currentWeek);
     const [optimisticJobs, setOptimisticJobs] = useState<Job[]>([]);
@@ -27,23 +27,34 @@ export default function WeekCalendar() {
     useEffect(() => {
         let cancelled = false;
 
-        engineersService
-            .getAll()
-            .then(result => {
-                if (!cancelled) {
-                    setEngineers(result);
-                }
-            })
-            .catch(() => {
-                if (!cancelled) {
-                    setEngineers([]);
-                }
-            });
+        Promise.all([
+            customerStaffService.getWorkspace(),
+            jobAssignmentsService.getAll()
+        ]).then(([workspace, assignmentRows]) => {
+            if (cancelled) return;
+            setMembers(workspace.members.filter(member => member.status !== "Left"));
+            setTeams(workspace.teams);
+            setAssignments(assignmentRows);
+        }).catch(() => {
+            if (cancelled) return;
+            setMembers([]);
+            setTeams([]);
+            setAssignments([]);
+        });
 
         return () => {
             cancelled = true;
         };
     }, []);
+
+    const engineers: Engineer[] = useMemo(() => members.map(member => ({
+        id: member.id,
+        name: `${member.firstName} ${member.lastName}`,
+        email: member.email,
+        phone: member.phone,
+    })), [members]);
+
+    const assignmentMap = useMemo(() => new Map(assignments.map(item => [item.jobId, item])), [assignments]);
 
     const mergedJobs = useMemo(() => {
         const map = new Map<number, Job>();
@@ -51,14 +62,40 @@ export default function WeekCalendar() {
         serverJobs.forEach(job => map.set(job.id, job));
         optimisticJobs.forEach(job => map.set(job.id, job));
 
-        return Array.from(map.values());
-    }, [serverJobs, optimisticJobs]);
+        return Array.from(map.values()).map(job => {
+            const assignment = assignmentMap.get(job.id);
+            const firstAssignedStaff = assignment?.assignedStaffMemberIds[0] ?? null;
+            return {
+                ...job,
+                engineerId: assignment?.leadStaffMemberId ?? firstAssignedStaff ?? job.engineerId ?? null,
+            };
+        });
+    }, [assignmentMap, serverJobs, optimisticJobs]);
 
     const jobs = useMemo(() => {
-        if (selectedEngineerId === "all") return mergedJobs;
+        if (selectedCalendar === "all") return mergedJobs;
+        if (selectedCalendar === "unassigned") {
+            return mergedJobs.filter(job => {
+                const assignment = assignmentMap.get(job.id);
+                return !assignment || (!assignment.assignedTeamId && !assignment.leadStaffMemberId && assignment.assignedStaffMemberIds.length === 0);
+            });
+        }
 
-        return mergedJobs.filter(job => job.engineerId === selectedEngineerId);
-    }, [mergedJobs, selectedEngineerId]);
+        if (selectedCalendar.startsWith("staff:")) {
+            const staffId = Number(selectedCalendar.replace("staff:", ""));
+            return mergedJobs.filter(job => {
+                const assignment = assignmentMap.get(job.id);
+                return assignment?.leadStaffMemberId === staffId || assignment?.assignedStaffMemberIds.includes(staffId) || job.engineerId === staffId;
+            });
+        }
+
+        if (selectedCalendar.startsWith("team:")) {
+            const teamId = Number(selectedCalendar.replace("team:", ""));
+            return mergedJobs.filter(job => assignmentMap.get(job.id)?.assignedTeamId === teamId);
+        }
+
+        return mergedJobs;
+    }, [assignmentMap, mergedJobs, selectedCalendar]);
 
     useEffect(() => {
         setOptimisticJobs([]);
@@ -105,15 +142,12 @@ export default function WeekCalendar() {
         const days = getWeekDays(currentWeek);
         const optimisedJobs = optimiseWeekSchedule(mergedJobs, days, engineers);
 
-        const existingJobsById = new Map(
-            mergedJobs.map(job => [job.id, job])
-        );
+        const existingJobsById = new Map(mergedJobs.map(job => [job.id, job]));
 
         const changedJobs = optimisedJobs.filter(optimisedJob => {
             const existingJob = existingJobsById.get(optimisedJob.id);
 
-            return existingJob?.scheduledDate !== optimisedJob.scheduledDate ||
-                existingJob?.engineerId !== optimisedJob.engineerId;
+            return existingJob?.scheduledDate !== optimisedJob.scheduledDate || existingJob?.engineerId !== optimisedJob.engineerId;
         });
 
         if (changedJobs.length === 0) {
@@ -130,9 +164,7 @@ export default function WeekCalendar() {
             return existingJob?.engineerId !== job.engineerId;
         }).length;
 
-        const confirmed = confirm(
-            `Optimise this week?\n\nJobs moved: ${movedCount}\nJobs assigned: ${assignedCount}`
-        );
+        const confirmed = confirm(`Optimise this week?\n\nJobs moved: ${movedCount}\nJobs assigned: ${assignedCount}`);
 
         if (!confirmed) {
             return;
@@ -167,14 +199,8 @@ export default function WeekCalendar() {
         const end = new Date(currentWeek);
         end.setDate(end.getDate() + 6);
 
-        const startMonth = currentWeek.toLocaleDateString("en-GB", {
-            month: "long",
-        });
-
-        const endMonth = end.toLocaleDateString("en-GB", {
-            month: "long",
-        });
-
+        const startMonth = currentWeek.toLocaleDateString("en-GB", { month: "long" });
+        const endMonth = end.toLocaleDateString("en-GB", { month: "long" });
         const startYear = currentWeek.getFullYear();
         const endYear = end.getFullYear();
 
@@ -207,71 +233,32 @@ export default function WeekCalendar() {
 
     return (
         <div className="relative overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
-            <WeekNavigation
-                weekLabel={weekLabel}
-                onPreviousWeek={handlePreviousWeek}
-                onCurrentWeek={handleCurrentWeek}
-                onNextWeek={handleNextWeek}
-            />
+            <WeekNavigation weekLabel={weekLabel} onPreviousWeek={handlePreviousWeek} onCurrentWeek={handleCurrentWeek} onNextWeek={handleNextWeek} />
 
-            <div className="flex items-center justify-between border-b border-gray-100 px-4 py-2">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-4 py-2">
                 <div className="flex items-center gap-3">
-                    <div className="text-xs text-gray-500">
-                        Dispatch View
-                    </div>
-
-                    <button
-                        type="button"
-                        onClick={handleOptimiseWeek}
-                        disabled={isOptimising || mergedJobs.length === 0}
-                        className="rounded border border-gray-300 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
+                    <div className="text-xs text-gray-500">Dispatch View</div>
+                    <button type="button" onClick={handleOptimiseWeek} disabled={isOptimising || mergedJobs.length === 0} className="rounded border border-gray-300 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50">
                         {isOptimising ? "Optimising..." : "Optimise Week"}
                     </button>
                 </div>
 
-                <select
-                    className="rounded border border-gray-300 px-2 py-1 text-xs"
-                    value={selectedEngineerId}
-                    onChange={(event) =>
-                        setSelectedEngineerId(
-                            event.target.value === "all"
-                                ? "all"
-                                : Number(event.target.value)
-                        )
-                    }
-                >
-                    <option value="all">All Engineers</option>
-
-                    {engineers.map(engineer => (
-                        <option key={engineer.id} value={engineer.id}>
-                            {engineer.name}
-                        </option>
-                    ))}
+                <select className="rounded border border-gray-300 px-2 py-1 text-xs" value={selectedCalendar} onChange={(event) => setSelectedCalendar(event.target.value)}>
+                    <option value="all">Merged: everyone</option>
+                    <option value="unassigned">Unassigned jobs</option>
+                    {members.map(member => <option key={member.id} value={`staff:${member.id}`}>{member.firstName} {member.lastName}</option>)}
+                    {teams.map(team => <option key={team.id} value={`team:${team.id}`}>Team: {team.name}</option>)}
                 </select>
             </div>
 
-            <WeekGrid
-                weekStart={currentWeek}
-                jobs={jobs}
-                engineers={engineers}
-                onSelectJob={setSelectedJob}
-                onMoveJob={handleMoveJob}
-            />
+            <WeekGrid weekStart={currentWeek} jobs={jobs} engineers={engineers} onSelectJob={setSelectedJob} onMoveJob={handleMoveJob} />
 
             {selectedJob && (
                 <div className="absolute right-0 top-0 h-full w-80 border-l border-gray-200 bg-white p-4">
-                    <div className="text-sm font-semibold">
-                        {selectedJob.jobTitle}
-                    </div>
-
-                    <div className="mt-2 text-xs text-gray-600">
-                        {selectedJob.customer}
-                    </div>
-
-                    <div className="mt-4 text-xs text-gray-500">
-                        {selectedJob.address}
-                    </div>
+                    <div className="text-sm font-semibold">{selectedJob.jobTitle}</div>
+                    <div className="mt-2 text-xs text-gray-600">{selectedJob.customer}</div>
+                    <div className="mt-4 text-xs text-gray-500">{selectedJob.address}</div>
+                    <button type="button" onClick={() => setSelectedJob(null)} className="mt-4 rounded border border-gray-300 px-3 py-1 text-xs font-semibold text-gray-600 hover:bg-gray-50">Close</button>
                 </div>
             )}
         </div>
