@@ -14,6 +14,7 @@ import Quotes from "../pages/Quotes";
 import QuoteDetails from "../pages/QuoteDetails";
 import AdminPortal from "../pages/AdminPortal";
 import Settings from "../pages/Settings";
+import CompanyInvite from "../pages/CompanyInvite";
 import StaffRoute from "./StaffRoute";
 
 function AppRouter() {
@@ -25,6 +26,7 @@ function AppRouter() {
         <Route path="/" element={<Home />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/company-invite" element={<CompanyInvite />} />
 
         <Route path="/dashboard" element={<Dashboard />} />
 
@@ -61,11 +63,7 @@ function ScrollToTop() {
   const { pathname } = useLocation();
 
   useEffect(() => {
-    window.scrollTo({
-      top: 0,
-      left: 0,
-      behavior: "instant",
-    });
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
   }, [pathname]);
 
   return null;
@@ -76,9 +74,7 @@ function PlaceholderPage({ title }: { title: string }) {
     <main className="min-h-screen bg-slate-50 pl-64">
       <section className="p-10">
         <h1 className="text-3xl font-bold text-gray-900">{title}</h1>
-        <p className="mt-2 text-sm text-gray-600">
-          This section is not built yet.
-        </p>
+        <p className="mt-2 text-sm text-gray-600">This section is not built yet.</p>
       </section>
     </main>
   );
@@ -89,9 +85,7 @@ function NotFoundPage() {
     <main className="min-h-screen bg-slate-50 pl-64">
       <section className="p-10">
         <h1 className="text-3xl font-bold text-gray-900">Page not found</h1>
-        <p className="mt-2 text-sm text-gray-600">
-          The page you requested does not exist.
-        </p>
+        <p className="mt-2 text-sm text-gray-600">The page you requested does not exist.</p>
       </section>
     </main>
   );
