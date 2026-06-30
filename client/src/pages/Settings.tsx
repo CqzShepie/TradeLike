@@ -1,8 +1,11 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import Sidebar from "../components/layout/Sidebar";
+import PlanLimitsPanel from "../components/settings/PlanLimitsPanel";
 import { businessSettingsService } from "../services/businessSettingsService";
 import { staffSettingsService } from "../services/staffSettingsService";
+import { terminologyService } from "../services/terminologyService";
+import type { CustomerTerminology } from "../services/terminologyService";
 import type { StaffCategory, StaffRolePreset, StaffSettings } from "../services/staffSettingsService";
 import type { UpdateBusinessSettingsRequest } from "../types/businessSettings";
 
@@ -15,8 +18,8 @@ const tabs: Array<{ id: SettingsTab; label: string; description: string }> = [
   { id: "payments", label: "Payments", description: "Bank details and payment terms" },
   { id: "email", label: "Email", description: "Email footer and templates" },
   { id: "staff", label: "Staff", description: "Categories, roles and permissions" },
-  { id: "security", label: "Security", description: "Login and account safety" },
-  { id: "billing", label: "Billing", description: "Plans and subscription defaults" },
+  { id: "security", label: "Security", description: "Login, 2FA and audit safety" },
+  { id: "billing", label: "Billing", description: "Plans, limits and terminology" },
   { id: "exports", label: "Exports", description: "Reports and data downloads" },
 ];
 
@@ -74,6 +77,7 @@ export default function Settings() {
   const [activeTab, setActiveTab] = useState<SettingsTab>("business");
   const [activeStaffSettingsTab, setActiveStaffSettingsTab] = useState<StaffSettingsTab>("categories");
   const [form, setForm] = useState<UpdateBusinessSettingsRequest>(blankSettings);
+  const [customerTerminology, setCustomerTerminology] = useState<CustomerTerminology>(() => terminologyService.getCustomerLabel());
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -87,6 +91,7 @@ export default function Settings() {
   useEffect(() => {
     loadSettings();
     loadStaffSettings();
+    return terminologyService.subscribe(() => setCustomerTerminology(terminologyService.getCustomerLabel()));
   }, []);
 
   async function loadSettings() {
@@ -139,25 +144,9 @@ export default function Settings() {
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
-
-    if (form.businessName.trim() === "") {
-      setError("Business name is required.");
-      setMessage("");
-      return;
-    }
-
-    if (form.quotePrefix.trim() === "") {
-      setError("Quote prefix is required.");
-      setMessage("");
-      return;
-    }
-
-    if (form.invoicePrefix.trim() === "") {
-      setError("Invoice prefix is required.");
-      setMessage("");
-      return;
-    }
-
+    if (form.businessName.trim() === "") { setError("Business name is required."); setMessage(""); return; }
+    if (form.quotePrefix.trim() === "") { setError("Quote prefix is required."); setMessage(""); return; }
+    if (form.invoicePrefix.trim() === "") { setError("Invoice prefix is required."); setMessage(""); return; }
     try {
       setSaving(true);
       setError("");
@@ -196,65 +185,36 @@ export default function Settings() {
   }
 
   async function createStaffCategory(name: string, description: string) {
-    try {
-      setStaffSaving(true);
-      setStaffError("");
-      setStaffMessage("");
-      setStaffSettings(await staffSettingsService.createCategory({ name, description }));
-      setStaffMessage("Staff category saved.");
-    } catch (err) {
-      setStaffError(getErrorMessage(err, "Unable to save staff category."));
-      throw err;
-    } finally {
-      setStaffSaving(false);
-    }
+    try { setStaffSaving(true); setStaffError(""); setStaffMessage(""); setStaffSettings(await staffSettingsService.createCategory({ name, description })); setStaffMessage("Staff category saved."); }
+    catch (err) { setStaffError(getErrorMessage(err, "Unable to save staff category.")); throw err; }
+    finally { setStaffSaving(false); }
   }
 
   async function deleteStaffCategory(category: StaffCategory) {
     if (!window.confirm(`Delete ${category.name}? This will also remove any role presets in this category.`)) return;
-
-    try {
-      setStaffSaving(true);
-      setStaffError("");
-      setStaffMessage("");
-      setStaffSettings(await staffSettingsService.deleteCategory(category.id));
-      setStaffMessage("Staff category deleted.");
-    } catch (err) {
-      setStaffError(getErrorMessage(err, "Unable to delete staff category."));
-    } finally {
-      setStaffSaving(false);
-    }
+    try { setStaffSaving(true); setStaffError(""); setStaffMessage(""); setStaffSettings(await staffSettingsService.deleteCategory(category.id)); setStaffMessage("Staff category deleted."); }
+    catch (err) { setStaffError(getErrorMessage(err, "Unable to delete staff category.")); }
+    finally { setStaffSaving(false); }
   }
 
   async function createStaffRolePreset(name: string, categoryId: number, permissions: string[]) {
-    try {
-      setStaffSaving(true);
-      setStaffError("");
-      setStaffMessage("");
-      setStaffSettings(await staffSettingsService.createRolePreset({ name, categoryId, permissions }));
-      setStaffMessage("Role preset saved.");
-    } catch (err) {
-      setStaffError(getErrorMessage(err, "Unable to save role preset."));
-      throw err;
-    } finally {
-      setStaffSaving(false);
-    }
+    try { setStaffSaving(true); setStaffError(""); setStaffMessage(""); setStaffSettings(await staffSettingsService.createRolePreset({ name, categoryId, permissions })); setStaffMessage("Role preset saved."); }
+    catch (err) { setStaffError(getErrorMessage(err, "Unable to save role preset.")); throw err; }
+    finally { setStaffSaving(false); }
   }
 
   async function deleteStaffRolePreset(rolePreset: StaffRolePreset) {
     if (!window.confirm(`Delete the ${rolePreset.name} role preset?`)) return;
+    try { setStaffSaving(true); setStaffError(""); setStaffMessage(""); setStaffSettings(await staffSettingsService.deleteRolePreset(rolePreset.id)); setStaffMessage("Role preset deleted."); }
+    catch (err) { setStaffError(getErrorMessage(err, "Unable to delete role preset.")); }
+    finally { setStaffSaving(false); }
+  }
 
-    try {
-      setStaffSaving(true);
-      setStaffError("");
-      setStaffMessage("");
-      setStaffSettings(await staffSettingsService.deleteRolePreset(rolePreset.id));
-      setStaffMessage("Role preset deleted.");
-    } catch (err) {
-      setStaffError(getErrorMessage(err, "Unable to delete role preset."));
-    } finally {
-      setStaffSaving(false);
-    }
+  function updateTerminology(value: CustomerTerminology) {
+    setCustomerTerminology(value);
+    terminologyService.setCustomerLabel(value);
+    setMessage(`Terminology updated to ${value}.`);
+    setError("");
   }
 
   return (
@@ -264,86 +224,27 @@ export default function Settings() {
         <div className="w-full max-w-6xl">
           <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">Settings</p>
           <h1 className="mt-1 text-3xl font-bold text-slate-900">TradeLike Settings</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-            Manage business details, document defaults, staff settings, security, billing, and exports from one place.
-          </p>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">Manage business details, document defaults, staff settings, security, billing, terminology, and exports from one place.</p>
 
           <div className="mt-8 grid min-w-0 gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
             <aside className="h-fit rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-              {tabs.map(tab => (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`w-full rounded-lg px-4 py-3 text-left transition ${activeTab === tab.id ? "bg-blue-600 text-white" : "text-slate-700 hover:bg-slate-100"}`}
-                >
-                  <span className="block text-sm font-semibold">{tab.label}</span>
-                  <span className={`mt-1 block text-xs ${activeTab === tab.id ? "text-blue-100" : "text-slate-500"}`}>{tab.description}</span>
-                </button>
-              ))}
+              {tabs.map(tab => <button key={tab.id} type="button" onClick={() => setActiveTab(tab.id)} className={`w-full rounded-lg px-4 py-3 text-left transition ${activeTab === tab.id ? "bg-blue-600 text-white" : "text-slate-700 hover:bg-slate-100"}`}><span className="block text-sm font-semibold">{tab.label}</span><span className={`mt-1 block text-xs ${activeTab === tab.id ? "text-blue-100" : "text-slate-500"}`}>{tab.description}</span></button>)}
             </aside>
 
             <div className="min-w-0">
-              {loading && activeTab !== "staff" ? (
-                <p className="text-slate-500">Loading settings...</p>
-              ) : (
+              {loading && activeTab !== "staff" ? <p className="text-slate-500">Loading settings...</p> : (
                 <form onSubmit={handleSubmit} className="space-y-6">
-                  {error && activeTab !== "staff" && <Alert tone="error">{error}</Alert>}
-                  {message && activeTab !== "staff" && <Alert tone="success">{message}</Alert>}
+                  {error && activeTab !== "staff" && <Alert tone="error" onClose={() => setError("")}>{error}</Alert>}
+                  {message && activeTab !== "staff" && <Alert tone="success" onClose={() => setMessage("")}>{message}</Alert>}
 
-                  {activeTab === "business" && (
-                    <>
-                      <SettingsPanel title="Business profile">
-                        <div className="grid gap-4 md:grid-cols-2">
-                          <Field label="Business name"><Input value={form.businessName} onChange={value => setField("businessName", value)} /></Field>
-                          <Field label="Legal name"><Input value={form.legalName ?? ""} onChange={value => setField("legalName", value)} /></Field>
-                          <Field label="Logo URL"><Input value={form.logoUrl ?? ""} onChange={value => setField("logoUrl", value)} /></Field>
-                          <Field label="VAT number"><Input value={form.vatNumber ?? ""} onChange={value => setField("vatNumber", value)} /></Field>
-                        </div>
-                      </SettingsPanel>
-                      <SettingsPanel title="Contact and address">
-                        <div className="grid gap-4 md:grid-cols-2">
-                          <Field label="Email"><Input value={form.email ?? ""} onChange={value => setField("email", value)} /></Field>
-                          <Field label="Phone"><Input value={form.phone ?? ""} onChange={value => setField("phone", value)} /></Field>
-                          <Field label="Website"><Input value={form.website ?? ""} onChange={value => setField("website", value)} /></Field>
-                          <Field label="Country"><Input value={form.country ?? ""} onChange={value => setField("country", value)} /></Field>
-                          <Field label="Address line 1"><Input value={form.addressLine1 ?? ""} onChange={value => setField("addressLine1", value)} /></Field>
-                          <Field label="Address line 2"><Input value={form.addressLine2 ?? ""} onChange={value => setField("addressLine2", value)} /></Field>
-                          <Field label="Town / city"><Input value={form.town ?? ""} onChange={value => setField("town", value)} /></Field>
-                          <Field label="County"><Input value={form.county ?? ""} onChange={value => setField("county", value)} /></Field>
-                          <Field label="Postcode"><Input value={form.postcode ?? ""} onChange={value => setField("postcode", value)} /></Field>
-                        </div>
-                      </SettingsPanel>
-                    </>
-                  )}
-
-                  {activeTab === "documents" && (
-                    <SettingsPanel title="Documents and VAT">
-                      <div className="grid gap-4 md:grid-cols-3">
-                        <Field label="Default VAT rate (%)"><Input value={String(form.defaultVatRate)} type="number" min="0" max="100" step="0.01" onChange={value => setField("defaultVatRate", Number(value || 0))} /></Field>
-                        <Field label="Quote prefix"><Input value={form.quotePrefix} onChange={value => setField("quotePrefix", value)} /></Field>
-                        <Field label="Invoice prefix"><Input value={form.invoicePrefix} onChange={value => setField("invoicePrefix", value)} /></Field>
-                      </div>
-                      <div className="mt-4"><Field label="Payment terms"><Textarea value={form.paymentTerms ?? ""} onChange={value => setField("paymentTerms", value)} rows={4} /></Field></div>
-                    </SettingsPanel>
-                  )}
-
-                  {activeTab === "payments" && (
-                    <SettingsPanel title="Payment details">
-                      <div className="grid gap-4 md:grid-cols-2">
-                        <Field label="Bank name"><Input value={form.bankName ?? ""} onChange={value => setField("bankName", value)} /></Field>
-                        <Field label="Account name"><Input value={form.bankAccountName ?? ""} onChange={value => setField("bankAccountName", value)} /></Field>
-                        <Field label="Sort code"><Input value={form.bankSortCode ?? ""} onChange={value => setField("bankSortCode", value)} /></Field>
-                        <Field label="Account number"><Input value={form.bankAccountNumber ?? ""} onChange={value => setField("bankAccountNumber", value)} /></Field>
-                      </div>
-                    </SettingsPanel>
-                  )}
-
-                  {activeTab === "email" && <SettingsPanel title="Email settings"><Field label="Email footer"><Textarea value={form.emailFooter ?? ""} onChange={value => setField("emailFooter", value)} rows={6} /></Field></SettingsPanel>}
-                  {activeTab === "staff" && <StaffSettingsPanel activeTab={activeStaffSettingsTab} setActiveTab={setActiveStaffSettingsTab} settings={staffSettings} loading={staffLoading} saving={staffSaving} error={staffError} message={staffMessage} onCreateCategory={createStaffCategory} onDeleteCategory={deleteStaffCategory} onCreateRolePreset={createStaffRolePreset} onDeleteRolePreset={deleteStaffRolePreset} />}
-                  {activeTab === "security" && <ComingSoon title="Security settings" items={["Login attempt rules", "Session expiry", "Password policy", "Security log retention"]} />}
-                  {activeTab === "billing" && <ComingSoon title="Billing settings" items={["Plan defaults", "Trial length", "Free month rules", "Past-due recovery settings"]} />}
-                  {activeTab === "exports" && <ComingSoon title="Export settings" items={["Customer exports", "Audit log exports", "Billing reports", "Trial expiry reports"]} />}
+                  {activeTab === "business" && <><SettingsPanel title="Business profile"><div className="grid gap-4 md:grid-cols-2"><Field label="Business name"><Input value={form.businessName} onChange={value => setField("businessName", value)} /></Field><Field label="Legal name"><Input value={form.legalName ?? ""} onChange={value => setField("legalName", value)} /></Field><Field label="Logo URL"><Input value={form.logoUrl ?? ""} onChange={value => setField("logoUrl", value)} /></Field><Field label="VAT number"><Input value={form.vatNumber ?? ""} onChange={value => setField("vatNumber", value)} /></Field></div></SettingsPanel><SettingsPanel title="Contact and address"><div className="grid gap-4 md:grid-cols-2"><Field label="Email"><Input value={form.email ?? ""} onChange={value => setField("email", value)} /></Field><Field label="Phone"><Input value={form.phone ?? ""} onChange={value => setField("phone", value)} /></Field><Field label="Website"><Input value={form.website ?? ""} onChange={value => setField("website", value)} /></Field><Field label="Country"><Input value={form.country ?? ""} onChange={value => setField("country", value)} /></Field><Field label="Address line 1"><Input value={form.addressLine1 ?? ""} onChange={value => setField("addressLine1", value)} /></Field><Field label="Address line 2"><Input value={form.addressLine2 ?? ""} onChange={value => setField("addressLine2", value)} /></Field><Field label="Town / city"><Input value={form.town ?? ""} onChange={value => setField("town", value)} /></Field><Field label="County"><Input value={form.county ?? ""} onChange={value => setField("county", value)} /></Field><Field label="Postcode"><Input value={form.postcode ?? ""} onChange={value => setField("postcode", value)} /></Field></div></SettingsPanel></>}
+                  {activeTab === "documents" && <SettingsPanel title="Documents and VAT"><div className="grid gap-4 md:grid-cols-3"><Field label="Default VAT rate (%)"><Input value={String(form.defaultVatRate)} type="number" min="0" max="100" step="1" onChange={value => setField("defaultVatRate", Number(value || 0))} /></Field><Field label="Quote prefix"><Input value={form.quotePrefix} onChange={value => setField("quotePrefix", value)} /></Field><Field label="Invoice prefix"><Input value={form.invoicePrefix} onChange={value => setField("invoicePrefix", value)} /></Field></div><div className="mt-4"><Field label="Payment terms"><Textarea value={form.paymentTerms ?? ""} onChange={value => setField("paymentTerms", value)} rows={4} /></Field></div></SettingsPanel>}
+                  {activeTab === "payments" && <SettingsPanel title="Payment details"><div className="grid gap-4 md:grid-cols-2"><Field label="Bank name"><Input value={form.bankName ?? ""} onChange={value => setField("bankName", value)} /></Field><Field label="Account name"><Input value={form.bankAccountName ?? ""} onChange={value => setField("bankAccountName", value)} /></Field><Field label="Sort code"><Input value={form.bankSortCode ?? ""} onChange={value => setField("bankSortCode", value)} /></Field><Field label="Account number"><Input value={form.bankAccountNumber ?? ""} onChange={value => setField("bankAccountNumber", value)} /></Field></div></SettingsPanel>}
+                  {activeTab === "email" && <EmailSettingsPanel footer={form.emailFooter ?? ""} onFooterChange={value => setField("emailFooter", value)} />}
+                  {activeTab === "staff" && <StaffSettingsPanel activeTab={activeStaffSettingsTab} setActiveTab={setActiveStaffSettingsTab} settings={staffSettings} loading={staffLoading} saving={staffSaving} error={staffError} message={staffMessage} onClearError={() => setStaffError("")} onClearMessage={() => setStaffMessage("")} onCreateCategory={createStaffCategory} onDeleteCategory={deleteStaffCategory} onCreateRolePreset={createStaffRolePreset} onDeleteRolePreset={deleteStaffRolePreset} />}
+                  {activeTab === "security" && <SecuritySettingsPanel />}
+                  {activeTab === "billing" && <BillingSettingsPanel terminology={customerTerminology} onTerminologyChange={updateTerminology} />}
+                  {activeTab === "exports" && <ExportSettingsPanel />}
 
                   {["business", "documents", "payments", "email"].includes(activeTab) && <button type="submit" disabled={saving} className="rounded-lg bg-blue-600 px-5 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-400">{saving ? "Saving..." : "Save Settings"}</button>}
                 </form>
@@ -362,90 +263,49 @@ export default function Settings() {
   }
 }
 
+function EmailSettingsPanel({ footer, onFooterChange }: { footer: string; onFooterChange: (value: string) => void }) {
+  return <><SettingsPanel title="Email footer"><Field label="Default email footer"><Textarea value={footer} onChange={onFooterChange} rows={6} /></Field></SettingsPanel><SettingsPanel title="Email sending defaults"><div className="grid gap-3 md:grid-cols-2"><SettingCard title="Quote emails" body="Quote cards open a pre-filled customer email draft." /><SettingCard title="Invoice emails" body="Invoice cards are prepared for the same quick-send flow." /><SettingCard title="Sent history" body="Customer email history is reserved under Customer 360 → Emails sent." /><SettingCard title="Next backend step" body="Send + log emails through the API when production email is connected." /></div></SettingsPanel></>;
+}
+
+function BillingSettingsPanel({ terminology, onTerminologyChange }: { terminology: CustomerTerminology; onTerminologyChange: (value: CustomerTerminology) => void }) {
+  return <div className="space-y-6"><PlanLimitsPanel /><SettingsPanel title="Terminology"><p className="mb-4 text-sm text-slate-600">Choose whether the customer side calls records Customers or Clients. The sidebar updates instantly.</p><Field label="Customer record label"><select value={terminology} onChange={event => onTerminologyChange(event.target.value as CustomerTerminology)} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600"><option value="Customers">Customers</option><option value="Clients">Clients</option></select></Field></SettingsPanel><SettingsPanel title="Billing controls"><div className="grid gap-3 md:grid-cols-2"><SettingCard title="User limits" body="Solo 1, Team 2-10, Business 11-25, Enterprise unlimited." /><SettingCard title="Team management" body="Controlled by plan, with flexible team sizes inside the total user count." /><SettingCard title="Reporting" body="Basic on Solo, advanced on Team, custom reporting on Business and Enterprise." /><SettingCard title="API access" body="Reserved for Business and Enterprise plans." /></div></SettingsPanel></div>;
+}
+
+function SecuritySettingsPanel() {
+  return <div className="space-y-6"><SettingsPanel title="Security settings"><div className="grid gap-3 md:grid-cols-2"><SettingCard title="Password resets" body="Company directors can request staff password resets from Staff & Teams." /><SettingCard title="Two-factor authentication" body="Prepared as a future staff/company setting. Not forced yet." /><SettingCard title="Session safety" body="JWT/session expiry remains controlled by API configuration." /><SettingCard title="Audit history" body="Customer activity now records staff name, email, action, details and date where available." /></div></SettingsPanel><SettingsPanel title="Recommended future security"><div className="grid gap-3 md:grid-cols-2"><SettingCard title="Require 2FA for directors" body="Best for owners, directors and office managers." /><SettingCard title="Sensitive action confirmation" body="Use confirmations for deletes, staff changes, billing updates and exports." /></div></SettingsPanel></div>;
+}
+
+function ExportSettingsPanel() {
+  return <div className="space-y-6"><SettingsPanel title="Export settings"><div className="grid gap-3 md:grid-cols-2"><SettingCard title="Customers / Clients" body="Export customer records, notes and contact history when reports are connected." /><SettingCard title="Jobs" body="Export scheduled, current and previous jobs with engineer/team filters." /><SettingCard title="Invoices and payments" body="Export invoice totals, paid/outstanding status and billing records." /><SettingCard title="Audit logs" body="Export customer audit history for accountability and admin checks." /></div></SettingsPanel><SettingsPanel title="Export permissions"><p className="text-sm text-slate-600">Exports should stay permission-only. Business and Enterprise plans should get the strongest reporting and export options.</p></SettingsPanel></div>;
+}
+
 function SettingsPanel({ title, children }: { title: string; children: React.ReactNode }) {
   return <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"><h2 className="text-lg font-bold text-slate-900">{title}</h2><div className="mt-5">{children}</div></section>;
 }
 
-function StaffSettingsPanel({ activeTab, setActiveTab, settings, loading, saving, error, message, onCreateCategory, onDeleteCategory, onCreateRolePreset, onDeleteRolePreset }: { activeTab: StaffSettingsTab; setActiveTab: (tab: StaffSettingsTab) => void; settings: StaffSettings; loading: boolean; saving: boolean; error: string; message: string; onCreateCategory: (name: string, description: string) => Promise<void>; onDeleteCategory: (category: StaffCategory) => Promise<void>; onCreateRolePreset: (name: string, categoryId: number, permissions: string[]) => Promise<void>; onDeleteRolePreset: (rolePreset: StaffRolePreset) => Promise<void>; }) {
+function StaffSettingsPanel({ activeTab, setActiveTab, settings, loading, saving, error, message, onClearError, onClearMessage, onCreateCategory, onDeleteCategory, onCreateRolePreset, onDeleteRolePreset }: { activeTab: StaffSettingsTab; setActiveTab: (tab: StaffSettingsTab) => void; settings: StaffSettings; loading: boolean; saving: boolean; error: string; message: string; onClearError: () => void; onClearMessage: () => void; onCreateCategory: (name: string, description: string) => Promise<void>; onDeleteCategory: (category: StaffCategory) => Promise<void>; onCreateRolePreset: (name: string, categoryId: number, permissions: string[]) => Promise<void>; onDeleteRolePreset: (rolePreset: StaffRolePreset) => Promise<void>; }) {
   const [categoryName, setCategoryName] = useState("");
   const [categoryDescription, setCategoryDescription] = useState("");
   const [roleName, setRoleName] = useState("");
   const [roleCategoryId, setRoleCategoryId] = useState("");
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
 
-  async function addCategory() {
-    if (categoryName.trim() === "") return;
-    try {
-      await onCreateCategory(categoryName, categoryDescription);
-      setCategoryName("");
-      setCategoryDescription("");
-    } catch {
-      // Parent displays the error.
-    }
-  }
+  async function addCategory() { if (categoryName.trim() === "") return; try { await onCreateCategory(categoryName, categoryDescription); setCategoryName(""); setCategoryDescription(""); } catch { } }
+  function togglePermission(permission: string) { setSelectedPermissions(previous => previous.includes(permission) ? previous.filter(item => item !== permission) : [...previous, permission]); }
+  async function addRolePreset() { const categoryId = Number(roleCategoryId || settings.categories[0]?.id || 0); if (roleName.trim() === "" || categoryId === 0 || selectedPermissions.length === 0) return; try { await onCreateRolePreset(roleName, categoryId, selectedPermissions); setRoleName(""); setSelectedPermissions([]); } catch { } }
 
-  function togglePermission(permission: string) {
-    setSelectedPermissions(previous => previous.includes(permission) ? previous.filter(item => item !== permission) : [...previous, permission]);
-  }
-
-  async function addRolePreset() {
-    const categoryId = Number(roleCategoryId || settings.categories[0]?.id || 0);
-    if (roleName.trim() === "" || categoryId === 0 || selectedPermissions.length === 0) return;
-    try {
-      await onCreateRolePreset(roleName, categoryId, selectedPermissions);
-      setRoleName("");
-      setSelectedPermissions([]);
-    } catch {
-      // Parent displays the error.
-    }
-  }
-
-  return (
-    <SettingsPanel title="Staff settings">
-      {error && <Alert tone="error">{error}</Alert>}
-      {message && <Alert tone="success">{message}</Alert>}
-
-      <div className="mt-5 grid gap-3 md:grid-cols-3">
-        {staffSettingsTabs.map(tab => <button key={tab.id} type="button" onClick={() => setActiveTab(tab.id)} className={`rounded-lg border p-4 text-left transition ${activeTab === tab.id ? "border-blue-600 bg-blue-600 text-white" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`}><span className="block text-sm font-bold">{tab.label}</span><span className={`mt-1 block text-xs ${activeTab === tab.id ? "text-blue-100" : "text-slate-500"}`}>{tab.description}</span></button>)}
-      </div>
-
-      {loading ? <p className="mt-6 text-sm text-slate-500">Loading staff settings...</p> : <>
-        {activeTab === "categories" && <div className="mt-6 space-y-5">
-          <div className="grid gap-3 md:grid-cols-2">{settings.categories.map(category => <div key={category.id} className="rounded-lg border border-slate-200 bg-slate-50 p-4"><div className="flex items-start justify-between gap-4"><div><p className="font-semibold text-slate-900">{category.name}</p><p className="mt-1 text-sm text-slate-600">{category.description}</p></div><button type="button" disabled={saving} onClick={() => onDeleteCategory(category)} className="rounded-lg border border-red-200 px-3 py-1 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50">Delete</button></div></div>)}</div>
-          <div className="rounded-lg border border-slate-200 p-4"><h3 className="font-semibold text-slate-900">Create staff category</h3><div className="mt-4 grid gap-4 md:grid-cols-2"><Field label="Category name"><Input value={categoryName} onChange={setCategoryName} /></Field><Field label="Description"><Input value={categoryDescription} onChange={setCategoryDescription} /></Field></div><button type="button" disabled={saving} onClick={addCategory} className="mt-4 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300">{saving ? "Saving..." : "Add category"}</button></div>
-        </div>}
-
-        {activeTab === "roles" && <div className="mt-6 space-y-5">
-          <div className="rounded-lg border border-slate-200 p-4"><h3 className="font-semibold text-slate-900">Create role preset</h3><div className="mt-4 grid gap-4 md:grid-cols-2"><Field label="Role name"><Input value={roleName} onChange={setRoleName} /></Field><label className="block"><span className="mb-2 block text-sm font-medium text-slate-700">Staff category</span><select value={roleCategoryId || String(settings.categories[0]?.id ?? "")} onChange={event => setRoleCategoryId(event.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600">{settings.categories.map(category => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label></div><div className="mt-4"><p className="mb-2 text-sm font-medium text-slate-700">Default permissions</p><div className="flex flex-wrap gap-2">{settings.permissionGroups.map(permission => <button key={permission} type="button" onClick={() => togglePermission(permission)} className={`rounded-full border px-3 py-1 text-xs font-semibold ${selectedPermissions.includes(permission) ? "border-blue-600 bg-blue-600 text-white" : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"}`}>{permission}</button>)}</div></div><button type="button" disabled={saving || settings.categories.length === 0} onClick={addRolePreset} className="mt-4 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300">{saving ? "Saving..." : "Add role preset"}</button></div>
-          <div className="grid gap-3">{settings.rolePresets.map(role => <div key={role.id} className="rounded-lg border border-slate-200 bg-slate-50 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-semibold text-slate-900">{role.name}</p><p className="text-sm text-slate-600">{role.categoryName}</p></div><button type="button" disabled={saving} onClick={() => onDeleteRolePreset(role)} className="rounded-lg border border-red-200 px-3 py-1 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50">Delete</button></div><div className="mt-3 flex flex-wrap gap-2">{role.permissions.map(permission => <span key={permission} className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-700 ring-1 ring-slate-200">{permission}</span>)}</div></div>)}</div>
-        </div>}
-
-        {activeTab === "permissions" && <div className="mt-6 grid gap-3 md:grid-cols-2">{settings.permissionGroups.map(permission => <div key={permission} className="rounded-lg border border-slate-200 bg-slate-50 p-4"><p className="font-semibold text-slate-900">{permission}</p><p className="mt-1 text-sm text-slate-600">{permissionDescriptions[permission] ?? "Custom permission group for role presets."}</p></div>)}</div>}
-      </>}
-    </SettingsPanel>
-  );
+  return <SettingsPanel title="Staff settings"><p className="text-sm text-slate-600">Customer-company staff categories, role presets and permissions live here. These stay separate from the ShepieStudio internal staff portal.</p>{error && <Alert tone="error" onClose={onClearError}>{error}</Alert>}{message && <Alert tone="success" onClose={onClearMessage}>{message}</Alert>}<div className="mt-5 grid gap-3 md:grid-cols-3">{staffSettingsTabs.map(tab => <button key={tab.id} type="button" onClick={() => setActiveTab(tab.id)} className={`rounded-lg border p-4 text-left transition ${activeTab === tab.id ? "border-blue-600 bg-blue-600 text-white" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`}><span className="block text-sm font-bold">{tab.label}</span><span className={`mt-1 block text-xs ${activeTab === tab.id ? "text-blue-100" : "text-slate-500"}`}>{tab.description}</span></button>)}</div>{loading ? <p className="mt-6 text-sm text-slate-500">Loading staff settings...</p> : <>{activeTab === "categories" && <div className="mt-6 space-y-5"><div className="grid gap-3 md:grid-cols-2">{settings.categories.map(category => <div key={category.id} className="rounded-lg border border-slate-200 bg-slate-50 p-4"><div className="flex items-start justify-between gap-4"><div><p className="font-semibold text-slate-900">{category.name}</p><p className="mt-1 text-sm text-slate-600">{category.description}</p></div><button type="button" disabled={saving} onClick={() => onDeleteCategory(category)} className="rounded-lg border border-red-200 px-3 py-1 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50">Delete</button></div></div>)}</div><div className="rounded-lg border border-slate-200 p-4"><h3 className="font-semibold text-slate-900">Create staff category</h3><div className="mt-4 grid gap-4 md:grid-cols-2"><Field label="Category name"><Input value={categoryName} onChange={setCategoryName} /></Field><Field label="Description"><Input value={categoryDescription} onChange={setCategoryDescription} /></Field></div><button type="button" disabled={saving} onClick={addCategory} className="mt-4 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300">{saving ? "Saving..." : "Add category"}</button></div></div>}{activeTab === "roles" && <div className="mt-6 space-y-5"><div className="rounded-lg border border-slate-200 p-4"><h3 className="font-semibold text-slate-900">Create role preset</h3><div className="mt-4 grid gap-4 md:grid-cols-2"><Field label="Role name"><Input value={roleName} onChange={setRoleName} /></Field><label className="block"><span className="mb-2 block text-sm font-medium text-slate-700">Staff category</span><select value={roleCategoryId || String(settings.categories[0]?.id ?? "")} onChange={event => setRoleCategoryId(event.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600">{settings.categories.map(category => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label></div><div className="mt-4"><p className="mb-2 text-sm font-medium text-slate-700">Default permissions</p><div className="flex flex-wrap gap-2">{settings.permissionGroups.map(permission => <button key={permission} type="button" onClick={() => togglePermission(permission)} className={`rounded-full border px-3 py-1 text-xs font-semibold ${selectedPermissions.includes(permission) ? "border-blue-600 bg-blue-600 text-white" : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"}`}>{permission}</button>)}</div></div><button type="button" disabled={saving || settings.categories.length === 0} onClick={addRolePreset} className="mt-4 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300">{saving ? "Saving..." : "Add role preset"}</button></div><div className="grid gap-3">{settings.rolePresets.map(role => <div key={role.id} className="rounded-lg border border-slate-200 bg-slate-50 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-semibold text-slate-900">{role.name}</p><p className="text-sm text-slate-600">{role.categoryName}</p></div><button type="button" disabled={saving} onClick={() => onDeleteRolePreset(role)} className="rounded-lg border border-red-200 px-3 py-1 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50">Delete</button></div><div className="mt-3 flex flex-wrap gap-2">{role.permissions.map(permission => <span key={permission} className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-700 ring-1 ring-slate-200">{permission}</span>)}</div></div>)}</div></div>}{activeTab === "permissions" && <div className="mt-6 grid gap-3 md:grid-cols-2">{settings.permissionGroups.map(permission => <div key={permission} className="rounded-lg border border-slate-200 bg-slate-50 p-4"><p className="font-semibold text-slate-900">{permission}</p><p className="mt-1 text-sm text-slate-600">{permissionDescriptions[permission] ?? "Custom permission group for role presets."}</p></div>)}</div>}</>}</SettingsPanel>;
 }
 
-function ComingSoon({ title, items }: { title: string; items: string[] }) {
-  return <SettingsPanel title={title}><p className="text-sm text-slate-600">This settings area is ready for the next build pass.</p><div className="mt-4 grid gap-3 md:grid-cols-2">{items.map(item => <div key={item} className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm font-medium text-slate-700">{item}</div>)}</div></SettingsPanel>;
+function SettingCard({ title, body }: { title: string; body: string }) {
+  return <div className="rounded-lg border border-slate-200 bg-slate-50 p-4"><p className="font-semibold text-slate-900">{title}</p><p className="mt-1 text-sm text-slate-600">{body}</p></div>;
 }
 
-function Alert({ tone, children }: { tone: "error" | "success"; children: React.ReactNode }) {
-  return <div className={`max-h-40 overflow-y-auto break-words rounded-xl border p-4 text-sm font-medium ${tone === "error" ? "border-red-200 bg-red-50 text-red-700" : "border-green-200 bg-green-50 text-green-700"}`}>{children}</div>;
+function Alert({ tone, children, onClose }: { tone: "error" | "success"; children: React.ReactNode; onClose?: () => void }) {
+  return <div className={`mt-4 flex max-h-40 items-start justify-between gap-4 overflow-y-auto break-words rounded-xl border p-4 text-sm font-medium ${tone === "error" ? "border-red-200 bg-red-50 text-red-700" : "border-green-200 bg-green-50 text-green-700"}`}><span>{children}</span>{onClose && <button type="button" onClick={onClose} className="rounded px-2 text-lg leading-none hover:bg-white/70">×</button>}</div>;
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return <label className="block"><span className="mb-2 block text-sm font-medium text-slate-700">{label}</span>{children}</label>;
-}
-
-function Input({ value, onChange, type = "text", min, max, step }: { value: string; onChange: (value: string) => void; type?: string; min?: string; max?: string; step?: string }) {
-  return <input value={value} type={type} min={min} max={max} step={step} onChange={event => onChange(event.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600" />;
-}
-
-function Textarea({ value, onChange, rows }: { value: string; onChange: (value: string) => void; rows: number }) {
-  return <textarea value={value} rows={rows} onChange={event => onChange(event.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600" />;
-}
-
-function getErrorMessage(error: unknown, fallback: string) {
-  return error instanceof Error && error.message.trim() !== "" ? error.message : fallback;
-}
+function Field({ label, children }: { label: string; children: React.ReactNode }) { return <label className="block"><span className="mb-2 block text-sm font-medium text-slate-700">{label}</span>{children}</label>; }
+function Input({ value, onChange, type = "text", min, max, step }: { value: string; onChange: (value: string) => void; type?: string; min?: string; max?: string; step?: string }) { return <input value={value} type={type} min={min} max={max} step={step} onChange={event => onChange(event.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600" />; }
+function Textarea({ value, onChange, rows }: { value: string; onChange: (value: string) => void; rows: number }) { return <textarea value={value} rows={rows} onChange={event => onChange(event.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600" />; }
+function getErrorMessage(error: unknown, fallback: string) { return error instanceof Error && error.message.trim() !== "" ? error.message : fallback; }
