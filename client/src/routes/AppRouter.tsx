@@ -27,6 +27,7 @@ function AppRouter() {
         <Route path="/signup" element={<Signup />} />
         <Route path="/login" element={<Login />} />
         <Route path="/company-invite" element={<CompanyInvite />} />
+        <Route path="/accept-company-staff-invite" element={<CompanyInvite />} />
 
         <Route path="/dashboard" element={<Dashboard />} />
 
