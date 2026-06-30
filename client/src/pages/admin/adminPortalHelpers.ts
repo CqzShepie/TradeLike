@@ -11,6 +11,10 @@ export function formatStatus(value: string) {
     return "Grace Period";
   }
 
+  if (value === "InvitePending") {
+    return "Invite Pending";
+  }
+
   return value;
 }
 
