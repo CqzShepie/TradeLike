@@ -60,7 +60,7 @@ public class User
 
     [Required]
     [MaxLength(40)]
-    public string SubscriptionPlan { get; set; } = "Trial";
+    public string SubscriptionPlan { get; set; } = "Solo";
 
     [Required]
     [MaxLength(40)]
