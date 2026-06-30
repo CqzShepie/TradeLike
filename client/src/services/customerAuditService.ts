@@ -22,6 +22,12 @@ export const customerAuditService = {
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   },
 
+  deleteForCustomer(customerId: number, auditEntryId: number) {
+    const next = loadEntries().filter(entry => !(entry.customerId === customerId && entry.id === auditEntryId));
+    saveEntries(next);
+    return this.getForCustomer(customerId);
+  },
+
   log(entry: Omit<CustomerAuditEntry, "id" | "staffName" | "staffEmail" | "createdAt">) {
     const user = authService.getUser();
     const next: CustomerAuditEntry = {
