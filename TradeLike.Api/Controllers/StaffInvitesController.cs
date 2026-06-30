@@ -325,7 +325,28 @@ public class StaffInvitesController : ControllerBase
 
     private string BuildInviteLink(string token)
     {
-        var origin = Request.Headers.Origin.FirstOrDefault();
+        var configuredOrigin = Environment.GetEnvironmentVariable("TRADELIKE_FRONTEND_URL");
+
+        if (string.IsNullOrWhiteSpace(configuredOrigin))
+        {
+            configuredOrigin = Environment.GetEnvironmentVariable("FRONTEND_URL");
+        }
+
+        var origin = configuredOrigin;
+
+        if (string.IsNullOrWhiteSpace(origin))
+        {
+            origin = Request.Headers.Origin.FirstOrDefault();
+        }
+
+        if (string.IsNullOrWhiteSpace(origin))
+        {
+            var referer = Request.Headers.Referer.FirstOrDefault();
+            if (Uri.TryCreate(referer, UriKind.Absolute, out var refererUri))
+            {
+                origin = $"{refererUri.Scheme}://{refererUri.Authority}";
+            }
+        }
 
         if (string.IsNullOrWhiteSpace(origin))
         {
