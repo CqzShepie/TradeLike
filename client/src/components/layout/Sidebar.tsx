@@ -45,6 +45,10 @@ function Sidebar() {
             Calendar
           </NavLink>
 
+          <NavLink to="/team" className={linkClasses}>
+            Staff & Teams
+          </NavLink>
+
           <NavLink to="/quotes" className={linkClasses}>
             Quotes
           </NavLink>
