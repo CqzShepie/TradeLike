@@ -32,8 +32,14 @@ public sealed class CustomerStaffController : ControllerBase
     {
         await EnsureSchemaAsync();
         var companyUserId = GetCompanyUserId();
-        var now = DateTime.UtcNow;
+        var entitlements = await GetPlanEntitlementsAsync(companyUserId);
 
+        if (!entitlements.TeamsEnabled)
+        {
+            return BadRequest(new { error = $"The {entitlements.PlanName} plan does not include teams. Upgrade to Team or above to create teams." });
+        }
+
+        var now = DateTime.UtcNow;
         var name = CleanRequired(request.Name, "Team name", 120);
         var colour = CleanOptional(request.Colour, 40) ?? "blue";
 
@@ -46,12 +52,12 @@ public sealed class CustomerStaffController : ControllerBase
             """,
             ("@CompanyUserId", companyUserId),
             ("@Name", name),
-            ("@Description", CleanOptional(request.Description, 500) ?? ""),
+            ("@Description", CleanOptional(request.Description, 500) ?? string.Empty),
             ("@Colour", colour),
             ("@TeamLeadStaffId", request.TeamLeadStaffId),
-            ("@DefaultJobType", CleanOptional(request.DefaultJobType, 120) ?? ""),
-            ("@ServiceArea", CleanOptional(request.ServiceArea, 250) ?? ""),
-            ("@WorkingHours", CleanOptional(request.WorkingHours, 250) ?? ""),
+            ("@DefaultJobType", CleanOptional(request.DefaultJobType, 120) ?? string.Empty),
+            ("@ServiceArea", CleanOptional(request.ServiceArea, 250) ?? string.Empty),
+            ("@WorkingHours", CleanOptional(request.WorkingHours, 250) ?? string.Empty),
             ("@CreatedAt", now),
             ("@UpdatedAt", now));
 
@@ -65,8 +71,14 @@ public sealed class CustomerStaffController : ControllerBase
         var companyUserId = GetCompanyUserId();
 
         await ExecuteNonQueryAsync(
-            "DELETE FROM CustomerStaffMemberTeams WHERE TeamId = @TeamId",
-            ("@TeamId", id));
+            """
+            DELETE mt
+            FROM CustomerStaffMemberTeams mt
+            INNER JOIN CustomerStaffTeams t ON t.Id = mt.TeamId
+            WHERE mt.TeamId = @TeamId AND t.CompanyUserId = @CompanyUserId
+            """,
+            ("@TeamId", id),
+            ("@CompanyUserId", companyUserId));
 
         await ExecuteNonQueryAsync(
             "DELETE FROM CustomerStaffTeams WHERE Id = @Id AND CompanyUserId = @CompanyUserId",
@@ -81,12 +93,30 @@ public sealed class CustomerStaffController : ControllerBase
     {
         await EnsureSchemaAsync();
         var companyUserId = GetCompanyUserId();
-        var now = DateTime.UtcNow;
+        var entitlements = await GetPlanEntitlementsAsync(companyUserId);
+        var currentUserCount = await CountBillableMembersAsync(companyUserId);
+
+        if (entitlements.MaxUsers.HasValue && currentUserCount >= entitlements.MaxUsers.Value)
+        {
+            return BadRequest(new { error = $"Your {entitlements.PlanName} plan allows {entitlements.MaxUsers.Value} user{(entitlements.MaxUsers.Value == 1 ? string.Empty : "s")}. Upgrade before inviting more staff." });
+        }
+
+        if (!entitlements.TeamsEnabled && (request.TeamIds?.Any(id => id > 0) ?? false))
+        {
+            return BadRequest(new { error = $"The {entitlements.PlanName} plan does not include teams. Upgrade to Team or above to assign workers to teams." });
+        }
 
         var firstName = CleanRequired(request.FirstName, "First name", 100);
         var lastName = CleanRequired(request.LastName, "Last name", 100);
         var email = CleanRequired(request.Email, "Email", 256).ToLowerInvariant();
         var roleName = CleanRequired(request.RoleName, "Role", 120);
+
+        if (await EmailExistsAsync(companyUserId, email))
+        {
+            return BadRequest(new { error = "A staff member with this email already exists for this company." });
+        }
+
+        var now = DateTime.UtcNow;
         var token = Guid.NewGuid().ToString("N");
 
         var memberId = await ExecuteScalarIntAsync(
@@ -101,19 +131,19 @@ public sealed class CustomerStaffController : ControllerBase
             ("@FirstName", firstName),
             ("@LastName", lastName),
             ("@Email", email),
-            ("@Phone", CleanOptional(request.Phone, 80) ?? ""),
+            ("@Phone", CleanOptional(request.Phone, 80) ?? string.Empty),
             ("@RoleName", roleName),
             ("@PermissionPresetName", CleanOptional(request.PermissionPresetName, 120) ?? roleName),
-            ("@Skills", CleanOptional(request.Skills, 500) ?? ""),
-            ("@ServiceArea", CleanOptional(request.ServiceArea, 250) ?? ""),
-            ("@WorkingHours", CleanOptional(request.WorkingHours, 250) ?? ""),
+            ("@Skills", CleanOptional(request.Skills, 500) ?? string.Empty),
+            ("@ServiceArea", CleanOptional(request.ServiceArea, 250) ?? string.Empty),
+            ("@WorkingHours", CleanOptional(request.WorkingHours, 250) ?? string.Empty),
             ("@CalendarColour", CleanOptional(request.CalendarColour, 40) ?? "blue"),
             ("@InviteToken", token),
             ("@InviteSentAt", now),
             ("@CreatedAt", now),
             ("@UpdatedAt", now));
 
-        await ReplaceMemberTeamsAsync(memberId, request.TeamIds);
+        await ReplaceMemberTeamsAsync(memberId, companyUserId, request.TeamIds);
 
         var workspace = await LoadWorkspaceAsync();
         var origin = Request.Headers.Origin.FirstOrDefault() ?? Request.Headers.Referer.FirstOrDefault()?.TrimEnd('/') ?? "http://localhost:5173";
@@ -127,7 +157,20 @@ public sealed class CustomerStaffController : ControllerBase
     {
         await EnsureSchemaAsync();
         var companyUserId = GetCompanyUserId();
+        var entitlements = await GetPlanEntitlementsAsync(companyUserId);
+
+        if (!entitlements.TeamsEnabled && (request.TeamIds?.Any(teamId => teamId > 0) ?? false))
+        {
+            return BadRequest(new { error = $"The {entitlements.PlanName} plan does not include teams. Upgrade to Team or above to assign workers to teams." });
+        }
+
         var now = DateTime.UtcNow;
+        var email = CleanRequired(request.Email, "Email", 256).ToLowerInvariant();
+
+        if (await EmailExistsAsync(companyUserId, email, id))
+        {
+            return BadRequest(new { error = "Another staff member already uses this email for this company." });
+        }
 
         await ExecuteNonQueryAsync(
             """
@@ -151,19 +194,19 @@ public sealed class CustomerStaffController : ControllerBase
             ("@CompanyUserId", companyUserId),
             ("@FirstName", CleanRequired(request.FirstName, "First name", 100)),
             ("@LastName", CleanRequired(request.LastName, "Last name", 100)),
-            ("@Email", CleanRequired(request.Email, "Email", 256).ToLowerInvariant()),
-            ("@Phone", CleanOptional(request.Phone, 80) ?? ""),
+            ("@Email", email),
+            ("@Phone", CleanOptional(request.Phone, 80) ?? string.Empty),
             ("@RoleName", CleanRequired(request.RoleName, "Role", 120)),
             ("@Status", CleanStatus(request.Status)),
             ("@PermissionPresetName", CleanOptional(request.PermissionPresetName, 120) ?? request.RoleName),
-            ("@Skills", CleanOptional(request.Skills, 500) ?? ""),
-            ("@ServiceArea", CleanOptional(request.ServiceArea, 250) ?? ""),
-            ("@WorkingHours", CleanOptional(request.WorkingHours, 250) ?? ""),
+            ("@Skills", CleanOptional(request.Skills, 500) ?? string.Empty),
+            ("@ServiceArea", CleanOptional(request.ServiceArea, 250) ?? string.Empty),
+            ("@WorkingHours", CleanOptional(request.WorkingHours, 250) ?? string.Empty),
             ("@CalendarColour", CleanOptional(request.CalendarColour, 40) ?? "blue"),
             ("@IsTwoFactorRequired", request.IsTwoFactorRequired),
             ("@UpdatedAt", now));
 
-        await ReplaceMemberTeamsAsync(id, request.TeamIds);
+        await ReplaceMemberTeamsAsync(id, companyUserId, request.TeamIds);
 
         return Ok(await LoadWorkspaceAsync());
     }
@@ -191,8 +234,8 @@ public sealed class CustomerStaffController : ControllerBase
             """
             INSERT INTO CustomerStaffSecurityRequests
                 (CompanyUserId, StaffMemberId, RequestType, Status, CreatedAt)
-            VALUES
-                (@CompanyUserId, @StaffMemberId, 'PasswordReset', 'Requested', @CreatedAt)
+            SELECT @CompanyUserId, @StaffMemberId, 'PasswordReset', 'Requested', @CreatedAt
+            WHERE EXISTS (SELECT 1 FROM CustomerStaffMembers WHERE Id = @StaffMemberId AND CompanyUserId = @CompanyUserId)
             """,
             ("@CompanyUserId", companyUserId),
             ("@StaffMemberId", id),
@@ -206,9 +249,7 @@ public sealed class CustomerStaffController : ControllerBase
         var companyUserId = GetCompanyUserId();
         var teams = await LoadTeamsAsync(companyUserId);
         var members = await LoadMembersAsync(companyUserId);
-
-        var plan = await LoadPlanAsync(companyUserId);
-        var entitlements = PlanEntitlements.ForPlan(plan);
+        var entitlements = await GetPlanEntitlementsAsync(companyUserId);
 
         return new CustomerStaffWorkspaceResponse(teams, members, entitlements, CustomerStaffDefaults.Roles, CustomerStaffDefaults.FutureSecurityItems, CustomerStaffDefaults.QualityOfLifeItems);
     }
@@ -317,17 +358,65 @@ public sealed class CustomerStaffController : ControllerBase
         return members.Values.ToList();
     }
 
-    private async Task ReplaceMemberTeamsAsync(int memberId, IReadOnlyList<int>? teamIds)
+    private async Task ReplaceMemberTeamsAsync(int memberId, int companyUserId, IReadOnlyList<int>? teamIds)
     {
-        await ExecuteNonQueryAsync("DELETE FROM CustomerStaffMemberTeams WHERE StaffMemberId = @StaffMemberId", ("@StaffMemberId", memberId));
+        await ExecuteNonQueryAsync(
+            """
+            DELETE mt
+            FROM CustomerStaffMemberTeams mt
+            INNER JOIN CustomerStaffMembers m ON m.Id = mt.StaffMemberId
+            WHERE mt.StaffMemberId = @StaffMemberId AND m.CompanyUserId = @CompanyUserId
+            """,
+            ("@StaffMemberId", memberId),
+            ("@CompanyUserId", companyUserId));
 
         foreach (var teamId in (teamIds ?? []).Distinct().Where(id => id > 0))
         {
             await ExecuteNonQueryAsync(
-                "INSERT INTO CustomerStaffMemberTeams (StaffMemberId, TeamId) VALUES (@StaffMemberId, @TeamId)",
+                """
+                INSERT INTO CustomerStaffMemberTeams (StaffMemberId, TeamId)
+                SELECT @StaffMemberId, @TeamId
+                WHERE EXISTS (SELECT 1 FROM CustomerStaffMembers WHERE Id = @StaffMemberId AND CompanyUserId = @CompanyUserId)
+                  AND EXISTS (SELECT 1 FROM CustomerStaffTeams WHERE Id = @TeamId AND CompanyUserId = @CompanyUserId)
+                  AND NOT EXISTS (SELECT 1 FROM CustomerStaffMemberTeams WHERE StaffMemberId = @StaffMemberId AND TeamId = @TeamId)
+                """,
                 ("@StaffMemberId", memberId),
-                ("@TeamId", teamId));
+                ("@TeamId", teamId),
+                ("@CompanyUserId", companyUserId));
         }
+    }
+
+    private async Task<PlanEntitlements> GetPlanEntitlementsAsync(int companyUserId)
+    {
+        return PlanEntitlements.ForPlan(await LoadPlanAsync(companyUserId));
+    }
+
+    private async Task<int> CountBillableMembersAsync(int companyUserId)
+    {
+        return await ExecuteScalarIntAsync(
+            """
+            SELECT COUNT(*)
+            FROM CustomerStaffMembers
+            WHERE CompanyUserId = @CompanyUserId AND Status <> 'Left'
+            """,
+            ("@CompanyUserId", companyUserId));
+    }
+
+    private async Task<bool> EmailExistsAsync(int companyUserId, string email, int? excludingMemberId = null)
+    {
+        var count = await ExecuteScalarIntAsync(
+            """
+            SELECT COUNT(*)
+            FROM CustomerStaffMembers
+            WHERE CompanyUserId = @CompanyUserId
+              AND LOWER(Email) = @Email
+              AND (@ExcludingMemberId IS NULL OR Id <> @ExcludingMemberId)
+            """,
+            ("@CompanyUserId", companyUserId),
+            ("@Email", email.ToLowerInvariant()),
+            ("@ExcludingMemberId", excludingMemberId));
+
+        return count > 0;
     }
 
     private async Task<string> LoadPlanAsync(int companyUserId)
