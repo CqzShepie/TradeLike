@@ -3,12 +3,9 @@ import type { FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { adminService } from "../../services/adminService";
 import { authService } from "../../services/authService";
-import { staffSettingsService } from "../../services/staffSettingsService";
-import type { StaffRolePreset } from "../../services/staffSettingsService";
 import type { AdminAccountStatus, AdminAuditLog, AdminUser, StaffRole } from "../../types/admin";
 import { blankPermissions, permanentDirectorEmail, staffRoles, staffStatuses } from "./adminPortalConstants";
 import { allPermissions, formatStatus, getErrorMessage, getPermissionsFromUser, toStaffRole } from "./adminPortalHelpers";
-import { permissionsFromRolePreset, staffRoleFromPreset } from "./staffRolePresetHelpers";
 import type { PermissionFlags } from "./adminPortalTypes";
 import { AuditLogRow, Badge, DarkInput, DarkSelect, DarkTextarea, Field, PermissionEditor, StatCard } from "./adminPortalComponents";
 import AdminDashboard from "./AdminDashboard";
@@ -30,7 +27,6 @@ export default function AdminPortalInvite() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [staff, setStaff] = useState<AdminUser[]>([]);
   const [auditLogs, setAuditLogs] = useState<AdminAuditLog[]>([]);
-  const [rolePresets, setRolePresets] = useState<StaffRolePreset[]>([]);
   const [selectedStaff, setSelectedStaff] = useState<AdminUser | null>(null);
   const [staffSearch, setStaffSearch] = useState("");
   const [auditSearch, setAuditSearch] = useState("");
@@ -42,7 +38,6 @@ export default function AdminPortalInvite() {
   const [inviteFirstName, setInviteFirstName] = useState("");
   const [inviteLastName, setInviteLastName] = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRolePresetId, setInviteRolePresetId] = useState("");
   const [inviteRole, setInviteRole] = useState<StaffRole>("Support");
   const [invitePaTo, setInvitePaTo] = useState("");
   const [invitePermissions, setInvitePermissions] = useState<PermissionFlags>(blankPermissions);
@@ -86,38 +81,19 @@ export default function AdminPortalInvite() {
     try {
       setLoading(true);
       setError("");
-      const [accountsResult, staffResult, auditResult, staffSettingsResult] = await Promise.all([
+      const [accountsResult, staffResult, auditResult] = await Promise.all([
         canSeeAccounts ? adminService.getUsers("") : Promise.resolve([]),
         canSeeStaff ? adminService.getStaff() : Promise.resolve([]),
         canSeeAudit ? adminService.getAuditLogs("") : Promise.resolve([]),
-        canSeeStaff ? staffSettingsService.getSettings() : Promise.resolve({ categories: [], rolePresets: [], permissionGroups: [] }),
       ]);
       setUsers(accountsResult);
       setStaff(staffResult);
       setAuditLogs(auditResult);
-      setRolePresets(staffSettingsResult.rolePresets);
     } catch (err) {
       setError(getErrorMessage(err, "Unable to load admin portal."));
     } finally {
       setLoading(false);
     }
-  }
-
-  function applyInviteRolePreset(presetId: string) {
-    setInviteRolePresetId(presetId);
-
-    if (presetId === "") {
-      setInvitePermissions(blankPermissions);
-      return;
-    }
-
-    const preset = rolePresets.find(item => String(item.id) === presetId);
-    if (!preset) return;
-
-    setInviteRole(staffRoleFromPreset(preset));
-    setInvitePermissions(permissionsFromRolePreset(preset));
-    setMessage(`Applied role preset: ${preset.name}. You can still adjust permissions before sending the invite.`);
-    setError("");
   }
 
   function selectStaff(user: AdminUser) {
@@ -163,7 +139,6 @@ export default function AdminPortalInvite() {
       setInviteFirstName("");
       setInviteLastName("");
       setInviteEmail("");
-      setInviteRolePresetId("");
       setInviteRole("Support");
       setInvitePaTo("");
       setInvitePermissions(blankPermissions);
@@ -290,15 +265,7 @@ export default function AdminPortalInvite() {
                       <DarkInput value={inviteFirstName} onChange={setInviteFirstName} placeholder="First name" />
                       <DarkInput value={inviteLastName} onChange={setInviteLastName} placeholder="Last name" />
                       <DarkInput value={inviteEmail} onChange={setInviteEmail} placeholder="Staff email" type="email" />
-                      {rolePresets.length > 0 && (
-                        <Field label="Role preset">
-                          <DarkSelect value={inviteRolePresetId} onChange={applyInviteRolePreset}>
-                            <option value="">No preset / custom permissions</option>
-                            {rolePresets.map(preset => <option key={preset.id} value={preset.id}>{preset.name} — {preset.categoryName}</option>)}
-                          </DarkSelect>
-                        </Field>
-                      )}
-                      <DarkSelect value={inviteRole} onChange={value => { setInviteRole(value as StaffRole); setInviteRolePresetId(""); }}>{staffRoles.map(item => <option key={item} value={item}>{item}</option>)}</DarkSelect>
+                      <DarkSelect value={inviteRole} onChange={value => setInviteRole(value as StaffRole)}>{staffRoles.map(item => <option key={item} value={item}>{item}</option>)}</DarkSelect>
                       {inviteRole === "Personal Assistant" && <DarkInput value={invitePaTo} onChange={setInvitePaTo} placeholder="PA to" />}
                       <PermissionEditor title="Initial permissions" permissions={invitePermissions} setPermissions={setInvitePermissions} />
                       <DarkTextarea value={inviteNotes} onChange={setInviteNotes} placeholder="Internal staff notes" rows={4} />
