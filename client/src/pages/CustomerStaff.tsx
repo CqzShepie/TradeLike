@@ -35,6 +35,7 @@ export default function CustomerStaff() {
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
 
+  const [editingTeamId, setEditingTeamId] = useState<number | null>(null);
   const [teamName, setTeamName] = useState("");
   const [teamDescription, setTeamDescription] = useState("");
   const [teamColour, setTeamColour] = useState("blue");
@@ -87,9 +88,31 @@ export default function CustomerStaff() {
     }
   }
 
-  async function createTeam() {
+  function clearTeamForm() {
+    setEditingTeamId(null);
+    setTeamName("");
+    setTeamDescription("");
+    setTeamColour("blue");
+    setTeamDefaultJobType("");
+    setTeamServiceArea("");
+    setTeamWorkingHours("");
+  }
+
+  function startEditTeam(team: CustomerTeam) {
+    setEditingTeamId(team.id);
+    setTeamName(team.name);
+    setTeamDescription(team.description);
+    setTeamColour(team.colour || "blue");
+    setTeamDefaultJobType(team.defaultJobType);
+    setTeamServiceArea(team.serviceArea);
+    setTeamWorkingHours(team.workingHours);
+    setError("");
+    setMessage(`Editing ${team.name}.`);
+  }
+
+  async function saveTeam() {
     if (!workspace.entitlements.teamsEnabled) {
-      setError("Upgrade to Team or above to create teams.");
+      setError("Upgrade to Team or above to create and edit teams.");
       return;
     }
 
@@ -101,22 +124,24 @@ export default function CustomerStaff() {
     try {
       setSaving(true);
       setError("");
-      setWorkspace(await customerStaffService.createTeam({
+      const request = {
         name: teamName,
         description: teamDescription,
         colour: teamColour,
         defaultJobType: teamDefaultJobType,
         serviceArea: teamServiceArea,
         workingHours: teamWorkingHours,
-      }));
-      setTeamName("");
-      setTeamDescription("");
-      setTeamDefaultJobType("");
-      setTeamServiceArea("");
-      setTeamWorkingHours("");
-      setMessage("Team created.");
+      };
+
+      const updatedWorkspace = editingTeamId
+        ? await customerStaffService.updateTeam(editingTeamId, request)
+        : await customerStaffService.createTeam(request);
+
+      setWorkspace(updatedWorkspace);
+      setMessage(editingTeamId ? "Team updated." : "Team created.");
+      clearTeamForm();
     } catch (err) {
-      setError(getErrorMessage(err, "Unable to create team."));
+      setError(getErrorMessage(err, editingTeamId ? "Unable to update team." : "Unable to create team."));
     } finally {
       setSaving(false);
     }
@@ -213,6 +238,9 @@ export default function CustomerStaff() {
       setSaving(true);
       setError("");
       setWorkspace(await customerStaffService.deleteTeam(team.id));
+      if (editingTeamId === team.id) {
+        clearTeamForm();
+      }
       setMessage("Team deleted.");
     } catch (err) {
       setError(getErrorMessage(err, "Unable to delete team."));
@@ -308,8 +336,9 @@ export default function CustomerStaff() {
 
               {activeTab === "teams" && (
                 <div className="grid gap-6 xl:grid-cols-[380px_minmax(0,1fr)]">
-                  <Panel title="Create team">
+                  <Panel title={editingTeamId ? "Edit team" : "Create team"}>
                     {!workspace.entitlements.teamsEnabled && <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">Teams unlock on Team, Business, and Enterprise.</div>}
+                    {editingTeamId && <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm font-semibold text-blue-800">Editing an existing team. Save to update it or cancel to create a new one.</div>}
                     <div className="grid gap-3">
                       <Input placeholder="Team name" value={teamName} onChange={setTeamName} />
                       <Input placeholder="Description" value={teamDescription} onChange={setTeamDescription} />
@@ -317,14 +346,15 @@ export default function CustomerStaff() {
                       <Input placeholder="Default job type" value={teamDefaultJobType} onChange={setTeamDefaultJobType} />
                       <Input placeholder="Service area" value={teamServiceArea} onChange={setTeamServiceArea} />
                       <Input placeholder="Working hours" value={teamWorkingHours} onChange={setTeamWorkingHours} />
-                      <button type="button" disabled={saving || !workspace.entitlements.teamsEnabled} onClick={createTeam} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300">Create team</button>
+                      <button type="button" disabled={saving || !workspace.entitlements.teamsEnabled} onClick={saveTeam} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300">{saving ? "Saving..." : editingTeamId ? "Save team" : "Create team"}</button>
+                      {editingTeamId && <button type="button" onClick={clearTeamForm} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Cancel edit</button>}
                     </div>
                   </Panel>
                   <Panel title="Teams">
                     <div className="grid gap-3 md:grid-cols-2">
                       {workspace.teams.map(team => {
                         const members = workspace.members.filter(member => member.teamIds.includes(team.id));
-                        return <div key={team.id} className="rounded-xl border border-slate-200 bg-slate-50 p-4"><div className="flex justify-between gap-4"><div><p className="font-bold text-slate-900">{team.name}</p><p className="text-sm text-slate-600">{team.description || "No description"}</p></div><button type="button" onClick={() => deleteTeam(team)} className="h-fit rounded border border-red-200 px-2 py-1 text-xs font-semibold text-red-600 hover:bg-red-50">Delete</button></div><div className="mt-3 text-xs text-slate-600"><p>{members.length} member{members.length === 1 ? "" : "s"}</p><p>Area: {team.serviceArea || "Not set"}</p><p>Hours: {team.workingHours || "Not set"}</p></div></div>;
+                        return <div key={team.id} className="rounded-xl border border-slate-200 bg-slate-50 p-4"><div className="flex justify-between gap-4"><div><p className="font-bold text-slate-900">{team.name}</p><p className="text-sm text-slate-600">{team.description || "No description"}</p></div><div className="flex flex-col gap-2"><button type="button" onClick={() => deleteTeam(team)} className="h-fit rounded border border-red-200 px-2 py-1 text-xs font-semibold text-red-600 hover:bg-red-50">Delete</button><button type="button" onClick={() => startEditTeam(team)} className="h-fit rounded border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-white">Edit</button></div></div><div className="mt-3 text-xs text-slate-600"><p>{members.length} member{members.length === 1 ? "" : "s"}</p><p>Area: {team.serviceArea || "Not set"}</p><p>Hours: {team.workingHours || "Not set"}</p></div></div>;
                       })}
                     </div>
                   </Panel>
@@ -352,7 +382,7 @@ function PlanPanel({ workspace, currentUserCount }: { workspace: CustomerStaffWo
     ["Reporting", workspace.entitlements.reportingEnabled ? "Included" : "Upgrade"],
     ["API access", workspace.entitlements.apiAccessEnabled ? "Included" : "Upgrade"],
   ];
-  return <Panel title="Plan gates"><p className="mb-4 text-sm text-slate-600">Current usage: {currentUserCount}/{workspace.entitlements.maxUsers ?? "∞"} users. Team sizes are flexible inside the total user limit.</p><div className="grid gap-3 md:grid-cols-3">{items.map(([label, value]) => <div key={label} className="rounded-lg border border-slate-200 bg-slate-50 p-4"><p className="text-xs font-semibold uppercase text-slate-500">{label}</p><p className="mt-1 font-bold text-slate-900">{value}</p></div>)}</div></Panel>;
+  return <Panel title="Plan gates"><p className="mb-4 text-sm text-slate-600">Current usage: {currentUserCount}/{workspace.entitlements.maxUsers ?? "∞"} users. Team sizes are flexible inside the total user limit.</p><div className="grid gap-3 md:grid-cols-3">{items.map(([label, value]) => <div key={String(label)} className="rounded-lg border border-slate-200 bg-slate-50 p-4"><p className="text-xs font-semibold uppercase text-slate-500">{label}</p><p className="mt-1 font-bold text-slate-900">{value}</p></div>)}</div></Panel>;
 }
 
 function TeamPicker({ teams, selectedIds, onChange, compact = false }: { teams: CustomerTeam[]; selectedIds: number[]; onChange: (ids: number[]) => void; compact?: boolean }) {
