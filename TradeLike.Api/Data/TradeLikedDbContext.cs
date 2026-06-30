@@ -11,6 +11,7 @@ public class TradeLikeDbContext : DbContext
     }
 
     public DbSet<User> Users => Set<User>();
+    public DbSet<AdminAuditLog> AdminAuditLogs => Set<AdminAuditLog>();
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<Job> Jobs => Set<Job>();
     public DbSet<Quote> Quotes => Set<Quote>();
@@ -65,6 +66,49 @@ public class TradeLikeDbContext : DbContext
 
             entity.Property(user => user.AdminNotes)
                 .HasMaxLength(4000);
+        });
+
+        modelBuilder.Entity<AdminAuditLog>(entity =>
+        {
+            entity.Property(log => log.ActorEmail)
+                .IsRequired()
+                .HasMaxLength(255);
+
+            entity.Property(log => log.ActorName)
+                .IsRequired()
+                .HasMaxLength(220);
+
+            entity.Property(log => log.ActorRole)
+                .IsRequired()
+                .HasMaxLength(30);
+
+            entity.Property(log => log.Action)
+                .IsRequired()
+                .HasMaxLength(120);
+
+            entity.Property(log => log.TargetType)
+                .IsRequired()
+                .HasMaxLength(80);
+
+            entity.Property(log => log.TargetEmail)
+                .HasMaxLength(255);
+
+            entity.Property(log => log.Summary)
+                .IsRequired()
+                .HasMaxLength(500);
+
+            entity.Property(log => log.Details)
+                .HasMaxLength(4000);
+
+            entity.Property(log => log.IpAddress)
+                .HasMaxLength(80);
+
+            entity.Property(log => log.UserAgent)
+                .HasMaxLength(500);
+
+            entity.HasIndex(log => log.CreatedAt);
+            entity.HasIndex(log => log.ActorUserId);
+            entity.HasIndex(log => log.TargetId);
         });
 
         modelBuilder.Entity<Job>(entity =>

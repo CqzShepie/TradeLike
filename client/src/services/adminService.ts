@@ -1,9 +1,12 @@
 import { apiClient } from "./apiClient";
 import type {
+  AdminAuditLog,
   AdminUser,
   CreateAdminUserRequest,
+  CreateStaffUserRequest,
   ResetAdminUserPasswordRequest,
   UpdateAdminUserAccountRequest,
+  UpdateStaffPermissionsRequest,
 } from "../types/admin";
 
 export const adminService = {
@@ -63,5 +66,40 @@ export const adminService = {
     };
 
     return response;
+  },
+
+  async getStaff() {
+    return (await apiClient.get("/admin/staff")) as AdminUser[];
+  },
+
+  async createStaff(request: CreateStaffUserRequest) {
+    return (await apiClient.post("/admin/staff", {
+      ...request,
+      firstName: request.firstName.trim(),
+      lastName: request.lastName.trim(),
+      email: request.email.trim().toLowerCase(),
+      adminNotes: request.adminNotes.trim(),
+    })) as AdminUser;
+  },
+
+  async updateStaffPermissions(
+    staffId: number,
+    request: UpdateStaffPermissionsRequest
+  ) {
+    return (await apiClient.put(`/admin/staff/${staffId}/permissions`, {
+      ...request,
+      adminNotes: request.adminNotes.trim(),
+    })) as AdminUser;
+  },
+
+  async getAuditLogs(search = "") {
+    const query = search.trim();
+
+    const endpoint =
+      query === ""
+        ? "/admin/audit-logs"
+        : `/admin/audit-logs?search=${encodeURIComponent(query)}`;
+
+    return (await apiClient.get(endpoint)) as AdminAuditLog[];
   },
 };

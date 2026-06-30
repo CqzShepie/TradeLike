@@ -1,58 +1,61 @@
 import { apiClient, setToken } from "./apiClient";
 
 export interface LoginRequest {
-    email: string;
-    password: string;
+  email: string;
+  password: string;
 }
 
 export interface LoginResponse {
-    token: string;
-    user: {
-        id: number;
-        email: string;
-        name: string;
-    };
+  token: string;
+  user: {
+    id: number;
+    email: string;
+    name: string;
+    role: "Customer" | "Director" | "Admin" | "Support";
+    accountStatus: string;
+    passwordResetRequired: boolean;
+  };
 }
 
 export const authService = {
-    async login(request: LoginRequest): Promise<LoginResponse> {
-        const response = await apiClient.post<LoginResponse>(
-            "/auth/login",
-            {
-                email: request.email.trim().toLowerCase(),
-                password: request.password.trim()
-            }
-        );
+  async login(request: LoginRequest): Promise<LoginResponse> {
+    const response = await apiClient.post<LoginResponse>(
+      "/auth/login",
+      {
+        email: request.email.trim().toLowerCase(),
+        password: request.password.trim(),
+      }
+    );
 
-        localStorage.setItem("tradelike_token", response.token);
-        localStorage.setItem("tradelike_user", JSON.stringify(response.user));
+    localStorage.setItem("tradelike_token", response.token);
+    localStorage.setItem("tradelike_user", JSON.stringify(response.user));
 
-        setToken(response.token);
+    setToken(response.token);
 
-        return response;
-    },
+    return response;
+  },
 
-    logout() {
-        localStorage.removeItem("tradelike_token");
-        localStorage.removeItem("tradelike_user");
-    },
+  logout() {
+    localStorage.removeItem("tradelike_token");
+    localStorage.removeItem("tradelike_user");
+  },
 
-    getToken() {
-        return localStorage.getItem("tradelike_token");
-    },
+  getToken() {
+    return localStorage.getItem("tradelike_token");
+  },
 
-    getUser() {
-        const rawUser = localStorage.getItem("tradelike_user");
+  getUser() {
+    const rawUser = localStorage.getItem("tradelike_user");
 
-        if (!rawUser) {
-            return null;
-        }
-
-        try {
-            return JSON.parse(rawUser) as LoginResponse["user"];
-        } catch {
-            localStorage.removeItem("tradelike_user");
-            return null;
-        }
+    if (!rawUser) {
+      return null;
     }
+
+    try {
+      return JSON.parse(rawUser) as LoginResponse["user"];
+    } catch {
+      localStorage.removeItem("tradelike_user");
+      return null;
+    }
+  },
 };

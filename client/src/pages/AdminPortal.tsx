@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { adminService } from "../services/adminService";
+import { authService } from "../services/authService";
 import type {
   AdminAccountStatus,
   AdminDiscountType,
@@ -45,6 +46,10 @@ export default function AdminPortal() {
 
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const currentUser = authService.getUser();
+  const fullStaffName = currentUser?.name?.trim() || "Staff";
+  const staffName = fullStaffName.split(" ")[0] || "Staff";
+  const staffRole = currentUser?.role || "Staff";
 
   async function loadUsers(searchTerm = search) {
     try {
@@ -309,19 +314,23 @@ export default function AdminPortal() {
 
       <section className="mx-auto max-w-7xl px-6 py-8">
         <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-blue-400">
-              Internal tools
-            </p>
-            <h1 className="mt-1 text-3xl font-bold text-white">
-              Staff Admin Portal
-            </h1>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
-              Manage SaaS customer accounts, free months, discounts,
-              verification status, passwords, and internal notes. This page is
-              deliberately separate from the customer/trade app layout.
-            </p>
-          </div>
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-wide text-blue-400">
+          Staff Admin Portal
+        </p>
+        <h1 className="mt-1 text-3xl font-bold text-white">
+          Hello {staffName}
+        </h1>
+
+        <p className="mt-2 text-sm font-semibold uppercase tracking-wide text-slate-300">
+          {staffRole}
+        </p>
+
+        <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-400">
+          Manage SaaS customer accounts, staff permissions, free months,
+          discounts, verification status, passwords, and audit logs.
+        </p>
+      </div>
 
           <div className="rounded-xl border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">
             Staff-only area. Later we should add audit logs for every admin

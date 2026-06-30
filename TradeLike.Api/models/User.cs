@@ -44,6 +44,16 @@ public class User
 
     public bool PasswordResetRequired { get; set; }
 
+    public bool CanManageAccounts { get; set; }
+
+    public bool CanManageStaff { get; set; }
+
+    public bool CanManageBilling { get; set; }
+
+    public bool CanManageSecurity { get; set; }
+
+    public bool CanViewAuditLogs { get; set; }
+
     [MaxLength(4000)]
     public string? AdminNotes { get; set; }
 

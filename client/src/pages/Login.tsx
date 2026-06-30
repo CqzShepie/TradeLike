@@ -37,12 +37,17 @@ function Login() {
       setLoading(true);
       setError("");
 
-      await authService.login({
+      const response = await authService.login({
         email: trimmedEmail,
         password: trimmedPassword,
       });
 
-      navigate("/dashboard", { replace: true });
+      const isStaff =
+        response.user.role === "Director" ||
+        response.user.role === "Admin" ||
+        response.user.role === "Support";
+
+      navigate(isStaff ? "/admin" : "/dashboard", { replace: true });
     } catch (err) {
       console.error(err);
       setError("Invalid email or password.");

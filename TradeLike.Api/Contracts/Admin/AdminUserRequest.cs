@@ -34,3 +34,47 @@ public sealed class ResetAdminUserPasswordRequest
 
     public bool RequirePasswordReset { get; init; } = true;
 }
+
+public sealed class CreateStaffUserRequest
+{
+    public string FirstName { get; init; } = string.Empty;
+
+    public string LastName { get; init; } = string.Empty;
+
+    public string Email { get; init; } = string.Empty;
+
+    public string Password { get; init; } = string.Empty;
+
+    public string Role { get; init; } = "Support";
+
+    public bool CanManageAccounts { get; init; }
+
+    public bool CanManageStaff { get; init; }
+
+    public bool CanManageBilling { get; init; }
+
+    public bool CanManageSecurity { get; init; }
+
+    public bool CanViewAuditLogs { get; init; }
+
+    public string AdminNotes { get; init; } = string.Empty;
+}
+
+public sealed class UpdateStaffPermissionsRequest
+{
+    public string Role { get; init; } = "Support";
+
+    public string AccountStatus { get; init; } = "Active";
+
+    public bool CanManageAccounts { get; init; }
+
+    public bool CanManageStaff { get; init; }
+
+    public bool CanManageBilling { get; init; }
+
+    public bool CanManageSecurity { get; init; }
+
+    public bool CanViewAuditLogs { get; init; }
+
+    public string AdminNotes { get; init; } = string.Empty;
+}
