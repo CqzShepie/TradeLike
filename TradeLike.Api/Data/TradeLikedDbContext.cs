@@ -21,6 +21,52 @@ public class TradeLikeDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
+        modelBuilder.Entity<User>(entity =>
+        {
+            entity.Property(user => user.FirstName)
+                .IsRequired()
+                .HasMaxLength(100);
+
+            entity.Property(user => user.LastName)
+                .IsRequired()
+                .HasMaxLength(100);
+
+            entity.Property(user => user.Email)
+                .IsRequired()
+                .HasMaxLength(255);
+
+            entity.HasIndex(user => user.Email)
+                .IsUnique();
+
+            entity.Property(user => user.PasswordHash)
+                .IsRequired();
+
+            entity.Property(user => user.Role)
+                .IsRequired()
+                .HasMaxLength(30)
+                .HasDefaultValue("Customer");
+
+            entity.Property(user => user.AccountStatus)
+                .IsRequired()
+                .HasMaxLength(30)
+                .HasDefaultValue("Trial");
+
+            entity.Property(user => user.DiscountType)
+                .IsRequired()
+                .HasMaxLength(20)
+                .HasDefaultValue("None");
+
+            entity.Property(user => user.DiscountValue)
+                .HasPrecision(18, 2)
+                .HasDefaultValue(0m);
+
+            entity.Property(user => user.FreeMonths)
+                .HasDefaultValue(0);
+
+            entity.Property(user => user.AdminNotes)
+                .HasMaxLength(4000);
+        });
+
         modelBuilder.Entity<Job>(entity =>
         {
             entity.Property(j => j.Customer)

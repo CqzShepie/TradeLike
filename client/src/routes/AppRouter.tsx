@@ -12,6 +12,7 @@ import Signup from "../pages/Signup";
 import Login from "../pages/Login";
 import Quotes from "../pages/Quotes";
 import QuoteDetails from "../pages/QuoteDetails";
+import AdminPortal from "../pages/AdminPortal";
 
 function AppRouter() {
   return (
@@ -38,6 +39,8 @@ function AppRouter() {
 
         <Route path="/invoices" element={<PlaceholderPage title="Invoices" />} />
         <Route path="/settings" element={<PlaceholderPage title="Settings" />} />
+
+        <Route path="/admin" element={<AdminPortal />} />
 
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
