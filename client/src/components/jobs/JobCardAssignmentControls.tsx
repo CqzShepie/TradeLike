@@ -18,6 +18,14 @@ export default function JobCardAssignmentControls({ job, teams, members, assignm
   const selectedStaffIds = (assignment?.assignedStaffMemberIds ?? []).filter(id => id !== leadStaffMemberId);
   const extraMembers = members.filter(member => member.id !== leadStaffMemberId);
 
+  function updateTeam(teamId: number | null) {
+    const selectedTeam = teamId ? teams.find(team => team.id === teamId) : undefined;
+    onUpdateAssignment?.(job, {
+      assignedTeamId: teamId,
+      calendarColour: selectedTeam?.colour ?? "blue",
+    });
+  }
+
   function toggleStaff(memberId: number) {
     onUpdateAssignment?.(job, {
       assignedStaffMemberIds: selectedStaffIds.includes(memberId)
@@ -37,7 +45,7 @@ export default function JobCardAssignmentControls({ job, teams, members, assignm
     <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3" onClick={event => event.stopPropagation()}>
       <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Assign staff/team</p>
       <div className="mt-3 grid gap-2">
-        <select value={assignment?.assignedTeamId ?? ""} onChange={event => onUpdateAssignment(job, { assignedTeamId: event.target.value ? Number(event.target.value) : null })} className="rounded-lg border border-slate-300 px-2 py-2 text-xs">
+        <select value={assignment?.assignedTeamId ?? ""} onChange={event => updateTeam(event.target.value ? Number(event.target.value) : null)} className="rounded-lg border border-slate-300 px-2 py-2 text-xs">
           <option value="">No team</option>
           {teams.map(team => <option key={team.id} value={team.id}>{team.name} · {getTeamColourLabel(team.colour)}</option>)}
         </select>
