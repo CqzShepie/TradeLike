@@ -3,34 +3,72 @@ import type { NewJob } from "../types/newJob";
 import { apiClient } from "./apiClient";
 
 export const jobsService = {
-    getAll: () =>
-        apiClient.get<Job[]>("/jobs"),
+  async getAll() {
+    const jobs = await apiClient.get<Job[]>("/jobs");
+    return jobs.map(normaliseJob);
+  },
 
-    getById: (id: number) =>
-        apiClient.get<Job>(`/jobs/${id}`),
+  async getById(id: number) {
+    const job = await apiClient.get<Job>(`/jobs/${id}`);
+    return normaliseJob(job);
+  },
 
-    create: (job: NewJob) =>
-        apiClient.post<Job>("/jobs", job),
+  async create(job: NewJob) {
+    const created = await apiClient.post<Job>("/jobs", toPayload(job));
+    return normaliseJob(created);
+  },
 
-    update: (job: Job) =>
-        apiClient.put<Job>(`/jobs/${job.id}`, {
-            customer: job.customer,
-            phone: job.phone,
-            jobTitle: job.jobTitle,
-            address: job.address,
-            scheduledDate: job.scheduledDate,
-            status: job.status,
-            priority: job.priority,
-            notes: job.notes ?? null,
-            engineerId: job.engineerId ?? null,
-        }),
+  async update(job: Job) {
+    const updated = await apiClient.put<Job>(`/jobs/${job.id}`, toPayload(job));
+    return normaliseJob(updated);
+  },
 
-    delete: (id: number) =>
-        apiClient.delete<void>(`/jobs/${id}`),
+  async delete(id: number) {
+    const deleted = await apiClient.delete<Job>(`/jobs/${id}`);
+    return normaliseJob(deleted);
+  },
 
-    getToday: () =>
-        apiClient.get<Job[]>("/jobs/today"),
+  async getToday() {
+    const jobs = await apiClient.get<Job[]>("/jobs/today");
+    return jobs.map(normaliseJob);
+  },
 
-    getWeek: (start: string) =>
-        apiClient.get<Job[]>(`/jobs/week?start=${start}`),
+  async getWeek(start: string) {
+    const jobs = await apiClient.get<Job[]>(
+      `/jobs/week?start=${encodeURIComponent(start)}`
+    );
+
+    return jobs.map(normaliseJob);
+  },
 };
+
+function toPayload(job: NewJob | Job) {
+  return {
+    customer: job.customer.trim(),
+    phone: job.phone.trim(),
+    jobTitle: job.jobTitle.trim(),
+    address: job.address.trim(),
+    scheduledDate: job.scheduledDate,
+    status: job.status,
+    priority: job.priority,
+    notes: job.notes?.trim() || null,
+    engineerId: job.engineerId ?? null,
+  };
+}
+
+function normaliseJob(job: Job): Job {
+  return {
+    ...job,
+    id: Number(job.id),
+    customer: job.customer ?? "",
+    phone: job.phone ?? "",
+    jobTitle: job.jobTitle ?? "",
+    address: job.address ?? "",
+    scheduledDate: job.scheduledDate ?? "",
+    status: job.status,
+    priority: job.priority,
+    notes: job.notes ?? null,
+    quoteId: job.quoteId ?? null,
+    engineerId: job.engineerId ?? null,
+  };
+}

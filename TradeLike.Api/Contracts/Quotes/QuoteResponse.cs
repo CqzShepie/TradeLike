@@ -18,6 +18,10 @@ public sealed class QuoteResponse
 
     public decimal VatTotal { get; init; }
 
+    public string DiscountType { get; init; } = "Amount";
+
+    public decimal DiscountValue { get; init; }
+
     public decimal DiscountTotal { get; init; }
 
     public decimal Total { get; init; }

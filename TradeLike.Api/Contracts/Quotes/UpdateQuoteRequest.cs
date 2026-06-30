@@ -10,6 +10,10 @@ public sealed class UpdateQuoteRequest
 
     public string? Description { get; init; }
 
+    public string DiscountType { get; init; } = "Amount";
+
+    public decimal DiscountValue { get; init; }
+
     public decimal DiscountTotal { get; init; }
 
     public string Status { get; init; } = "Draft";

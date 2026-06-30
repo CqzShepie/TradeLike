@@ -2,7 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 import type { Customer } from "../../types/customer";
 import type { NewQuote, NewQuoteLineItem } from "../../types/newQuote";
-import type { Quote, QuoteLineItemType, QuoteStatus } from "../../types/quote";
+import type {
+  Quote,
+  QuoteDiscountType,
+  QuoteLineItemType,
+  QuoteStatus,
+} from "../../types/quote";
 import { customersService } from "../../services/customersService";
 import { formatMoney } from "../../utils/formatMoney";
 
@@ -39,7 +44,9 @@ export default function NewQuoteForm({
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [discountTotal, setDiscountTotal] = useState("0");
+  const [discountType, setDiscountType] =
+    useState<QuoteDiscountType>("Amount");
+  const [discountValue, setDiscountValue] = useState("0");
   const [status, setStatus] = useState<QuoteStatus>("Draft");
   const [notes, setNotes] = useState("");
   const [lineItems, setLineItems] = useState<NewQuoteLineItem[]>([
@@ -89,7 +96,8 @@ export default function NewQuoteForm({
     setCustomerSearch(`#${editingQuote.customerId} — ${editingQuote.customerName}`);
     setTitle(editingQuote.title);
     setDescription(editingQuote.description ?? "");
-    setDiscountTotal(String(editingQuote.discountTotal ?? 0));
+    setDiscountType(editingQuote.discountType ?? "Amount");
+    setDiscountValue(String(editingQuote.discountValue ?? editingQuote.discountTotal ?? 0));
     setStatus(editingQuote.status);
     setNotes(editingQuote.notes ?? "");
     setLineItems(
@@ -144,16 +152,24 @@ export default function NewQuoteForm({
       return sum + net * (Number(item.vatRate || 0) / 100);
     }, 0);
 
-    const discount = Number(discountTotal || 0);
-    const total = Math.max(0, subtotal + vatTotal - discount);
+    const beforeDiscount = subtotal + vatTotal;
+    const rawDiscountValue = Number(discountValue || 0);
+
+    const discount =
+      discountType === "Percentage"
+        ? beforeDiscount * (rawDiscountValue / 100)
+        : rawDiscountValue;
+
+    const cappedDiscount = Math.min(Math.max(discount, 0), beforeDiscount);
+    const total = Math.max(0, beforeDiscount - cappedDiscount);
 
     return {
       subtotal,
       vatTotal,
-      discount,
+      discount: cappedDiscount,
       total,
     };
-  }, [lineItems, discountTotal]);
+  }, [lineItems, discountType, discountValue]);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -172,7 +188,9 @@ export default function NewQuoteForm({
       customerName: selectedCustomer.name,
       title: title.trim(),
       description: description.trim() || null,
-      discountTotal: Number(discountTotal || 0),
+      discountType,
+      discountValue: Number(discountValue || 0),
+      discountTotal: totals.discount,
       status,
       notes: notes.trim() || null,
       lineItems: lineItems.map(item => ({
@@ -195,6 +213,8 @@ export default function NewQuoteForm({
           amount: totals.total,
           subtotal: totals.subtotal,
           vatTotal: totals.vatTotal,
+          discountType,
+          discountValue: Number(discountValue || 0),
           discountTotal: totals.discount,
           total: totals.total,
           lineItems: payload.lineItems.map(item => ({
@@ -226,8 +246,13 @@ export default function NewQuoteForm({
       return false;
     }
 
-    if (Number(discountTotal || 0) < 0) {
+    if (Number(discountValue || 0) < 0) {
       setError("Discount cannot be negative.");
+      return false;
+    }
+
+    if (discountType === "Percentage" && Number(discountValue || 0) > 100) {
+      setError("Percentage discount cannot be more than 100%.");
       return false;
     }
 
@@ -277,7 +302,8 @@ export default function NewQuoteForm({
     setCustomerPickerOpen(false);
     setTitle("");
     setDescription("");
-    setDiscountTotal("0");
+    setDiscountType("Amount");
+    setDiscountValue("0");
     setStatus("Draft");
     setNotes("");
     setLineItems([{ ...defaultLineItem }]);
@@ -612,16 +638,32 @@ export default function NewQuoteForm({
         </Field>
 
         <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-          <Field label="Discount">
-            <input
-              type="number"
-              step="1"
-              min="0"
-              value={discountTotal}
-              onChange={event => setDiscountTotal(event.target.value)}
-              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-blue-600"
-            />
-          </Field>
+          <div className="grid grid-cols-[110px_1fr] gap-3">
+            <Field label="Discount">
+              <select
+                value={discountType}
+                onChange={event =>
+                  setDiscountType(event.target.value as QuoteDiscountType)
+                }
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-blue-600"
+              >
+                <option value="Amount">£</option>
+                <option value="Percentage">%</option>
+              </select>
+            </Field>
+
+            <Field label={discountType === "Percentage" ? "Discount %" : "Discount £"}>
+              <input
+                type="number"
+                step="1"
+                min="0"
+                max={discountType === "Percentage" ? 100 : undefined}
+                value={discountValue}
+                onChange={event => setDiscountValue(event.target.value)}
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-blue-600"
+              />
+            </Field>
+          </div>
 
           <div className="mt-4 space-y-2 text-sm">
             <SummaryRow
@@ -630,7 +672,11 @@ export default function NewQuoteForm({
             />
             <SummaryRow label="VAT total" value={formatMoney(totals.vatTotal)} />
             <SummaryRow
-              label="Discount"
+              label={
+                discountType === "Percentage"
+                  ? `Discount (${Number(discountValue || 0)}%)`
+                  : "Discount"
+              }
               value={`-${formatMoney(totals.discount)}`}
             />
             <div className="border-t border-slate-200 pt-2">

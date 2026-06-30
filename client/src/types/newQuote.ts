@@ -1,4 +1,8 @@
-import type { QuoteLineItemType, QuoteStatus } from "./quote";
+import type {
+  QuoteDiscountType,
+  QuoteLineItemType,
+  QuoteStatus,
+} from "./quote";
 
 export type NewQuoteLineItem = {
   type: QuoteLineItemType;
@@ -13,6 +17,8 @@ export type NewQuote = {
   customerName: string;
   title: string;
   description?: string | null;
+  discountType: QuoteDiscountType;
+  discountValue: number;
   discountTotal: number;
   status: QuoteStatus;
   notes?: string | null;

@@ -25,6 +25,12 @@ public class Quote
 
     public decimal VatTotal { get; set; }
 
+    [Required]
+    [MaxLength(20)]
+    public string DiscountType { get; set; } = "Amount";
+
+    public decimal DiscountValue { get; set; }
+
     public decimal DiscountTotal { get; set; }
 
     public decimal Total { get; set; }

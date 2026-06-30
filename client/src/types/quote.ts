@@ -2,6 +2,8 @@ export type QuoteStatus = "Draft" | "Sent" | "Accepted" | "Rejected";
 
 export type QuoteLineItemType = "Labour" | "Materials" | "Other";
 
+export type QuoteDiscountType = "Amount" | "Percentage";
+
 export type QuoteLineItem = {
   id?: number;
   quoteId?: number;
@@ -22,6 +24,8 @@ export type Quote = {
   amount: number;
   subtotal: number;
   vatTotal: number;
+  discountType: QuoteDiscountType;
+  discountValue: number;
   discountTotal: number;
   total: number;
   status: QuoteStatus;

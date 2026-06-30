@@ -79,6 +79,10 @@ public class TradeLikeDbContext : DbContext
             entity.Property(q => q.Description)
                 .HasMaxLength(4000);
 
+            entity.Property(q => q.DiscountType)
+                .IsRequired()
+                .HasMaxLength(20);
+
             entity.Property(q => q.Status)
                 .IsRequired()
                 .HasMaxLength(30);
@@ -93,6 +97,9 @@ public class TradeLikeDbContext : DbContext
                 .HasPrecision(18, 2);
 
             entity.Property(q => q.VatTotal)
+                .HasPrecision(18, 2);
+
+            entity.Property(q => q.DiscountValue)
                 .HasPrecision(18, 2);
 
             entity.Property(q => q.DiscountTotal)

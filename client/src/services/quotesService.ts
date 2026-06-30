@@ -18,6 +18,8 @@ type QuotePayload = {
   customerName: string;
   title: string;
   description: string | null;
+  discountType: Quote["discountType"];
+  discountValue: number;
   discountTotal: number;
   status: Quote["status"];
   notes: string | null;
@@ -66,7 +68,6 @@ export const quotesService = {
   },
 };
 
-// Backwards-compatible alias in case any older file imports quoteService.
 export const quoteService = quotesService;
 
 function toPayload(quote: NewQuote | Quote): QuotePayload {
@@ -75,6 +76,8 @@ function toPayload(quote: NewQuote | Quote): QuotePayload {
     customerName: quote.customerName.trim(),
     title: quote.title.trim(),
     description: quote.description?.trim() || null,
+    discountType: quote.discountType ?? "Amount",
+    discountValue: Number(quote.discountValue || 0),
     discountTotal: Number(quote.discountTotal || 0),
     status: quote.status,
     notes: quote.notes?.trim() || null,
@@ -96,6 +99,8 @@ function normaliseQuote(quote: Quote): Quote {
     amount: Number(quote.amount ?? quote.total ?? 0),
     subtotal: Number(quote.subtotal ?? 0),
     vatTotal: Number(quote.vatTotal ?? 0),
+    discountType: quote.discountType ?? "Amount",
+    discountValue: Number(quote.discountValue ?? quote.discountTotal ?? 0),
     discountTotal: Number(quote.discountTotal ?? 0),
     total: Number(quote.total ?? quote.amount ?? 0),
     lineItems: lineItems.map(normaliseLineItem),
