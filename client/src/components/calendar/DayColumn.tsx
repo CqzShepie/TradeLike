@@ -1,6 +1,7 @@
 import type { DragEvent } from "react";
 import type { Job } from "../../types/job";
 import type { Engineer } from "../../services/engineersService";
+import { getTeamColour } from "../../utils/teamColours";
 import {
     MAX_JOBS_PER_DAY,
     MAX_JOBS_PER_ENGINEER_PER_DAY,
@@ -227,6 +228,7 @@ export default function DayColumn({
                 ) : (
                     jobs.map(job => {
                         const movable = isMovableJob(job);
+                        const teamColour = getTeamColour(job.calendarColour);
 
                         return (
                             <div
@@ -249,6 +251,7 @@ export default function DayColumn({
                                         ? "cursor-move"
                                         : "cursor-not-allowed opacity-70"
                                 }`}
+                                style={{ borderColor: teamColour.hex, backgroundColor: teamColour.softHex }}
                             >
                                 <div className="font-semibold text-gray-900">
                                     {job.jobTitle}
@@ -271,6 +274,12 @@ export default function DayColumn({
                                         {getStatusLabel(job)}
                                     </span>
                                 </div>
+
+                                {job.assignedTeamName && (
+                                    <div className="mt-1 text-[10px] font-semibold" style={{ color: teamColour.hex }}>
+                                        {job.assignedTeamName}
+                                    </div>
+                                )}
 
                                 <div className="mt-1 text-[10px] text-blue-500">
                                     {getEngineerName(job.engineerId)}
