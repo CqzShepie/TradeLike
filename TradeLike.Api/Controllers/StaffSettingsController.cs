@@ -16,21 +16,34 @@ public class StaffSettingsController : ControllerBase
     private static readonly string[] PermissionGroups =
     [
         "Full access",
-        "Customer accounts",
+        "Customer records",
         "Customer notes",
         "Jobs and scheduling",
         "Quotes and invoices",
-        "Billing and subscriptions",
-        "Discounts and free months",
-        "Password resets",
+        "Payments",
+        "Offers and promotions",
+        "Staff password resets",
         "Email customers",
         "Staff management",
         "Staff invites",
-        "Security logs",
-        "Audit logs",
-        "Data exports",
-        "Customer impersonation"
+        "Business settings",
+        "Activity log",
+        "Reports and exports"
     ];
+
+    private static readonly Dictionary<string, string?> LegacyPermissionLabels = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["Customer accounts"] = "Customer records",
+        ["Billing and subscriptions"] = "Payments",
+        ["Discounts and free months"] = "Offers and promotions",
+        ["Password resets"] = "Staff password resets",
+        ["Security logs"] = "Business settings",
+        ["Audit logs"] = "Activity log",
+        ["Data exports"] = "Reports and exports",
+        ["Customer impersonation"] = null
+    };
+
+    private static readonly HashSet<string> AllowedPermissions = PermissionGroups.ToHashSet(StringComparer.OrdinalIgnoreCase);
 
     private static readonly IReadOnlyList<(string Name, string Description)> DefaultCategories =
     [
@@ -40,8 +53,8 @@ public class StaffSettingsController : ControllerBase
         ("Customer Support", "Customer-facing support, service updates, and account help"),
         ("Engineers", "Field engineers, tradespeople, apprentices, and on-site workers"),
         ("Field Supervisors", "Senior engineers or supervisors managing work quality and teams"),
-        ("Accounts & Billing", "Invoices, payments, subscriptions, and finance admin"),
-        ("Marketing", "Campaigns, emails, discounts, and customer growth"),
+        ("Accounts & Payments", "Invoices, payments, supplier costs, and finance admin"),
+        ("Marketing", "Campaigns, emails, offers, and customer growth"),
         ("Personal Assistants", "PA users attached to a director, manager, or senior staff member"),
         ("Subcontractors", "Limited-access external workers or partner trades")
     ];
@@ -49,16 +62,16 @@ public class StaffSettingsController : ControllerBase
     private static readonly IReadOnlyList<(string Name, string Category, string[] Permissions)> DefaultRolePresets =
     [
         ("Director / Owner", "Leadership", ["Full access"]),
-        ("Office Manager", "Admin & Operations", ["Customer accounts", "Jobs and scheduling", "Quotes and invoices", "Staff invites"]),
-        ("Operations Coordinator", "Admin & Operations", ["Customer accounts", "Jobs and scheduling", "Customer notes"]),
-        ("Scheduler / Dispatcher", "Scheduling & Dispatch", ["Jobs and scheduling", "Customer accounts", "Customer notes"]),
-        ("Customer Support", "Customer Support", ["Customer accounts", "Customer notes", "Password resets", "Email customers"]),
+        ("Office Manager", "Admin & Operations", ["Customer records", "Jobs and scheduling", "Quotes and invoices", "Payments", "Staff invites", "Business settings"]),
+        ("Operations Coordinator", "Admin & Operations", ["Customer records", "Jobs and scheduling", "Customer notes"]),
+        ("Scheduler / Dispatcher", "Scheduling & Dispatch", ["Jobs and scheduling", "Customer records", "Customer notes"]),
+        ("Customer Support", "Customer Support", ["Customer records", "Customer notes", "Staff password resets", "Email customers"]),
         ("Lead Engineer", "Field Supervisors", ["Jobs and scheduling", "Customer notes", "Quotes and invoices"]),
         ("Engineer", "Engineers", ["Jobs and scheduling", "Customer notes"]),
         ("Apprentice / Junior Engineer", "Engineers", ["Jobs and scheduling"]),
-        ("Accounts / Billing", "Accounts & Billing", ["Quotes and invoices", "Billing and subscriptions"]),
-        ("Marketing", "Marketing", ["Discounts and free months", "Email customers", "Customer notes"]),
-        ("Personal Assistant", "Personal Assistants", ["Customer accounts", "Customer notes", "Jobs and scheduling"]),
+        ("Accounts / Payments", "Accounts & Payments", ["Quotes and invoices", "Payments", "Reports and exports"]),
+        ("Marketing", "Marketing", ["Offers and promotions", "Email customers", "Customer notes"]),
+        ("Personal Assistant", "Personal Assistants", ["Customer records", "Customer notes", "Jobs and scheduling"]),
         ("Subcontractor", "Subcontractors", ["Jobs and scheduling"])
     ];
 
@@ -214,6 +227,11 @@ public class StaffSettingsController : ControllerBase
                 "SELECT Id FROM StaffCategories WHERE NormalizedName = @NormalizedName",
                 ("@NormalizedName", Normalize(rolePreset.Category)));
 
+            if (categoryId == 0)
+            {
+                continue;
+            }
+
             var rolePresetId = await ExecuteScalarIntAsync(
                 """
                 INSERT INTO StaffRolePresets (Name, NormalizedName, CategoryId, CreatedAt, UpdatedAt)
@@ -319,9 +337,11 @@ public class StaffSettingsController : ControllerBase
             while (await reader.ReadAsync())
             {
                 var rolePresetId = reader.GetInt32(0);
-                if (roleRows.TryGetValue(rolePresetId, out var rolePreset))
+                var permission = DisplayPermission(reader.GetString(1));
+
+                if (permission is not null && roleRows.TryGetValue(rolePresetId, out var rolePreset))
                 {
-                    rolePreset.Permissions.Add(reader.GetString(1));
+                    rolePreset.Permissions.Add(permission);
                 }
             }
         }
@@ -332,7 +352,7 @@ public class StaffSettingsController : ControllerBase
                 role.Name,
                 role.CategoryId,
                 role.CategoryName,
-                role.Permissions,
+                role.Permissions.Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
                 role.CreatedAt,
                 role.UpdatedAt))
             .ToList();
@@ -438,11 +458,28 @@ public class StaffSettingsController : ControllerBase
     private static IReadOnlyList<string> CleanPermissions(IReadOnlyList<string>? permissions)
     {
         return (permissions ?? [])
-            .Select(permission => permission.Trim())
-            .Where(permission => permission.Length > 0)
+            .Select(DisplayPermission)
+            .Where(permission => permission is not null && AllowedPermissions.Contains(permission))
+            .Select(permission => permission!)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .Take(50)
             .ToList();
+    }
+
+    private static string? DisplayPermission(string permission)
+    {
+        var cleaned = permission.Trim();
+        if (cleaned.Length == 0)
+        {
+            return null;
+        }
+
+        if (LegacyPermissionLabels.TryGetValue(cleaned, out var replacement))
+        {
+            return replacement;
+        }
+
+        return AllowedPermissions.Contains(cleaned) ? cleaned : null;
     }
 
     private static string Normalize(string value)
