@@ -48,8 +48,7 @@ public class StaffInvitesController : ControllerBase
             return Forbid();
         }
 
-        if (string.Equals(request.Role, "Director", StringComparison.OrdinalIgnoreCase) &&
-            !IsPermanentDirector(actor))
+        if (string.Equals(request.Role, "Director", StringComparison.OrdinalIgnoreCase) && !IsPermanentDirector(actor))
         {
             return Forbid();
         }
@@ -57,18 +56,10 @@ public class StaffInvitesController : ControllerBase
         try
         {
             var invite = GenerateInvite();
-            var staff = await CreatePendingStaffAsync(request, actor, invite.Hash);
+            var staff = await CreatePendingStaffAsync(request, invite.Hash);
             var inviteLink = BuildInviteLink(invite.Token);
 
-            await LogAsync(
-                actor,
-                "StaffInviteSent",
-                "User",
-                staff.Id,
-                staff.Email,
-                $"Sent staff invite to {staff.Email}.",
-                $"Role={staff.Role}; ExpiresAt={staff.TrialEndsAt:u}");
-
+            await LogAsync(actor, "StaffInviteSent", "User", staff.Id, staff.Email, $"Sent staff invite to {staff.Email}.", $"Role={staff.Role}; ExpiresAt={staff.TrialEndsAt:u}");
             await _context.SaveChangesAsync();
 
             return Ok(new
@@ -118,15 +109,7 @@ public class StaffInvitesController : ControllerBase
 
         var inviteLink = BuildInviteLink(invite.Token);
 
-        await LogAsync(
-            actor,
-            "StaffInviteResent",
-            "User",
-            staff.Id,
-            staff.Email,
-            $"Resent staff invite to {staff.Email}.",
-            $"ExpiresAt={staff.TrialEndsAt:u}");
-
+        await LogAsync(actor, "StaffInviteResent", "User", staff.Id, staff.Email, $"Resent staff invite to {staff.Email}.", $"ExpiresAt={staff.TrialEndsAt:u}");
         await _context.SaveChangesAsync();
 
         return Ok(new
@@ -206,7 +189,7 @@ public class StaffInvitesController : ControllerBase
         return Ok(new { message = "Invite accepted. You can now sign in." });
     }
 
-    private async Task<User> CreatePendingStaffAsync(CreateStaffUserRequest request, User actor, string inviteHash)
+    private async Task<User> CreatePendingStaffAsync(CreateStaffUserRequest request, string inviteHash)
     {
         var firstName = request.FirstName.Trim();
         var lastName = request.LastName.Trim();
@@ -378,9 +361,7 @@ public class StaffInvitesController : ControllerBase
         var hashStart = start + marker.Length;
         var hashEnd = tags.IndexOf(',', hashStart);
 
-        return hashEnd < 0
-            ? tags[hashStart..].Trim()
-            : tags[hashStart..hashEnd].Trim();
+        return hashEnd < 0 ? tags[hashStart..].Trim() : tags[hashStart..hashEnd].Trim();
     }
 
     private static string? RemoveInviteHash(string? tags)
@@ -396,6 +377,11 @@ public class StaffInvitesController : ControllerBase
             .ToList();
 
         return parts.Count == 0 ? null : string.Join(", ", parts);
+    }
+
+    private static string? CleanOptional(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     }
 
     private async Task<User?> GetCurrentStaffUserAsync()
