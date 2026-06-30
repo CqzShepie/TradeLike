@@ -1,4 +1,4 @@
-export type AdminSection = "accounts" | "staff" | "audit";
+export type AdminSection = "overview" | "accounts" | "staff" | "audit";
 
 export type PermissionKey =
   | "canManageAccounts"
