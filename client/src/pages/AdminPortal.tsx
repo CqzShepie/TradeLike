@@ -1,1 +1,1 @@
-export { default } from "./admin/AdminPortal";
+export { default } from "./admin/AdminPortalInvite";
