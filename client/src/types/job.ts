@@ -17,5 +17,7 @@ export type Job = {
   notes?: string | null;
   quoteId?: number | null;
   engineerId?: number | null;
+  calendarColour?: string | null;
+  assignedTeamName?: string | null;
   sourceQuote?: Quote | null;
 };
