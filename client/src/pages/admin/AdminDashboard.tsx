@@ -1,3 +1,4 @@
+import { authService } from "../../services/authService";
 import type { AdminAuditLog, AdminUser } from "../../types/admin";
 import { formatDateTime, formatStatus } from "./adminPortalHelpers";
 
@@ -14,6 +15,16 @@ export default function AdminDashboard({
   onOpenAccounts: () => void;
   onOpenAudit: () => void;
 }) {
+  const currentUser = authService.getUser();
+
+  if (currentUser?.role !== "Director") {
+    return (
+      <div className="rounded-xl border border-slate-800 bg-slate-900 p-6 text-sm text-slate-300">
+        Overview is restricted to Director users.
+      </div>
+    );
+  }
+
   const now = new Date();
   const weekFromNow = new Date(now);
   weekFromNow.setDate(now.getDate() + 7);
