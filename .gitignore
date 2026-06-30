@@ -1,0 +1,13 @@
+node_modules/
+client/node_modules/
+bin/
+obj/
+dist/
+build/
+client/dist/
+*.log
+.vs/
+.DS_Store
+Thumbs.db
+*.user
+*.suo
