@@ -179,6 +179,23 @@ export default function AdminPortalInvite() {
     }
   }
 
+  async function copyPendingInviteLink() {
+    if (!selectedStaff) return;
+    try {
+      setSaving(true);
+      setError("");
+      const updated = await adminService.resendStaffInvite(selectedStaff.id);
+      setStaff(previous => previous.map(user => user.id === updated.id ? updated : user));
+      setSelectedStaff(updated);
+      setMessage(`New invite link copied for ${updated.email}.`);
+      if (canSeeAudit) setAuditLogs(await adminService.getAuditLogs(auditSearch));
+    } catch (err) {
+      setError(getErrorMessage(err, "Unable to create a new invite link."));
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function searchAuditForStaff(user: AdminUser) {
     setSection("audit");
     setAuditSearch(user.email);
@@ -272,6 +289,7 @@ export default function AdminPortalInvite() {
                         <Field label="Status"><DarkSelect value={selectedStaff.email.toLowerCase() === permanentDirectorEmail ? "Active" : editStatus} onChange={value => setEditStatus(value as AdminAccountStatus)} disabled={selectedStaff.email.toLowerCase() === permanentDirectorEmail}>{staffStatuses.map(item => <option key={item} value={item}>{formatStatus(item)}</option>)}</DarkSelect></Field>
                         <PermissionEditor title="Permissions" permissions={selectedStaff.email.toLowerCase() === permanentDirectorEmail ? allPermissions() : editPermissions} setPermissions={setEditPermissions} disabled={selectedStaff.email.toLowerCase() === permanentDirectorEmail} />
                         <Field label="Internal staff notes"><DarkTextarea value={editNotes} onChange={setEditNotes} rows={5} /></Field>
+                        {selectedStaff.accountStatus === "InvitePending" && <button type="button" onClick={copyPendingInviteLink} disabled={saving} className="rounded-lg border border-blue-500/60 px-4 py-2 text-sm font-semibold text-blue-100 hover:bg-blue-500/10 disabled:cursor-not-allowed disabled:opacity-50">Copy / regenerate invite link</button>}
                       </div>
                       <button type="submit" disabled={saving} className="mt-5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:bg-slate-600">{saving ? "Saving..." : "Save Staff Permissions"}</button>
                     </form>
