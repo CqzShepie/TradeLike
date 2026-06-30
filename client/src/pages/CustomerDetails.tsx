@@ -69,10 +69,12 @@ export default function CustomerDetails() {
           quotesService.getAll(),
         ]);
 
+        const customerQuotes = filterQuotesForCustomer(allQuotes, customerData);
+
         setCustomer(customerData);
         setForm(customerData);
-        setJobs(filterJobsForCustomer(allJobs, customerData));
-        setQuotes(filterQuotesForCustomer(allQuotes, customerData));
+        setQuotes(customerQuotes);
+        setJobs(filterJobsForCustomer(allJobs, customerData, customerQuotes));
       } catch {
         setError("Unable to load customer.");
       } finally {
@@ -286,6 +288,7 @@ export default function CustomerDetails() {
                         <div>
                           <p className="font-semibold text-slate-900">{job.jobTitle}</p>
                           <p className="mt-1 text-sm text-slate-500">{job.address}</p>
+                          {job.sourceQuote && <p className="mt-1 text-xs font-semibold text-blue-600">From quote #{job.sourceQuote.id} · {job.sourceQuote.title}</p>}
                         </div>
                         <Badge>{job.status}</Badge>
                         <Badge>{formatDate(job.scheduledDate)}</Badge>
@@ -379,14 +382,22 @@ export default function CustomerDetails() {
   );
 }
 
-function filterJobsForCustomer(jobs: Job[], customer: Customer) {
+function filterJobsForCustomer(jobs: Job[], customer: Customer, customerQuotes: Quote[]) {
   const name = customer.name.trim().toLowerCase();
   const phone = customer.phone.trim().toLowerCase();
+  const quoteIds = new Set(customerQuotes.map(quote => quote.id));
 
-  return jobs.filter(job =>
-    job.customer.trim().toLowerCase() === name ||
-    (phone !== "" && job.phone.trim().toLowerCase() === phone)
-  );
+  return jobs.filter(job => {
+    const sourceQuote = job.sourceQuote;
+
+    return (
+      job.customer.trim().toLowerCase() === name ||
+      (phone !== "" && job.phone.trim().toLowerCase() === phone) ||
+      (job.quoteId != null && quoteIds.has(job.quoteId)) ||
+      sourceQuote?.customerId === customer.id ||
+      sourceQuote?.customerName.trim().toLowerCase() === name
+    );
+  });
 }
 
 function filterQuotesForCustomer(quotes: Quote[], customer: Customer) {
@@ -435,7 +446,7 @@ function Snapshot({ label, value }: { label: string; value: string }) {
   );
 }
 
-function MiniStat({ label, value }: { label: string; value: string | number }) {
+function MiniStat({ label, value }: { label: string | number; value: string | number }) {
   return (
     <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
       <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{label}</p>
