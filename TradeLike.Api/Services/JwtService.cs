@@ -16,11 +16,7 @@ public class JwtService
         _settings = settings.Value;
     }
 
-    public string GenerateToken(
-        int userId,
-        string email,
-        string name,
-        string role)
+    public string GenerateToken(int userId, string email, string name, string role)
     {
         var claims = new[]
         {

@@ -11,11 +11,17 @@ public class TradeLikeDbContext : DbContext
     }
 
     public DbSet<User> Users => Set<User>();
+
     public DbSet<AdminAuditLog> AdminAuditLogs => Set<AdminAuditLog>();
+
     public DbSet<Customer> Customers => Set<Customer>();
+
     public DbSet<Job> Jobs => Set<Job>();
+
     public DbSet<Quote> Quotes => Set<Quote>();
+
     public DbSet<QuoteLineItem> QuoteLineItems => Set<QuoteLineItem>();
+
     public DbSet<Engineer> Engineers => Set<Engineer>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -107,7 +113,9 @@ public class TradeLikeDbContext : DbContext
                 .HasMaxLength(500);
 
             entity.HasIndex(log => log.CreatedAt);
+
             entity.HasIndex(log => log.ActorUserId);
+
             entity.HasIndex(log => log.TargetId);
         });
 

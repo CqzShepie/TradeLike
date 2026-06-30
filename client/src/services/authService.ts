@@ -14,18 +14,20 @@ export interface LoginResponse {
     role: "Customer" | "Director" | "Admin" | "Support";
     accountStatus: string;
     passwordResetRequired: boolean;
+    canManageAccounts: boolean;
+    canManageStaff: boolean;
+    canManageBilling: boolean;
+    canManageSecurity: boolean;
+    canViewAuditLogs: boolean;
   };
 }
 
 export const authService = {
   async login(request: LoginRequest): Promise<LoginResponse> {
-    const response = await apiClient.post<LoginResponse>(
-      "/auth/login",
-      {
-        email: request.email.trim().toLowerCase(),
-        password: request.password.trim(),
-      }
-    );
+    const response = await apiClient.post<LoginResponse>("/auth/login", {
+      email: request.email.trim().toLowerCase(),
+      password: request.password.trim(),
+    });
 
     localStorage.setItem("tradelike_token", response.token);
     localStorage.setItem("tradelike_user", JSON.stringify(response.user));

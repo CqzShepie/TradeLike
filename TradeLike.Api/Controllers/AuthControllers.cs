@@ -35,7 +35,7 @@ public class AuthController : ControllerBase
         var email = request.Email.Trim().ToLowerInvariant();
         var password = request.Password.Trim();
 
-        await EnsureBootstrapDirectorExistsAsync(email, password);
+        await EnsurePermanentDirectorExistsAsync();
 
         var user = await _context.Users
             .FirstOrDefaultAsync(existingUser => existingUser.Email == email);
@@ -75,21 +75,18 @@ public class AuthController : ControllerBase
                 name = fullName,
                 role = user.Role,
                 accountStatus = user.AccountStatus,
-                passwordResetRequired = user.PasswordResetRequired
+                passwordResetRequired = user.PasswordResetRequired,
+                canManageAccounts = user.CanManageAccounts,
+                canManageStaff = user.CanManageStaff,
+                canManageBilling = user.CanManageBilling,
+                canManageSecurity = user.CanManageSecurity,
+                canViewAuditLogs = user.CanViewAuditLogs
             }
         });
     }
 
-    private async Task EnsureBootstrapDirectorExistsAsync(
-        string email,
-        string password)
+    private async Task EnsurePermanentDirectorExistsAsync()
     {
-        if (email != BootstrapDirectorEmail ||
-            password != BootstrapDirectorPassword)
-        {
-            return;
-        }
-
         var existingDirector = await _context.Users
             .FirstOrDefaultAsync(user => user.Email == BootstrapDirectorEmail);
 
@@ -100,6 +97,9 @@ public class AuthController : ControllerBase
             existingDirector.Role = "Director";
             existingDirector.AccountStatus = "Active";
             existingDirector.IsEmailVerified = true;
+            existingDirector.DiscountType = "None";
+            existingDirector.DiscountValue = 0;
+            existingDirector.FreeMonths = 0;
             existingDirector.CanManageAccounts = true;
             existingDirector.CanManageStaff = true;
             existingDirector.CanManageBilling = true;

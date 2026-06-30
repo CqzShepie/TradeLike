@@ -13,18 +13,12 @@ namespace TradeLike.Api.Controllers;
 [ApiController]
 [Authorize]
 [Route("api/admin")]
-public class AdminUsersController : ControllerBase
+public class AdminUserController : ControllerBase
 {
+    private const string PermanentDirectorEmail = "admin@tradelike.co.uk";
+
     private static readonly string[] StaffRoles =
     {
-        "Director",
-        "Admin",
-        "Support"
-    };
-
-    private static readonly string[] AllowedRoles =
-    {
-        "Customer",
         "Director",
         "Admin",
         "Support"
@@ -48,7 +42,7 @@ public class AdminUsersController : ControllerBase
 
     private readonly TradeLikeDbContext _context;
 
-    public AdminUsersController(TradeLikeDbContext context)
+    public AdminUserController(TradeLikeDbContext context)
     {
         _context = context;
     }
@@ -64,7 +58,7 @@ public class AdminUsersController : ControllerBase
             return Forbid();
         }
 
-        if (!CanManageAccounts(actor))
+        if (!CanManageAccounts(actor) && !CanManageBilling(actor) && !CanManageSecurity(actor))
         {
             return Forbid();
         }
@@ -123,12 +117,10 @@ public class AdminUsersController : ControllerBase
 
             await _context.SaveChangesAsync();
 
-            var response = ToResponse(user);
-
             return CreatedAtAction(
                 nameof(GetUsers),
-                new { id = response.Id },
-                response);
+                new { id = user.Id },
+                ToResponse(user));
         }
         catch (ValidationException ex)
         {
@@ -220,8 +212,7 @@ public class AdminUsersController : ControllerBase
             if (string.IsNullOrWhiteSpace(request.NewPassword) ||
                 request.NewPassword.Length < 8)
             {
-                throw new ValidationException(
-                    "New password must be at least 8 characters.");
+                throw new ValidationException("New password must be at least 8 characters.");
             }
 
             var user = await _context.Users.FindAsync(id);
@@ -229,6 +220,11 @@ public class AdminUsersController : ControllerBase
             if (user is null)
             {
                 return NotFound();
+            }
+
+            if (IsPermanentDirector(user) && !IsPermanentDirector(actor))
+            {
+                return Forbid();
             }
 
             user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
@@ -276,6 +272,11 @@ public class AdminUsersController : ControllerBase
             return NotFound();
         }
 
+        if (IsPermanentDirector(user) && !IsPermanentDirector(actor))
+        {
+            return Forbid();
+        }
+
         user.IsEmailVerified = true;
         user.UpdatedAt = DateTime.UtcNow;
 
@@ -313,6 +314,11 @@ public class AdminUsersController : ControllerBase
         if (user is null)
         {
             return NotFound();
+        }
+
+        if (IsPermanentDirector(user) && !IsPermanentDirector(actor))
+        {
+            return Forbid();
         }
 
         user.EmailVerificationSentAt = DateTime.UtcNow;
@@ -426,7 +432,28 @@ public class AdminUsersController : ControllerBase
                 return NotFound();
             }
 
-            if (staff.Id == actor.Id && !string.Equals(request.Role, "Director", StringComparison.OrdinalIgnoreCase))
+            if (IsPermanentDirector(staff))
+            {
+                if (!IsPermanentDirector(actor))
+                {
+                    return Forbid();
+                }
+
+                request = new UpdateStaffPermissionsRequest
+                {
+                    Role = "Director",
+                    AccountStatus = "Active",
+                    CanManageAccounts = true,
+                    CanManageStaff = true,
+                    CanManageBilling = true,
+                    CanManageSecurity = true,
+                    CanViewAuditLogs = true,
+                    AdminNotes = request.AdminNotes
+                };
+            }
+
+            if (staff.Id == actor.Id &&
+                !string.Equals(request.Role, "Director", StringComparison.OrdinalIgnoreCase))
             {
                 throw new ValidationException("You cannot remove your own Director role.");
             }
@@ -445,9 +472,11 @@ public class AdminUsersController : ControllerBase
                 : request.AdminNotes.Trim();
             staff.UpdatedAt = DateTime.UtcNow;
 
-            if (staff.Role == "Director")
+            if (staff.Role == "Director" || IsPermanentDirector(staff))
             {
                 GiveDirectorPermissions(staff);
+                staff.Role = "Director";
+                staff.AccountStatus = "Active";
             }
 
             ValidateStaff(staff);
@@ -497,7 +526,7 @@ public class AdminUsersController : ControllerBase
 
             query = query.Where(log =>
                 log.ActorEmail.Contains(trimmedSearch) ||
-                log.TargetEmail!.Contains(trimmedSearch) ||
+                (log.TargetEmail != null && log.TargetEmail.Contains(trimmedSearch)) ||
                 log.Action.Contains(trimmedSearch) ||
                 log.Summary.Contains(trimmedSearch));
         }
@@ -559,6 +588,11 @@ public class AdminUsersController : ControllerBase
         var firstName = request.FirstName.Trim();
         var lastName = request.LastName.Trim();
         var email = request.Email.Trim().ToLowerInvariant();
+
+        if (string.Equals(email, PermanentDirectorEmail, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ValidationException("The permanent Director account already exists.");
+        }
 
         ValidateBasicUserFields(firstName, lastName, email, request.Password);
 
@@ -638,14 +672,12 @@ public class AdminUsersController : ControllerBase
     {
         if (!AllowedAccountStatuses.Contains(user.AccountStatus, StringComparer.OrdinalIgnoreCase))
         {
-            throw new ValidationException(
-                "Account status is invalid. Use Trial, Active, PastDue, Suspended, or Cancelled.");
+            throw new ValidationException("Account status is invalid. Use Trial, Active, PastDue, Suspended, or Cancelled.");
         }
 
         if (!AllowedDiscountTypes.Contains(user.DiscountType, StringComparer.OrdinalIgnoreCase))
         {
-            throw new ValidationException(
-                "Discount type is invalid. Use None, Amount, or Percentage.");
+            throw new ValidationException("Discount type is invalid. Use None, Amount, or Percentage.");
         }
 
         if (user.DiscountValue < 0)
@@ -655,14 +687,12 @@ public class AdminUsersController : ControllerBase
 
         if (user.DiscountType == "None" && user.DiscountValue != 0)
         {
-            throw new ValidationException(
-                "Discount value must be 0 when discount type is None.");
+            throw new ValidationException("Discount value must be 0 when discount type is None.");
         }
 
         if (user.DiscountType == "Percentage" && user.DiscountValue > 100)
         {
-            throw new ValidationException(
-                "Percentage discount cannot be more than 100%.");
+            throw new ValidationException("Percentage discount cannot be more than 100%.");
         }
 
         if (user.FreeMonths < 0)
@@ -691,8 +721,7 @@ public class AdminUsersController : ControllerBase
 
         if (!AllowedAccountStatuses.Contains(staff.AccountStatus, StringComparer.OrdinalIgnoreCase))
         {
-            throw new ValidationException(
-                "Account status is invalid. Use Trial, Active, PastDue, Suspended, or Cancelled.");
+            throw new ValidationException("Account status is invalid. Use Trial, Active, PastDue, Suspended, or Cancelled.");
         }
 
         if (!string.IsNullOrWhiteSpace(staff.AdminNotes) &&
@@ -755,6 +784,14 @@ public class AdminUsersController : ControllerBase
             UserAgent = Request.Headers.UserAgent.ToString(),
             CreatedAt = DateTime.UtcNow
         });
+    }
+
+    private static bool IsPermanentDirector(User user)
+    {
+        return string.Equals(
+            user.Email,
+            PermanentDirectorEmail,
+            StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool IsDirector(User user)
