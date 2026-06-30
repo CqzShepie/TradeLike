@@ -127,16 +127,13 @@ export default function AdminPortal() {
   const [createBusinessName, setCreateBusinessName] = useState("");
   const [createOwnerName, setCreateOwnerName] = useState("");
   const [createOwnerPhone, setCreateOwnerPhone] = useState("");
-  const [createSubscriptionPlan, setCreateSubscriptionPlan] =
-    useState<SubscriptionPlan>("Solo");
-  const [createBillingStatus, setCreateBillingStatus] =
-    useState<BillingStatus>("Trial");
+  const [createSubscriptionPlan, setCreateSubscriptionPlan] = useState<SubscriptionPlan>("Solo");
+  const [createBillingStatus, setCreateBillingStatus] = useState<BillingStatus>("Trial");
   const [createTrialEndsAt, setCreateTrialEndsAt] = useState("");
   const [createFreeMonthsExpireAt, setCreateFreeMonthsExpireAt] = useState("");
   const [createAdminTags, setCreateAdminTags] = useState("");
   const [createSupportNotes, setCreateSupportNotes] = useState("");
-  const [createHealthStatus, setCreateHealthStatus] =
-    useState<HealthStatus>("Green");
+  const [createHealthStatus, setCreateHealthStatus] = useState<HealthStatus>("Green");
   const [createAccountSource, setCreateAccountSource] = useState("");
   const [createCancelReason, setCreateCancelReason] = useState("");
   const [createNotes, setCreateNotes] = useState("");
@@ -149,8 +146,7 @@ export default function AdminPortal() {
   const [businessName, setBusinessName] = useState("");
   const [ownerName, setOwnerName] = useState("");
   const [ownerPhone, setOwnerPhone] = useState("");
-  const [subscriptionPlan, setSubscriptionPlan] =
-    useState<SubscriptionPlan>("Solo");
+  const [subscriptionPlan, setSubscriptionPlan] = useState<SubscriptionPlan>("Solo");
   const [billingStatus, setBillingStatus] = useState<BillingStatus>("Trial");
   const [trialEndsAt, setTrialEndsAt] = useState("");
   const [adminTags, setAdminTags] = useState("");
@@ -168,16 +164,13 @@ export default function AdminPortal() {
   const [createStaffPassword, setCreateStaffPassword] = useState("");
   const [createStaffRole, setCreateStaffRole] = useState<StaffRole>("Support");
   const [createStaffPaTo, setCreateStaffPaTo] = useState("");
-  const [createStaffPermissions, setCreateStaffPermissions] =
-    useState<PermissionFlags>(blankPermissions);
+  const [createStaffPermissions, setCreateStaffPermissions] = useState<PermissionFlags>(blankPermissions);
   const [createStaffNotes, setCreateStaffNotes] = useState("");
 
   const [staffEditRole, setStaffEditRole] = useState<StaffRole>("Support");
   const [staffEditPaTo, setStaffEditPaTo] = useState("");
-  const [staffEditStatus, setStaffEditStatus] =
-    useState<AdminAccountStatus>("Active");
-  const [staffEditPermissions, setStaffEditPermissions] =
-    useState<PermissionFlags>(blankPermissions);
+  const [staffEditStatus, setStaffEditStatus] = useState<AdminAccountStatus>("Active");
+  const [staffEditPermissions, setStaffEditPermissions] = useState<PermissionFlags>(blankPermissions);
   const [staffEditNotes, setStaffEditNotes] = useState("");
 
   const [error, setError] = useState("");
@@ -196,17 +189,13 @@ export default function AdminPortal() {
 
   const filteredStaffUsers = useMemo(() => {
     const query = staffSearch.trim().toLowerCase();
-
-    const filtered =
-      query === ""
-        ? staffUsers
-        : staffUsers.filter(user =>
-            user.fullName.toLowerCase().includes(query) ||
-            user.email.toLowerCase().includes(query) ||
-            user.role.toLowerCase().includes(query) ||
-            user.accountStatus.toLowerCase().includes(query) ||
-            (user.personalAssistantTo ?? "").toLowerCase().includes(query)
-          );
+    const filtered = query === "" ? staffUsers : staffUsers.filter(user =>
+      user.fullName.toLowerCase().includes(query) ||
+      user.email.toLowerCase().includes(query) ||
+      user.role.toLowerCase().includes(query) ||
+      user.accountStatus.toLowerCase().includes(query) ||
+      (user.personalAssistantTo ?? "").toLowerCase().includes(query)
+    );
 
     return {
       current: filtered.filter(user => user.accountStatus !== "Cancelled"),
@@ -224,11 +213,9 @@ export default function AdminPortal() {
     if (canSeeAccounts) {
       loadUsers("");
     }
-
     if (canSeeStaff) {
       loadStaff();
     }
-
     if (canSeeAuditLogs) {
       loadAuditLogs("");
     }
@@ -257,12 +244,10 @@ export default function AdminPortal() {
     if (!canSeeAccounts) {
       return;
     }
-
     try {
       setLoadingUsers(true);
       setError("");
-      const data = await adminService.getUsers(searchTerm);
-      setUsers(data);
+      setUsers(await adminService.getUsers(searchTerm));
     } catch (err) {
       showError(getErrorMessage(err, "Unable to load customer accounts."));
     } finally {
@@ -274,12 +259,10 @@ export default function AdminPortal() {
     if (!canSeeStaff) {
       return;
     }
-
     try {
       setLoadingStaff(true);
       setError("");
-      const data = await adminService.getStaff();
-      setStaffUsers(data);
+      setStaffUsers(await adminService.getStaff());
     } catch (err) {
       showError(getErrorMessage(err, "Unable to load staff users."));
     } finally {
@@ -291,12 +274,10 @@ export default function AdminPortal() {
     if (!canSeeAuditLogs) {
       return;
     }
-
     try {
       setLoadingAuditLogs(true);
       setError("");
-      const data = await adminService.getAuditLogs(searchTerm);
-      setAuditLogs(data);
+      setAuditLogs(await adminService.getAuditLogs(searchTerm));
     } catch (err) {
       showError(getErrorMessage(err, "Unable to load audit logs."));
     } finally {
@@ -307,8 +288,7 @@ export default function AdminPortal() {
   async function loadCustomerTimeline(userId: number) {
     try {
       setLoadingTimeline(true);
-      const data = await adminService.getCustomerTimeline(userId);
-      setCustomerTimeline(data);
+      setCustomerTimeline(await adminService.getCustomerTimeline(userId));
     } catch {
       setCustomerTimeline([]);
     } finally {
@@ -322,7 +302,6 @@ export default function AdminPortal() {
       setCustomerTimeline([]);
       return;
     }
-
     setSelectedUser(user);
     fillSelectedUserForm(user);
     setError("");
@@ -357,7 +336,6 @@ export default function AdminPortal() {
       setSelectedStaff(null);
       return;
     }
-
     setSelectedStaff(user);
     fillSelectedStaffForm(user);
     setError("");
@@ -373,19 +351,15 @@ export default function AdminPortal() {
   }
 
   function upsertUser(user: AdminUser) {
-    setUsers(previous =>
-      previous.some(existing => existing.id === user.id)
-        ? previous.map(existing => (existing.id === user.id ? user : existing))
-        : [user, ...previous]
-    );
+    setUsers(previous => previous.some(existing => existing.id === user.id)
+      ? previous.map(existing => (existing.id === user.id ? user : existing))
+      : [user, ...previous]);
   }
 
   function upsertStaff(user: AdminUser) {
-    setStaffUsers(previous =>
-      previous.some(existing => existing.id === user.id)
-        ? previous.map(existing => (existing.id === user.id ? user : existing))
-        : [user, ...previous]
-    );
+    setStaffUsers(previous => previous.some(existing => existing.id === user.id)
+      ? previous.map(existing => (existing.id === user.id ? user : existing))
+      : [user, ...previous]);
   }
 
   async function handleSearch(event: FormEvent) {
@@ -400,40 +374,26 @@ export default function AdminPortal() {
 
   async function handleCreateUser(event: FormEvent) {
     event.preventDefault();
-
-    if (createFirstName.trim() === "") {
-      showError("Customer first name is required.");
+    if (createFirstName.trim() === "" || createLastName.trim() === "") {
+      showError("Customer first and last name are required.");
       return;
     }
-
-    if (createLastName.trim() === "") {
-      showError("Customer last name is required.");
-      return;
-    }
-
     if (!createEmail.includes("@")) {
       showError("A valid customer email address is required.");
       return;
     }
-
     if (createPassword.trim().length < 8) {
       showError("Customer password must be at least 8 characters.");
       return;
     }
-
-    if (
-      (createStatus === "Cancelled" || createBillingStatus === "Cancelled") &&
-      createCancelReason.trim() === ""
-    ) {
+    if ((createStatus === "Cancelled" || createBillingStatus === "Cancelled") && createCancelReason.trim() === "") {
       showError("Cancel reason is required when creating a cancelled account.");
       return;
     }
-
     try {
       setSaving(true);
       setError("");
       setMessage("");
-
       const created = await adminService.createUser({
         firstName: createFirstName,
         lastName: createLastName,
@@ -454,10 +414,8 @@ export default function AdminPortal() {
         cancelReason: createCancelReason,
         adminNotes: createNotes,
       });
-
       setUsers(previous => [created, ...previous]);
       selectUser(created);
-
       setCreateFirstName("");
       setCreateLastName("");
       setCreateEmail("");
@@ -476,7 +434,6 @@ export default function AdminPortal() {
       setCreateAccountSource("");
       setCreateCancelReason("");
       setCreateNotes("");
-
       showMessage(`Created customer account for ${created.email}.`);
       await refreshAuditLogs();
     } catch (err) {
@@ -488,24 +445,17 @@ export default function AdminPortal() {
 
   async function handleSaveAccount(event: FormEvent) {
     event.preventDefault();
-
     if (!selectedUser) {
       return;
     }
-
-    if (
-      (accountStatus === "Cancelled" || billingStatus === "Cancelled") &&
-      cancelReason.trim() === ""
-    ) {
+    if ((accountStatus === "Cancelled" || billingStatus === "Cancelled") && cancelReason.trim() === "") {
       showError("Cancel reason is required when cancelling an account.");
       return;
     }
-
     try {
       setSaving(true);
       setError("");
       setMessage("");
-
       const updated = await adminService.updateAccount(selectedUser.id, {
         accountStatus,
         discountType,
@@ -525,7 +475,6 @@ export default function AdminPortal() {
         cancelReason,
         adminNotes,
       });
-
       upsertUser(updated);
       setSelectedUser(updated);
       fillSelectedUserForm(updated);
@@ -543,7 +492,6 @@ export default function AdminPortal() {
     if (!selectedUser) {
       return;
     }
-
     try {
       setSaving(true);
       setError("");
@@ -564,24 +512,18 @@ export default function AdminPortal() {
 
   async function handleResetPassword(event: FormEvent) {
     event.preventDefault();
-
     if (!selectedUser) {
       return;
     }
-
     if (newPassword.trim().length < 8) {
       showError("New password must be at least 8 characters.");
       return;
     }
-
     try {
       setSaving(true);
       setError("");
       setMessage("");
-      const updated = await adminService.resetPassword(selectedUser.id, {
-        newPassword,
-        requirePasswordReset,
-      });
+      const updated = await adminService.resetPassword(selectedUser.id, { newPassword, requirePasswordReset });
       upsertUser(updated);
       setSelectedUser(updated);
       fillSelectedUserForm(updated);
@@ -599,7 +541,6 @@ export default function AdminPortal() {
     if (!selectedUser) {
       return;
     }
-
     try {
       setSaving(true);
       setError("");
@@ -622,7 +563,6 @@ export default function AdminPortal() {
     if (!selectedUser) {
       return;
     }
-
     try {
       setSaving(true);
       setError("");
@@ -645,7 +585,6 @@ export default function AdminPortal() {
     if (!selectedUser) {
       return;
     }
-
     try {
       setSaving(true);
       setError("");
@@ -666,32 +605,22 @@ export default function AdminPortal() {
 
   async function handleCreateStaff(event: FormEvent) {
     event.preventDefault();
-
-    if (createStaffFirstName.trim() === "") {
-      showError("Staff first name is required.");
+    if (createStaffFirstName.trim() === "" || createStaffLastName.trim() === "") {
+      showError("Staff first and last name are required.");
       return;
     }
-
-    if (createStaffLastName.trim() === "") {
-      showError("Staff last name is required.");
-      return;
-    }
-
     if (!createStaffEmail.includes("@")) {
       showError("A valid staff email address is required.");
       return;
     }
-
     if (createStaffPassword.trim().length < 8) {
       showError("Staff password must be at least 8 characters.");
       return;
     }
-
     if (createStaffRole === "Personal Assistant" && createStaffPaTo.trim() === "") {
       showError("Personal Assistant accounts must say who they are PA to.");
       return;
     }
-
     try {
       setSaving(true);
       setError("");
@@ -706,7 +635,6 @@ export default function AdminPortal() {
         ...createStaffPermissions,
         adminNotes: createStaffNotes,
       });
-
       setStaffUsers(previous => [created, ...previous]);
       setSelectedStaff(created);
       fillSelectedStaffForm(created);
@@ -729,16 +657,13 @@ export default function AdminPortal() {
 
   async function handleSaveStaffPermissions(event: FormEvent) {
     event.preventDefault();
-
     if (!selectedStaff) {
       return;
     }
-
     if (staffEditRole === "Personal Assistant" && staffEditPaTo.trim() === "") {
       showError("Personal Assistant accounts must say who they are PA to.");
       return;
     }
-
     try {
       setSaving(true);
       setError("");
@@ -750,7 +675,6 @@ export default function AdminPortal() {
         ...staffEditPermissions,
         adminNotes: staffEditNotes,
       });
-
       upsertStaff(updated);
       setSelectedStaff(updated);
       fillSelectedStaffForm(updated);
@@ -775,9 +699,7 @@ export default function AdminPortal() {
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
           <div>
             <Link to="/" className="text-xl font-bold text-blue-400">TradeLike</Link>
-            <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
-              {staffRole}{paTo ? ` · PA to ${paTo}` : ""}
-            </p>
+            <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-slate-500">{staffRole}{paTo ? ` · PA to ${paTo}` : ""}</p>
           </div>
           <nav className="flex items-center gap-3">
             <Link to="/login" className="rounded-lg border border-slate-700 px-3 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-900">Back to Login</Link>
@@ -807,15 +729,7 @@ export default function AdminPortal() {
           </aside>
 
           <div>
-            {activeSection === "overview" && (
-              <AdminDashboard
-                users={users}
-                staffUsers={staffUsers}
-                auditLogs={auditLogs}
-                onOpenAccounts={() => setActiveSection("accounts")}
-                onOpenAudit={() => setActiveSection("audit")}
-              />
-            )}
+            {activeSection === "overview" && <AdminDashboard users={users} staffUsers={staffUsers} auditLogs={auditLogs} onOpenAccounts={() => setActiveSection("accounts")} onOpenAudit={() => setActiveSection("audit")} />}
 
             {activeSection === "accounts" && canSeeAccounts && (
               <div className="space-y-6">
@@ -877,7 +791,7 @@ export default function AdminPortal() {
                             <Field label="Billing status"><DarkSelect value={billingStatus} onChange={value => setBillingStatus(value as BillingStatus)}>{billingStatuses.map(status => <option key={status} value={status}>{formatStatus(status)}</option>)}</DarkSelect></Field>
                             <Field label="Trial end date"><DarkInput value={trialEndsAt} onChange={setTrialEndsAt} type="date" /></Field>
                             <Field label="Discount type"><DarkSelect value={discountType} onChange={value => setDiscountType(value as AdminDiscountType)}>{discountTypes.map(type => <option key={type} value={type}>{type === "None" ? "No discount" : type === "Amount" ? "£ amount" : "% percentage"}</option>)}</DarkSelect></Field>
-                            <Field label={discountType === "Percentage" ? "Discount value (%)" : "Discount value (£)"><DarkInput value={discountValue} onChange={setDiscountValue} type="number" min="0" max={discountType === "Percentage" ? 100 : undefined} step="1" disabled={discountType === "None"} /></Field>
+                            <Field label={discountType === "Percentage" ? "Discount value (%)" : "Discount value (£)"}><DarkInput value={discountValue} onChange={setDiscountValue} type="number" min="0" max={discountType === "Percentage" ? 100 : undefined} step="1" disabled={discountType === "None"} /></Field>
                             <Field label="Free months"><DarkInput value={freeMonths} onChange={setFreeMonths} type="number" min="0" max="120" step="1" /></Field>
                             <Field label="Free months expiry"><DarkInput value={freeMonthsExpireAt} onChange={setFreeMonthsExpireAt} type="date" /></Field>
                             <Field label="Tags"><DarkInput value={adminTags} onChange={setAdminTags} placeholder="High Value, Setup Help, Churn Risk" /></Field>
