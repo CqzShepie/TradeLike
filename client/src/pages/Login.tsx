@@ -3,9 +3,16 @@ import { useState } from "react";
 import Logo from "../components/layout/Logo";
 import { authService } from "../services/authService";
 
+const shouldPrefillAdminLogin =
+  import.meta.env.DEV && import.meta.env.VITE_PREFILL_ADMIN_LOGIN === "true";
+
 function Login() {
-  const [email, setEmail] = useState("admin@tradelike.co.uk");
-  const [password, setPassword] = useState("Password123!");
+  const [email, setEmail] = useState(
+    shouldPrefillAdminLogin ? "admin@tradelike.co.uk" : ""
+  );
+  const [password, setPassword] = useState(
+    shouldPrefillAdminLogin ? "Password123!" : ""
+  );
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -68,6 +75,12 @@ function Login() {
           <p className="mb-8 text-slate-600">
             Access your TradeLike account.
           </p>
+
+          {shouldPrefillAdminLogin && (
+            <p className="mb-5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-700">
+              Local development admin login is prefilled because VITE_PREFILL_ADMIN_LOGIN is enabled.
+            </p>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
