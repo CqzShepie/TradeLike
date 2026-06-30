@@ -13,6 +13,15 @@ function cleanDate(value?: string | null) {
   return value && value.trim() !== "" ? value : null;
 }
 
+async function copyInviteLink(inviteLink?: string) {
+  if (!inviteLink) {
+    return;
+  }
+
+  await navigator.clipboard?.writeText(inviteLink).catch(() => undefined);
+  window.alert(`Invite link copied if your browser allowed it:\n\n${inviteLink}`);
+}
+
 export const adminService = {
   async getUsers(search = "") {
     const query = search.trim();
@@ -71,16 +80,11 @@ export const adminService = {
   },
 
   async reactivateCustomer(userId: number) {
-    return (await apiClient.post(
-      `/admin/users/${userId}/reactivate`,
-      {}
-    )) as AdminUser;
+    return (await apiClient.post(`/admin/users/${userId}/reactivate`, {})) as AdminUser;
   },
 
   async getCustomerTimeline(userId: number) {
-    return (await apiClient.get(
-      `/admin/users/${userId}/timeline`
-    )) as AdminAuditLog[];
+    return (await apiClient.get(`/admin/users/${userId}/timeline`)) as AdminAuditLog[];
   },
 
   async resetPassword(userId: number, request: ResetAdminUserPasswordRequest) {
@@ -91,34 +95,21 @@ export const adminService = {
   },
 
   async markEmailVerified(userId: number) {
-    return (await apiClient.post(
-      `/admin/users/${userId}/mark-email-verified`,
-      {}
-    )) as AdminUser;
+    return (await apiClient.post(`/admin/users/${userId}/mark-email-verified`, {})) as AdminUser;
   },
 
   async sendVerificationEmail(userId: number) {
-    const response = (await apiClient.post(
-      `/admin/users/${userId}/send-verification-email`,
-      {}
-    )) as {
+    return (await apiClient.post(`/admin/users/${userId}/send-verification-email`, {})) as {
       message: string;
       user: AdminUser;
     };
-
-    return response;
   },
 
   async sendOnboardingEmail(userId: number) {
-    const response = (await apiClient.post(
-      `/admin/users/${userId}/send-onboarding-email`,
-      {}
-    )) as {
+    return (await apiClient.post(`/admin/users/${userId}/send-onboarding-email`, {})) as {
       message: string;
       user: AdminUser;
     };
-
-    return response;
   },
 
   async getStaff() {
@@ -140,18 +131,25 @@ export const adminService = {
       user: AdminUser;
     };
 
-    if (response.inviteLink) {
-      await navigator.clipboard?.writeText(response.inviteLink).catch(() => undefined);
-      window.alert(`Staff invite created. Invite link copied if your browser allowed it:\n\n${response.inviteLink}`);
-    }
+    await copyInviteLink(response.inviteLink);
 
     return response.user;
   },
 
-  async updateStaffPermissions(
-    staffId: number,
-    request: UpdateStaffPermissionsRequest
-  ) {
+  async resendStaffInvite(staffId: number) {
+    const response = (await apiClient.post(`/admin/staff/${staffId}/resend-invite`, {})) as {
+      message: string;
+      inviteLink?: string;
+      inviteExpiresAt?: string | null;
+      user: AdminUser;
+    };
+
+    await copyInviteLink(response.inviteLink);
+
+    return response.user;
+  },
+
+  async updateStaffPermissions(staffId: number, request: UpdateStaffPermissionsRequest) {
     return (await apiClient.put(`/admin/staff/${staffId}/permissions`, {
       ...request,
       personalAssistantTo: request.personalAssistantTo.trim(),
