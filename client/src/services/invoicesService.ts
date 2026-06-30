@@ -42,7 +42,7 @@ export const invoicesService = {
       customerName: quote.customerName,
       quoteId: quote.id,
       title: quote.title,
-      description: quote.description,
+      description: quote.description ?? "",
       subtotal: Number(quote.subtotal ?? quote.amount ?? quote.total ?? 0),
       vatTotal: Number(quote.vatTotal ?? 0),
       total: Number(quote.total ?? quote.amount ?? 0),
