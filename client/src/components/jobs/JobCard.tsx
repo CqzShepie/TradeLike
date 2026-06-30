@@ -1,11 +1,18 @@
 import { useState } from "react";
+import type { CustomerStaffMember, CustomerTeam } from "../../services/customerStaffService";
+import type { JobAssignment } from "../../services/jobAssignmentsService";
 import type { Job } from "../../types/job";
+import JobCardAssignmentControls from "./JobCardAssignmentControls";
 
 type JobCardProps = {
   job: Job;
   onViewJob?: (job: Job) => void;
   onDeleteJob?: (id: number) => void;
   onEditJob?: (job: Job) => void;
+  teams?: CustomerTeam[];
+  members?: CustomerStaffMember[];
+  assignment?: JobAssignment;
+  onUpdateAssignment?: (job: Job, patch: Partial<JobAssignment>) => void;
 };
 
 function JobCard({
@@ -13,8 +20,14 @@ function JobCard({
   onViewJob,
   onDeleteJob,
   onEditJob,
+  teams = [],
+  members = [],
+  assignment,
+  onUpdateAssignment,
 }: JobCardProps) {
   const [showConfirm, setShowConfirm] = useState(false);
+  const selectedTeam = teams.find(team => team.id === assignment?.assignedTeamId);
+  const leadMember = members.find(member => member.id === assignment?.leadStaffMemberId);
 
   function handleDelete() {
     if (!onDeleteJob) return;
@@ -104,6 +117,9 @@ function JobCard({
               </dd>
             </div>
           )}
+
+          {selectedTeam && <div><dt className="text-xs font-semibold uppercase tracking-wide text-slate-400">Team</dt><dd className="mt-1 font-semibold text-slate-900">{selectedTeam.name}</dd></div>}
+          {leadMember && <div><dt className="text-xs font-semibold uppercase tracking-wide text-slate-400">Lead</dt><dd className="mt-1 font-semibold text-slate-900">{leadMember.firstName} {leadMember.lastName}</dd></div>}
         </dl>
 
         {job.notes && (
@@ -111,6 +127,8 @@ function JobCard({
             {job.notes}
           </p>
         )}
+
+        <JobCardAssignmentControls job={job} teams={teams} members={members} assignment={assignment} onUpdateAssignment={onUpdateAssignment} />
 
         <div
           className="mt-5 flex flex-wrap gap-2"
