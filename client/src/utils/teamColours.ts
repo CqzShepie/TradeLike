@@ -26,9 +26,42 @@ export const teamColours: TeamColour[] = [
 
 export function getTeamColour(value?: string | null) {
   const normalised = value?.trim().toLowerCase();
-  return teamColours.find(colour => colour.value === normalised) ?? teamColours[0];
+  const matched = teamColours.find(colour => colour.value === normalised) ?? teamColours[0];
+
+  if (!usesAccessiblePalette()) {
+    return matched;
+  }
+
+  const accessibleHex: Record<string, string> = {
+    blue: "#0072b2",
+    green: "#009e73",
+    purple: "#cc79a7",
+    amber: "#e69f00",
+    red: "#d55e00",
+    slate: "#374151",
+    cyan: "#56b4e9",
+    teal: "#00897b",
+    emerald: "#006d5b",
+    lime: "#7f8c00",
+    orange: "#f0a202",
+    rose: "#b83280",
+    pink: "#a23e8c",
+    brown: "#8b5e34",
+    indigo: "#332288",
+    sky: "#44aa99",
+  };
+
+  return { ...matched, hex: accessibleHex[matched.value] ?? matched.hex };
 }
 
 export function getTeamColourLabel(value?: string | null) {
   return getTeamColour(value).label;
+}
+
+function usesAccessiblePalette() {
+  try {
+    return JSON.parse(localStorage.getItem("tradelike_accessibility_preferences") ?? "{}").colourBlindFriendly === true;
+  } catch {
+    return false;
+  }
 }
