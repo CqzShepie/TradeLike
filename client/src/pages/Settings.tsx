@@ -3,8 +3,8 @@ import type { FormEvent } from "react";
 import Sidebar from "../components/layout/Sidebar";
 import { businessSettingsService } from "../services/businessSettingsService";
 import { staffSettingsService } from "../services/staffSettingsService";
+import type { StaffCategory, StaffRolePreset, StaffSettings } from "../services/staffSettingsService";
 import type { UpdateBusinessSettingsRequest } from "../types/businessSettings";
-import type { StaffCategory, StaffRolePreset, StaffSettings } from "../types/staffSettings";
 
 type SettingsTab =
   | "business"
@@ -34,6 +34,23 @@ const staffSettingsTabs: Array<{ id: StaffSettingsTab; label: string; descriptio
   { id: "roles", label: "Role presets", description: "Default permission templates" },
   { id: "permissions", label: "Permission groups", description: "What each area controls" },
 ];
+
+const permissionDescriptions: Record<string, string> = {
+  "Full access": "Allows the role to use every staff setting, role preset, customer record, job, quote, invoice, payment, report, and business setting.",
+  "Customer records": "View and update customer contact details, customer account information, and customer history.",
+  "Customer notes": "View and add notes for customer support, job follow-ups, engineer handovers, and internal updates.",
+  "Jobs and scheduling": "Manage jobs, appointments, calendars, engineer allocation, site visits, and daily work schedules.",
+  "Quotes and invoices": "Create, edit, send, and manage customer quotes, invoices, and related document details.",
+  "Payments": "View and manage payment details, payment terms, paid/unpaid status, and finance-related customer information.",
+  "Offers and promotions": "Manage customer offers, trade promotions, seasonal discounts, and marketing incentives.",
+  "Staff password resets": "Reset staff login access when a team member is locked out or needs help signing in.",
+  "Email customers": "Send customer emails, updates, reminders, confirmations, and template-based messages.",
+  "Staff management": "Create, edit, suspend, or remove staff accounts and maintain team details.",
+  "Staff invites": "Invite new staff members and resend pending staff invitations.",
+  "Business settings": "Manage business profile, document defaults, email footer, payment details, and operational settings.",
+  "Activity log": "View important staff and account activity for accountability, admin checks, and troubleshooting.",
+  "Reports and exports": "Export customer, job, payment, quote, invoice, and activity data for business records.",
+};
 
 const blankSettings: UpdateBusinessSettingsRequest = {
   businessName: "TradeLike",
@@ -635,7 +652,7 @@ function StaffSettingsPanel({
               {settings.permissionGroups.map(permission => (
                 <div key={permission} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
                   <p className="font-semibold text-slate-900">{permission}</p>
-                  <p className="mt-1 text-sm text-slate-600">Use this permission group when creating role presets or individual staff overrides.</p>
+                  <p className="mt-1 text-sm text-slate-600">{permissionDescriptions[permission] ?? "Custom permission group for role presets."}</p>
                 </div>
               ))}
             </div>
