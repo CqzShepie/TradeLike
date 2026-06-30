@@ -1,23 +1,80 @@
-import { useState } from "react";
 import type { CustomerStaffMember, CustomerTeam } from "../../services/customerStaffService";
 import type { JobAssignment } from "../../services/jobAssignmentsService";
 import type { Job } from "../../types/job";
 
-type JobCardProps = { job: Job; onViewJob?: (job: Job) => void; onDeleteJob?: (id: number) => void; onEditJob?: (job: Job) => void; teams?: CustomerTeam[]; members?: CustomerStaffMember[]; assignment?: JobAssignment; onUpdateAssignment?: (job: Job, patch: Partial<JobAssignment>) => void };
+type JobCardProps = {
+  job: Job;
+  onViewJob?: (job: Job) => void;
+  onDeleteJob?: (id: number) => void;
+  onEditJob?: (job: Job) => void;
+  teams?: CustomerTeam[];
+  members?: CustomerStaffMember[];
+  assignment?: JobAssignment;
+  onUpdateAssignment?: (job: Job, patch: Partial<JobAssignment>) => void;
+};
 
-function JobCard({ job, onViewJob, onDeleteJob, onEditJob, teams = [], members = [], assignment }: JobCardProps) {
-  const [showConfirm, setShowConfirm] = useState(false);
+function JobCard({ job, onViewJob, teams = [], members = [], assignment }: JobCardProps) {
   const selectedTeam = teams.find(team => team.id === assignment?.assignedTeamId);
   const leadMember = members.find(member => member.id === assignment?.leadStaffMemberId);
 
-  function handleDelete() { if (!onDeleteJob) return; onDeleteJob(job.id); setShowConfirm(false); }
-  function openJob() { onViewJob?.(job); }
+  function openJob() {
+    onViewJob?.(job);
+  }
 
-  return <><article role={onViewJob ? "button" : undefined} tabIndex={onViewJob ? 0 : undefined} onClick={openJob} onKeyDown={event => { if (!onViewJob) return; if (event.key === "Enter" || event.key === " ") { event.preventDefault(); openJob(); } }} className={`rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-blue-300 hover:shadow-md ${onViewJob ? "cursor-pointer" : ""}`}><div className="flex items-start justify-between gap-4"><div><p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Job #{job.id}</p><h3 className="mt-1 text-lg font-bold text-slate-900">{job.jobTitle}</h3><p className="mt-1 text-sm font-medium text-slate-600">{job.customer}</p></div><span className={getPriorityClass(job.priority)}>{job.priority}</span></div><dl className="mt-4 grid gap-3 text-sm text-slate-600"><Info label="Status" value={formatStatus(job.status)} strong /><Info label="Phone" value={job.phone} /><Info label="Address" value={job.address || "No address"} /><Info label="Scheduled" value={formatDateTime(job.scheduledDate)} />{job.quoteId && <Info label="Linked quote" value={`Quote #${job.quoteId}`} strong />}{selectedTeam && <Info label="Team" value={selectedTeam.name} strong />}{leadMember && <Info label="Lead" value={`${leadMember.firstName} ${leadMember.lastName}`} strong />}</dl>{job.notes && <p className="mt-4 line-clamp-3 rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-600">{job.notes}</p>}<p className="mt-4 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700">Open job details to assign staff and teams.</p><div className="mt-5 flex flex-wrap gap-2" onClick={event => event.stopPropagation()}>{onEditJob && <button type="button" onClick={() => onEditJob(job)} className="rounded-md border border-slate-300 px-2.5 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-50">Edit</button>}{onDeleteJob && <button type="button" onClick={() => setShowConfirm(true)} className="rounded-md border border-red-200 px-2.5 py-1 text-[11px] font-semibold text-red-600 hover:bg-red-50">Delete</button>}</div></article>{showConfirm && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"><div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl"><h2 className="text-lg font-bold text-slate-900">Delete Job</h2><p className="mt-2 text-sm text-slate-600">Are you sure you want to delete <span className="font-semibold">{job.jobTitle}</span>?</p><div className="mt-6 flex justify-end gap-3"><button type="button" onClick={() => setShowConfirm(false)} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Cancel</button><button type="button" onClick={handleDelete} className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700">Delete</button></div></div></div>}</>;
+  return (
+    <article
+      role={onViewJob ? "button" : undefined}
+      tabIndex={onViewJob ? 0 : undefined}
+      onClick={openJob}
+      onKeyDown={event => {
+        if (!onViewJob) return;
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          openJob();
+        }
+      }}
+      className={`rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-blue-300 hover:shadow-md ${onViewJob ? "cursor-pointer" : ""}`}
+    >
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Job #{job.id}</p>
+          <h3 className="mt-1 text-lg font-bold text-slate-900">{job.jobTitle}</h3>
+          <p className="mt-1 text-sm font-medium text-slate-600">{job.customer}</p>
+        </div>
+        <span className={getPriorityClass(job.priority)}>{job.priority}</span>
+      </div>
+
+      <dl className="mt-4 grid gap-3 text-sm text-slate-600">
+        <Info label="Scheduled" value={formatDateTime(job.scheduledDate)} strong />
+        {job.quoteId && <Info label="Linked quote" value={`Quote #${job.quoteId}`} />}
+        {selectedTeam && <Info label="Team" value={selectedTeam.name} />}
+        {leadMember && <Info label="Lead engineer" value={`${leadMember.firstName} ${leadMember.lastName}`} />}
+      </dl>
+
+      {job.notes && <p className="mt-4 line-clamp-3 rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-600">{job.notes}</p>}
+    </article>
+  );
 }
 
-function Info({ label, value, strong = false }: { label: string; value: string; strong?: boolean }) { return <div><dt className="text-xs font-semibold uppercase tracking-wide text-slate-400">{label}</dt><dd className={`mt-1 ${strong ? "font-medium text-slate-900" : ""}`}>{value}</dd></div>; }
-function formatDateTime(value: string) { if (!value) return "No date set"; const date = new Date(value); if (Number.isNaN(date.getTime())) return "Invalid date"; return date.toLocaleString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }); }
-function formatStatus(value: string) { return value === "InProgress" ? "In Progress" : value; }
-function getPriorityClass(priority: Job["priority"]) { const base = "rounded-full px-2 py-1 text-xs font-semibold"; switch (priority) { case "Urgent": return `${base} bg-red-100 text-red-700`; case "High": return `${base} bg-orange-100 text-orange-700`; case "Low": return `${base} bg-slate-100 text-slate-600`; default: return `${base} bg-blue-100 text-blue-700`; } }
+function Info({ label, value, strong = false }: { label: string; value: string; strong?: boolean }) {
+  return <div><dt className="text-xs font-semibold uppercase tracking-wide text-slate-400">{label}</dt><dd className={`mt-1 ${strong ? "font-medium text-slate-900" : ""}`}>{value}</dd></div>;
+}
+
+function formatDateTime(value: string) {
+  if (!value) return "No date set";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Invalid date";
+  return date.toLocaleString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+
+function getPriorityClass(priority: Job["priority"]) {
+  const base = "rounded-full px-2 py-1 text-xs font-semibold";
+  switch (priority) {
+    case "Urgent": return `${base} bg-red-100 text-red-700`;
+    case "High": return `${base} bg-orange-100 text-orange-700`;
+    case "Low": return `${base} bg-slate-100 text-slate-600`;
+    default: return `${base} bg-blue-100 text-blue-700`;
+  }
+}
+
 export default JobCard;
