@@ -1,6 +1,7 @@
 export type AdminAccountStatus =
   | "Trial"
   | "Active"
+  | "InvitePending"
   | "PastDue"
   | "Suspended"
   | "Cancelled";
@@ -153,7 +154,7 @@ export type CreateStaffUserRequest = {
   firstName: string;
   lastName: string;
   email: string;
-  password: string;
+  password?: string;
   role: StaffRole;
   personalAssistantTo: string;
 
@@ -185,6 +186,12 @@ export type CreateStaffUserRequest = {
   canViewSecurityLogs: boolean;
 
   adminNotes: string;
+};
+
+export type StaffInviteResponse = {
+  message: string;
+  inviteExpiresAt?: string | null;
+  user: AdminUser;
 };
 
 export type UpdateStaffPermissionsRequest = {
