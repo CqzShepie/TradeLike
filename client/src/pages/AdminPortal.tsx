@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import type { FormEvent } from "react";
-import Sidebar from "../components/layout/Sidebar";
+import type { FormEvent, ReactNode } from "react";
+import { Link } from "react-router-dom";
 import { adminService } from "../services/adminService";
 import type {
   AdminAccountStatus,
@@ -80,6 +80,7 @@ export default function AdminPortal() {
       total: users.length,
       trial: users.filter(user => user.accountStatus === "Trial").length,
       active: users.filter(user => user.accountStatus === "Active").length,
+      pastDue: users.filter(user => user.accountStatus === "PastDue").length,
       suspended: users.filter(user => user.accountStatus === "Suspended").length,
     };
   }, [users]);
@@ -276,401 +277,424 @@ export default function AdminPortal() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <Sidebar />
-
-      <main className="md:pl-64">
-        <section className="mx-auto max-w-7xl px-6 py-8">
-          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                TradeLike admin
-              </p>
-              <h1 className="mt-1 text-3xl font-bold text-slate-900">
-                Admin Portal
-              </h1>
-              <p className="mt-2 text-sm text-slate-600">
-                Manage SaaS customer accounts, free months, discounts,
-                verification status, passwords, and internal notes.
-              </p>
-            </div>
-
-            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-              Admin-only area. Destructive billing actions should get audit logs
-              later.
-            </div>
+    <main className="min-h-screen bg-slate-950 text-slate-100">
+      <header className="border-b border-slate-800 bg-slate-950/95">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
+          <div>
+            <Link to="/" className="text-xl font-bold text-blue-400">
+              TradeLike
+            </Link>
+            <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Staff Admin Portal
+            </p>
           </div>
 
-          <div className="mt-6 grid gap-4 md:grid-cols-4">
-            <StatCard label="Accounts" value={stats.total} />
-            <StatCard label="Trial" value={stats.trial} />
-            <StatCard label="Active" value={stats.active} />
-            <StatCard label="Suspended" value={stats.suspended} />
+          <nav className="flex items-center gap-3">
+            <Link
+              to="/login"
+              className="rounded-lg border border-slate-700 px-3 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-900"
+            >
+              Back to Login
+            </Link>
+
+            <Link
+              to="/dashboard"
+              className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700"
+            >
+              Open App
+            </Link>
+          </nav>
+        </div>
+      </header>
+
+      <section className="mx-auto max-w-7xl px-6 py-8">
+        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-blue-400">
+              Internal tools
+            </p>
+            <h1 className="mt-1 text-3xl font-bold text-white">
+              Staff Admin Portal
+            </h1>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
+              Manage SaaS customer accounts, free months, discounts,
+              verification status, passwords, and internal notes. This page is
+              deliberately separate from the customer/trade app layout.
+            </p>
           </div>
 
-          {error && (
-            <div className="mt-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-700">
-              {error}
-            </div>
-          )}
+          <div className="rounded-xl border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">
+            Staff-only area. Later we should add audit logs for every admin
+            action.
+          </div>
+        </div>
 
-          {message && (
-            <div className="mt-6 rounded-xl border border-green-200 bg-green-50 p-4 text-sm font-medium text-green-700">
-              {message}
-            </div>
-          )}
+        <div className="mt-6 grid gap-4 md:grid-cols-5">
+          <StatCard label="Accounts" value={stats.total} />
+          <StatCard label="Trial" value={stats.trial} />
+          <StatCard label="Active" value={stats.active} />
+          <StatCard label="Past Due" value={stats.pastDue} />
+          <StatCard label="Suspended" value={stats.suspended} />
+        </div>
 
-          <div className="mt-8 grid gap-6 xl:grid-cols-[420px_1fr]">
-            <aside className="space-y-6">
-              <form
-                onSubmit={handleSearch}
-                className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"
-              >
-                <h2 className="text-lg font-bold text-slate-900">
-                  Search accounts
-                </h2>
+        {error && (
+          <div className="mt-6 rounded-xl border border-red-400/30 bg-red-400/10 p-4 text-sm font-medium text-red-100">
+            {error}
+          </div>
+        )}
 
-                <div className="mt-4 flex gap-2">
-                  <input
-                    value={search}
-                    onChange={event => setSearch(event.target.value)}
-                    placeholder="Name, email, or status"
-                    className="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600"
-                  />
+        {message && (
+          <div className="mt-6 rounded-xl border border-green-400/30 bg-green-400/10 p-4 text-sm font-medium text-green-100">
+            {message}
+          </div>
+        )}
 
-                  <button
-                    type="submit"
-                    className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700"
-                  >
-                    Search
-                  </button>
-                </div>
-              </form>
+        <div className="mt-8 grid gap-6 xl:grid-cols-[420px_1fr]">
+          <aside className="space-y-6">
+            <form
+              onSubmit={handleSearch}
+              className="rounded-xl border border-slate-800 bg-slate-900 p-5 shadow-sm"
+            >
+              <h2 className="text-lg font-bold text-white">
+                Search accounts
+              </h2>
 
-              <form
-                onSubmit={handleCreateUser}
-                className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"
-              >
-                <h2 className="text-lg font-bold text-slate-900">
-                  Create account
-                </h2>
+              <div className="mt-4 flex gap-2">
+                <input
+                  value={search}
+                  onChange={event => setSearch(event.target.value)}
+                  placeholder="Name, email, or status"
+                  className="min-w-0 flex-1 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-blue-500"
+                />
 
-                <div className="mt-4 grid gap-3">
-                  <input
-                    value={createFirstName}
-                    onChange={event => setCreateFirstName(event.target.value)}
-                    placeholder="First name"
-                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600"
-                  />
+                <button
+                  type="submit"
+                  className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700"
+                >
+                  Search
+                </button>
+              </div>
+            </form>
 
-                  <input
-                    value={createLastName}
-                    onChange={event => setCreateLastName(event.target.value)}
-                    placeholder="Last name"
-                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600"
-                  />
+            <form
+              onSubmit={handleCreateUser}
+              className="rounded-xl border border-slate-800 bg-slate-900 p-5 shadow-sm"
+            >
+              <h2 className="text-lg font-bold text-white">Create account</h2>
 
-                  <input
-                    value={createEmail}
-                    onChange={event => setCreateEmail(event.target.value)}
-                    placeholder="Email address"
-                    type="email"
-                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600"
-                  />
+              <div className="mt-4 grid gap-3">
+                <input
+                  value={createFirstName}
+                  onChange={event => setCreateFirstName(event.target.value)}
+                  placeholder="First name"
+                  className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-blue-500"
+                />
 
-                  <input
-                    value={createPassword}
-                    onChange={event => setCreatePassword(event.target.value)}
-                    placeholder="Temporary password"
-                    type="password"
-                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600"
-                  />
+                <input
+                  value={createLastName}
+                  onChange={event => setCreateLastName(event.target.value)}
+                  placeholder="Last name"
+                  className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-blue-500"
+                />
 
-                  <select
-                    value={createStatus}
-                    onChange={event =>
-                      setCreateStatus(event.target.value as AdminAccountStatus)
-                    }
-                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600"
-                  >
-                    {accountStatuses.map(status => (
-                      <option key={status} value={status}>
-                        {formatStatus(status)}
-                      </option>
-                    ))}
-                  </select>
+                <input
+                  value={createEmail}
+                  onChange={event => setCreateEmail(event.target.value)}
+                  placeholder="Email address"
+                  type="email"
+                  className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-blue-500"
+                />
 
-                  <textarea
-                    value={createNotes}
-                    onChange={event => setCreateNotes(event.target.value)}
-                    placeholder="Internal admin notes"
-                    rows={4}
-                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600"
-                  />
+                <input
+                  value={createPassword}
+                  onChange={event => setCreatePassword(event.target.value)}
+                  placeholder="Temporary password"
+                  type="password"
+                  className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-blue-500"
+                />
 
-                  <button
-                    type="submit"
-                    disabled={saving}
-                    className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
-                  >
-                    {saving ? "Creating..." : "Create Account"}
-                  </button>
-                </div>
-              </form>
-            </aside>
+                <select
+                  value={createStatus}
+                  onChange={event =>
+                    setCreateStatus(event.target.value as AdminAccountStatus)
+                  }
+                  className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-blue-500"
+                >
+                  {accountStatuses.map(status => (
+                    <option key={status} value={status}>
+                      {formatStatus(status)}
+                    </option>
+                  ))}
+                </select>
 
-            <div className="space-y-6">
-              <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
-                <div className="border-b border-slate-200 px-5 py-4">
-                  <h2 className="text-lg font-bold text-slate-900">
-                    Accounts
-                  </h2>
-                  <p className="mt-1 text-sm text-slate-500">
-                    Select an account to manage subscription controls.
-                  </p>
-                </div>
+                <textarea
+                  value={createNotes}
+                  onChange={event => setCreateNotes(event.target.value)}
+                  placeholder="Internal admin notes"
+                  rows={4}
+                  className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-blue-500"
+                />
 
-                {loading ? (
-                  <div className="p-5 text-sm text-slate-500">Loading...</div>
-                ) : users.length === 0 ? (
-                  <div className="p-5 text-sm text-slate-500">
-                    No accounts found.
-                  </div>
-                ) : (
-                  <div className="divide-y divide-slate-200">
-                    {users.map(user => (
-                      <button
-                        key={user.id}
-                        type="button"
-                        onClick={() => selectUser(user)}
-                        className={`grid w-full gap-3 px-5 py-4 text-left hover:bg-blue-50 md:grid-cols-[1fr_160px_120px_120px] ${
-                          selectedUser?.id === user.id ? "bg-blue-50" : ""
-                        }`}
-                      >
-                        <div>
-                          <p className="font-semibold text-slate-900">
-                            {user.fullName || user.email}
-                          </p>
-                          <p className="mt-1 text-sm text-slate-500">
-                            {user.email}
-                          </p>
-                        </div>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="rounded-lg bg-white px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-slate-200 disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300"
+                >
+                  {saving ? "Creating..." : "Create Account"}
+                </button>
+              </div>
+            </form>
+          </aside>
 
-                        <Badge>{formatStatus(user.accountStatus)}</Badge>
-
-                        <Badge>
-                          {user.isEmailVerified ? "Verified" : "Unverified"}
-                        </Badge>
-
-                        <Badge>
-                          {user.discountType === "None"
-                            ? "No discount"
-                            : user.discountType === "Percentage"
-                            ? `${user.discountValue}% off`
-                            : `£${user.discountValue} off`}
-                        </Badge>
-                      </button>
-                    ))}
-                  </div>
-                )}
+          <div className="space-y-6">
+            <div className="rounded-xl border border-slate-800 bg-slate-900 shadow-sm">
+              <div className="border-b border-slate-800 px-5 py-4">
+                <h2 className="text-lg font-bold text-white">Accounts</h2>
+                <p className="mt-1 text-sm text-slate-400">
+                  Select an account to manage subscription controls.
+                </p>
               </div>
 
-              {selectedUser && (
-                <div className="grid gap-6 xl:grid-cols-2">
-                  <form
-                    onSubmit={handleSaveAccount}
-                    className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"
-                  >
-                    <h2 className="text-lg font-bold text-slate-900">
-                      Manage account
-                    </h2>
-                    <p className="mt-1 text-sm text-slate-500">
-                      {selectedUser.email}
-                    </p>
+              {loading ? (
+                <div className="p-5 text-sm text-slate-400">Loading...</div>
+              ) : users.length === 0 ? (
+                <div className="p-5 text-sm text-slate-400">
+                  No accounts found.
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-800">
+                  {users.map(user => (
+                    <button
+                      key={user.id}
+                      type="button"
+                      onClick={() => selectUser(user)}
+                      className={`grid w-full gap-3 px-5 py-4 text-left hover:bg-slate-800 md:grid-cols-[1fr_160px_120px_140px] ${
+                        selectedUser?.id === user.id ? "bg-slate-800" : ""
+                      }`}
+                    >
+                      <div>
+                        <p className="font-semibold text-white">
+                          {user.fullName || user.email}
+                        </p>
+                        <p className="mt-1 text-sm text-slate-400">
+                          {user.email}
+                        </p>
+                      </div>
 
-                    <div className="mt-5 grid gap-4">
-                      <Field label="Account status">
-                        <select
-                          value={accountStatus}
-                          onChange={event =>
-                            setAccountStatus(
-                              event.target.value as AdminAccountStatus
-                            )
-                          }
-                          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600"
-                        >
-                          {accountStatuses.map(status => (
-                            <option key={status} value={status}>
-                              {formatStatus(status)}
-                            </option>
-                          ))}
-                        </select>
-                      </Field>
+                      <Badge>{formatStatus(user.accountStatus)}</Badge>
 
-                      <Field label="Discount type">
-                        <select
-                          value={discountType}
-                          onChange={event =>
-                            setDiscountType(
-                              event.target.value as AdminDiscountType
-                            )
-                          }
-                          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600"
-                        >
-                          {discountTypes.map(type => (
-                            <option key={type} value={type}>
-                              {type === "None"
-                                ? "No discount"
-                                : type === "Amount"
-                                ? "£ amount"
-                                : "% percentage"}
-                            </option>
-                          ))}
-                        </select>
-                      </Field>
+                      <Badge>
+                        {user.isEmailVerified ? "Verified" : "Unverified"}
+                      </Badge>
 
-                      <Field
-                        label={
-                          discountType === "Percentage"
-                            ? "Discount value (%)"
-                            : "Discount value (£)"
+                      <Badge>
+                        {user.discountType === "None"
+                          ? "No discount"
+                          : user.discountType === "Percentage"
+                          ? `${user.discountValue}% off`
+                          : `£${user.discountValue} off`}
+                      </Badge>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {selectedUser && (
+              <div className="grid gap-6 xl:grid-cols-2">
+                <form
+                  onSubmit={handleSaveAccount}
+                  className="rounded-xl border border-slate-800 bg-slate-900 p-5 shadow-sm"
+                >
+                  <h2 className="text-lg font-bold text-white">
+                    Manage account
+                  </h2>
+                  <p className="mt-1 text-sm text-slate-400">
+                    {selectedUser.email}
+                  </p>
+
+                  <div className="mt-5 grid gap-4">
+                    <Field label="Account status">
+                      <select
+                        value={accountStatus}
+                        onChange={event =>
+                          setAccountStatus(
+                            event.target.value as AdminAccountStatus
+                          )
                         }
+                        className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-blue-500"
                       >
-                        <input
-                          value={discountValue}
-                          onChange={event => setDiscountValue(event.target.value)}
-                          disabled={discountType === "None"}
-                          type="number"
-                          min="0"
-                          max={discountType === "Percentage" ? 100 : undefined}
-                          step="1"
-                          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600 disabled:bg-slate-100"
-                        />
-                      </Field>
+                        {accountStatuses.map(status => (
+                          <option key={status} value={status}>
+                            {formatStatus(status)}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
 
-                      <Field label="Free months">
-                        <input
-                          value={freeMonths}
-                          onChange={event => setFreeMonths(event.target.value)}
-                          type="number"
-                          min="0"
-                          max="120"
-                          step="1"
-                          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600"
-                        />
-                      </Field>
+                    <Field label="Discount type">
+                      <select
+                        value={discountType}
+                        onChange={event =>
+                          setDiscountType(
+                            event.target.value as AdminDiscountType
+                          )
+                        }
+                        className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-blue-500"
+                      >
+                        {discountTypes.map(type => (
+                          <option key={type} value={type}>
+                            {type === "None"
+                              ? "No discount"
+                              : type === "Amount"
+                              ? "£ amount"
+                              : "% percentage"}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
 
-                      <Field label="Internal admin notes">
-                        <textarea
-                          value={adminNotes}
-                          onChange={event => setAdminNotes(event.target.value)}
-                          rows={6}
-                          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600"
+                    <Field
+                      label={
+                        discountType === "Percentage"
+                          ? "Discount value (%)"
+                          : "Discount value (£)"
+                      }
+                    >
+                      <input
+                        value={discountValue}
+                        onChange={event => setDiscountValue(event.target.value)}
+                        disabled={discountType === "None"}
+                        type="number"
+                        min="0"
+                        max={discountType === "Percentage" ? 100 : undefined}
+                        step="1"
+                        className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-blue-500 disabled:bg-slate-800 disabled:text-slate-500"
+                      />
+                    </Field>
+
+                    <Field label="Free months">
+                      <input
+                        value={freeMonths}
+                        onChange={event => setFreeMonths(event.target.value)}
+                        type="number"
+                        min="0"
+                        max="120"
+                        step="1"
+                        className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-blue-500"
+                      />
+                    </Field>
+
+                    <Field label="Internal admin notes">
+                      <textarea
+                        value={adminNotes}
+                        onChange={event => setAdminNotes(event.target.value)}
+                        rows={6}
+                        className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-blue-500"
+                      />
+                    </Field>
+
+                    <button
+                      type="submit"
+                      disabled={saving}
+                      className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-600"
+                    >
+                      {saving ? "Saving..." : "Save Account Changes"}
+                    </button>
+                  </div>
+                </form>
+
+                <div className="space-y-6">
+                  <div className="rounded-xl border border-slate-800 bg-slate-900 p-5 shadow-sm">
+                    <h2 className="text-lg font-bold text-white">
+                      Verification
+                    </h2>
+
+                    <div className="mt-4 space-y-3 text-sm text-slate-400">
+                      <p>
+                        Status:{" "}
+                        <span className="font-semibold text-white">
+                          {selectedUser.isEmailVerified
+                            ? "Verified"
+                            : "Unverified"}
+                        </span>
+                      </p>
+
+                      <p>
+                        Last verification send action:{" "}
+                        <span className="font-semibold text-white">
+                          {selectedUser.emailVerificationSentAt
+                            ? formatDateTime(selectedUser.emailVerificationSentAt)
+                            : "Never"}
+                        </span>
+                      </p>
+                    </div>
+
+                    <div className="mt-5 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={handleSendVerificationEmail}
+                        disabled={saving}
+                        className="rounded-lg border border-blue-500/50 px-3 py-2 text-xs font-semibold text-blue-200 hover:bg-blue-500/10 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        Send verification email
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={handleMarkVerified}
+                        disabled={saving || selectedUser.isEmailVerified}
+                        className="rounded-lg border border-green-500/50 px-3 py-2 text-xs font-semibold text-green-200 hover:bg-green-500/10 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        Mark verified
+                      </button>
+                    </div>
+                  </div>
+
+                  <form
+                    onSubmit={handleResetPassword}
+                    className="rounded-xl border border-slate-800 bg-slate-900 p-5 shadow-sm"
+                  >
+                    <h2 className="text-lg font-bold text-white">
+                      Reset password
+                    </h2>
+
+                    <div className="mt-4 space-y-4">
+                      <input
+                        value={newPassword}
+                        onChange={event => setNewPassword(event.target.value)}
+                        type="password"
+                        placeholder="New temporary password"
+                        className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-blue-500"
+                      />
+
+                      <label className="flex items-center gap-2 text-sm text-slate-300">
+                        <input
+                          type="checkbox"
+                          checked={requirePasswordReset}
+                          onChange={event =>
+                            setRequirePasswordReset(event.target.checked)
+                          }
                         />
-                      </Field>
+                        Require password reset on next login
+                      </label>
 
                       <button
                         type="submit"
                         disabled={saving}
-                        className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-400"
+                        className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-slate-600"
                       >
-                        {saving ? "Saving..." : "Save Account Changes"}
+                        {saving ? "Updating..." : "Reset Password"}
                       </button>
                     </div>
                   </form>
-
-                  <div className="space-y-6">
-                    <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-                      <h2 className="text-lg font-bold text-slate-900">
-                        Verification
-                      </h2>
-
-                      <div className="mt-4 space-y-3 text-sm text-slate-600">
-                        <p>
-                          Status:{" "}
-                          <span className="font-semibold text-slate-900">
-                            {selectedUser.isEmailVerified
-                              ? "Verified"
-                              : "Unverified"}
-                          </span>
-                        </p>
-
-                        <p>
-                          Last verification send action:{" "}
-                          <span className="font-semibold text-slate-900">
-                            {selectedUser.emailVerificationSentAt
-                              ? formatDateTime(selectedUser.emailVerificationSentAt)
-                              : "Never"}
-                          </span>
-                        </p>
-                      </div>
-
-                      <div className="mt-5 flex flex-wrap gap-2">
-                        <button
-                          type="button"
-                          onClick={handleSendVerificationEmail}
-                          disabled={saving}
-                          className="rounded-lg border border-blue-200 px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          Send verification email
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={handleMarkVerified}
-                          disabled={saving || selectedUser.isEmailVerified}
-                          className="rounded-lg border border-green-200 px-3 py-2 text-xs font-semibold text-green-700 hover:bg-green-50 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          Mark verified
-                        </button>
-                      </div>
-                    </div>
-
-                    <form
-                      onSubmit={handleResetPassword}
-                      className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"
-                    >
-                      <h2 className="text-lg font-bold text-slate-900">
-                        Reset password
-                      </h2>
-
-                      <div className="mt-4 space-y-4">
-                        <input
-                          value={newPassword}
-                          onChange={event => setNewPassword(event.target.value)}
-                          type="password"
-                          placeholder="New temporary password"
-                          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600"
-                        />
-
-                        <label className="flex items-center gap-2 text-sm text-slate-700">
-                          <input
-                            type="checkbox"
-                            checked={requirePasswordReset}
-                            onChange={event =>
-                              setRequirePasswordReset(event.target.checked)
-                            }
-                          />
-                          Require password reset on next login
-                        </label>
-
-                        <button
-                          type="submit"
-                          disabled={saving}
-                          className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-slate-400"
-                        >
-                          {saving ? "Updating..." : "Reset Password"}
-                        </button>
-                      </div>
-                    </form>
-                  </div>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
-        </section>
-      </main>
-    </div>
+        </div>
+      </section>
+    </main>
   );
 }
 
@@ -679,11 +703,11 @@ function Field({
   children,
 }: {
   label: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-sm font-medium text-slate-700">
+      <span className="mb-1 block text-sm font-medium text-slate-300">
         {label}
       </span>
       {children}
@@ -693,18 +717,18 @@ function Field({
 
 function StatCard({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-      <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+    <div className="rounded-xl border border-slate-800 bg-slate-900 p-5 shadow-sm">
+      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
         {label}
       </p>
-      <p className="mt-2 text-2xl font-bold text-slate-900">{value}</p>
+      <p className="mt-2 text-2xl font-bold text-white">{value}</p>
     </div>
   );
 }
 
-function Badge({ children }: { children: React.ReactNode }) {
+function Badge({ children }: { children: ReactNode }) {
   return (
-    <span className="inline-flex w-fit items-center rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700">
+    <span className="inline-flex w-fit items-center rounded-full bg-slate-800 px-2 py-1 text-xs font-semibold text-slate-300">
       {children}
     </span>
   );
