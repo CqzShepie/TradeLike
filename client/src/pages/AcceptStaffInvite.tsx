@@ -1,20 +1,23 @@
 import { useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import Logo from "../components/layout/Logo";
 import { apiClient } from "../services/apiClient";
 
 export default function AcceptStaffInvite() {
   const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
   const token = searchParams.get("token") ?? "";
   const [pass, setPass] = useState("");
   const [confirm, setConfirm] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
+
+  function goToLogin() {
+    window.location.href = "/login";
+  }
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
+    setError("");
 
     if (token.trim() === "") {
       setError("This invite link is missing its token.");
@@ -33,17 +36,14 @@ export default function AcceptStaffInvite() {
 
     try {
       setSaving(true);
-      setError("");
       const body = Object.fromEntries([
         ["token", token],
         ["password", pass],
       ]);
-      const response = await apiClient.post<{ message: string }>("/admin/staff/accept-invite", body);
-      setMessage(response.message);
-      window.setTimeout(() => navigate("/login", { replace: true }), 1200);
+      await apiClient.post<{ message: string }>("/admin/staff/accept-invite", body);
+      window.location.replace("/login");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to accept invite.");
-    } finally {
       setSaving(false);
     }
   }
@@ -58,7 +58,6 @@ export default function AcceptStaffInvite() {
           <p className="mt-4 text-sm leading-6 text-slate-600">Create your own password to activate your staff account.</p>
 
           {error && <div className="mt-6 rounded-lg border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-700">{error}</div>}
-          {message && <div className="mt-6 rounded-lg border border-green-200 bg-green-50 p-4 text-sm font-medium text-green-700">{message}</div>}
 
           <form onSubmit={submit} className="mt-6 space-y-5">
             <label className="block">
@@ -72,7 +71,7 @@ export default function AcceptStaffInvite() {
             <button type="submit" disabled={saving} className="w-full rounded-lg bg-blue-600 py-3 font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-400">{saving ? "Activating..." : "Accept Invite"}</button>
           </form>
 
-          <p className="mt-6 text-center text-sm text-slate-600"><Link to="/login" className="font-semibold text-blue-600 hover:underline">Back to login</Link></p>
+          <p className="mt-6 text-center text-sm text-slate-600"><button type="button" onClick={goToLogin} className="font-semibold text-blue-600 hover:underline">Back to login</button></p>
         </div>
       </div>
     </main>
