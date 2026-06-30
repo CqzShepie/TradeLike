@@ -68,6 +68,7 @@ export default function JobAssignmentPanel({ jobs }: { jobs: Job[] }) {
         <div>
           <h2 className="text-lg font-bold text-slate-900">Job assignments</h2>
           <p className="mt-1 text-sm text-slate-600">Assign jobs to customer-company teams, engineers, staff, and a lead engineer. Assigned jobs feed the calendar filters.</p>
+          <p className="mt-1 text-xs font-semibold text-slate-500">Showing {visibleJobs.length} job{visibleJobs.length === 1 ? "" : "s"}</p>
         </div>
         <select value={filter} onChange={event => setFilter(event.target.value)} className="rounded-lg border border-slate-300 px-3 py-2 text-sm">
           <option value="unassigned">Unassigned jobs</option>
@@ -76,8 +77,8 @@ export default function JobAssignmentPanel({ jobs }: { jobs: Job[] }) {
         </select>
       </div>
 
-      <div className="mt-4 grid gap-3">
-        {visibleJobs.slice(0, 12).map(job => {
+      <div className="mt-4 max-h-[520px] space-y-3 overflow-y-auto pr-2">
+        {visibleJobs.map(job => {
           const assignment = assignmentMap.get(job.id);
           const selectedStaff = assignment?.assignedStaffMemberIds ?? [];
           return <div key={job.id} className="rounded-xl border border-slate-200 bg-slate-50 p-4"><div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_220px_220px]"><div><p className="font-bold text-slate-900">#{job.id} {job.jobTitle}</p><p className="text-sm text-slate-600">{job.customer} · {new Date(job.scheduledDate).toLocaleString("en-GB")}</p></div><select value={assignment?.assignedTeamId ?? ""} onChange={event => update(job, { assignedTeamId: event.target.value ? Number(event.target.value) : null })} className="rounded-lg border border-slate-300 px-3 py-2 text-sm"><option value="">No team</option>{teams.map(team => <option key={team.id} value={team.id}>{team.name}</option>)}</select><select value={assignment?.leadStaffMemberId ?? ""} onChange={event => update(job, { leadStaffMemberId: event.target.value ? Number(event.target.value) : null })} className="rounded-lg border border-slate-300 px-3 py-2 text-sm"><option value="">No lead engineer</option>{members.map(member => <option key={member.id} value={member.id}>{member.firstName} {member.lastName}</option>)}</select></div><div className="mt-3 flex flex-wrap gap-2">{members.map(member => <button key={member.id} type="button" onClick={() => update(job, { assignedStaffMemberIds: selectedStaff.includes(member.id) ? selectedStaff.filter(id => id !== member.id) : [...selectedStaff, member.id] })} className={`rounded-full border px-3 py-1 text-xs font-semibold ${selectedStaff.includes(member.id) ? "border-blue-600 bg-blue-600 text-white" : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"}`}>{member.firstName} {member.lastName}</button>)}</div>{savingJobId === job.id && <p className="mt-2 text-xs text-slate-500">Saving assignment...</p>}</div>;
