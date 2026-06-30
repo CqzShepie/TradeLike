@@ -2,6 +2,7 @@ import { apiClient } from "./apiClient";
 import type {
   CreateStaffCategoryRequest,
   CreateStaffRolePresetRequest,
+  StaffRolePreset,
   StaffSettings,
 } from "../types/staffSettings";
 
@@ -41,7 +42,9 @@ function clean(value?: string | null) {
 
 function displayPermission(permission: string) {
   const cleaned = permission.trim();
-  const mapped = legacyPermissionLabels[cleaned] ?? cleaned;
+  const mapped = Object.prototype.hasOwnProperty.call(legacyPermissionLabels, cleaned)
+    ? legacyPermissionLabels[cleaned]
+    : cleaned;
 
   if (mapped === null) {
     return null;
@@ -68,7 +71,7 @@ function toDisplaySettings(settings: StaffSettings): StaffSettings {
   return {
     ...settings,
     permissionGroups: uniquePermissions([...allowedPermissions, ...settings.permissionGroups]),
-    rolePresets: settings.rolePresets.map(rolePreset => ({
+    rolePresets: settings.rolePresets.map((rolePreset: StaffRolePreset) => ({
       ...rolePreset,
       permissions: uniquePermissions(rolePreset.permissions),
     })),
