@@ -1,6 +1,17 @@
 import { apiClient } from "./apiClient";
+import type { Job, JobPriority } from "../types/job";
 import type { Quote, QuoteLineItem } from "../types/quote";
 import type { NewQuote, NewQuoteLineItem } from "../types/newQuote";
+
+export type ConvertQuoteToJobRequest = {
+  jobTitle: string;
+  scheduledDate: string;
+  phone?: string | null;
+  address?: string | null;
+  priority: JobPriority;
+  notes?: string | null;
+  engineerId?: number | null;
+};
 
 type QuotePayload = {
   customerId: number;
@@ -36,6 +47,18 @@ export const quotesService = {
     );
 
     return normaliseQuote(updated);
+  },
+
+  async convertToJob(id: number, request: ConvertQuoteToJobRequest) {
+    return apiClient.post<Job>(`/quotes/${id}/convert-to-job`, {
+      jobTitle: request.jobTitle.trim(),
+      scheduledDate: request.scheduledDate,
+      phone: request.phone?.trim() || null,
+      address: request.address?.trim() || null,
+      priority: request.priority,
+      notes: request.notes?.trim() || null,
+      engineerId: request.engineerId ?? null,
+    });
   },
 
   delete(id: number) {

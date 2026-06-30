@@ -7,6 +7,22 @@ namespace TradeLike.Api.Services;
 
 public class JobService : IJobService
 {
+    private static readonly string[] AllowedStatuses =
+    {
+        "Scheduled",
+        "InProgress",
+        "Completed",
+        "Cancelled"
+    };
+
+    private static readonly string[] AllowedPriorities =
+    {
+        "Low",
+        "Normal",
+        "High",
+        "Urgent"
+    };
+
     private readonly TradeLikeDbContext _context;
 
     public JobService(TradeLikeDbContext context)
@@ -48,7 +64,9 @@ public class JobService : IJobService
         var job = await _context.Jobs.FindAsync(id);
 
         if (job is null)
+        {
             return null;
+        }
 
         job.Customer = updatedJob.Customer;
         job.Phone = updatedJob.Phone;
@@ -70,7 +88,9 @@ public class JobService : IJobService
         var job = await _context.Jobs.FindAsync(id);
 
         if (job is null)
+        {
             return null;
+        }
 
         _context.Jobs.Remove(job);
         await _context.SaveChangesAsync();
@@ -85,8 +105,7 @@ public class JobService : IJobService
 
         return await _context.Jobs
             .AsNoTracking()
-            .Where(j => j.ScheduledDate >= today &&
-                        j.ScheduledDate < tomorrow)
+            .Where(j => j.ScheduledDate >= today && j.ScheduledDate < tomorrow)
             .OrderBy(j => j.ScheduledDate)
             .ToListAsync();
     }
@@ -105,8 +124,7 @@ public class JobService : IJobService
 
         return await _context.Jobs
             .AsNoTracking()
-            .Where(j => j.ScheduledDate >= start &&
-                        j.ScheduledDate < end)
+            .Where(j => j.ScheduledDate >= start && j.ScheduledDate < end)
             .OrderBy(j => j.ScheduledDate)
             .ToListAsync();
     }
@@ -117,8 +135,8 @@ public class JobService : IJobService
         job.Phone = job.Phone.Trim();
         job.JobTitle = job.JobTitle.Trim();
         job.Address = job.Address.Trim();
-        job.Status = job.Status.Trim();
-        job.Priority = job.Priority.Trim();
+        job.Status = Canonicalise(job.Status, AllowedStatuses);
+        job.Priority = Canonicalise(job.Priority, AllowedPriorities);
         job.Notes = string.IsNullOrWhiteSpace(job.Notes)
             ? null
             : job.Notes.Trim();
@@ -127,18 +145,54 @@ public class JobService : IJobService
     private static void ValidateJob(Job job)
     {
         if (job.ScheduledDate.Year < 2024 || job.ScheduledDate.Year > 2099)
+        {
             throw new ValidationException("Scheduled date must be between 2024 and 2099.");
+        }
 
         if (string.IsNullOrWhiteSpace(job.Customer))
+        {
             throw new ValidationException("Customer is required.");
+        }
 
         if (string.IsNullOrWhiteSpace(job.Phone))
+        {
             throw new ValidationException("Phone number is required.");
+        }
 
         if (string.IsNullOrWhiteSpace(job.JobTitle))
+        {
             throw new ValidationException("Job title is required.");
+        }
 
         if (string.IsNullOrWhiteSpace(job.Address))
+        {
             throw new ValidationException("Address is required.");
+        }
+
+        if (!AllowedStatuses.Contains(job.Status, StringComparer.OrdinalIgnoreCase))
+        {
+            throw new ValidationException(
+                "Job status is invalid. Use Scheduled, InProgress, Completed, or Cancelled.");
+        }
+
+        if (!AllowedPriorities.Contains(job.Priority, StringComparer.OrdinalIgnoreCase))
+        {
+            throw new ValidationException(
+                "Job priority is invalid. Use Low, Normal, High, or Urgent.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(job.Notes) && job.Notes.Length > 4000)
+        {
+            throw new ValidationException("Job notes must be 4000 characters or fewer.");
+        }
+    }
+
+    private static string Canonicalise(string value, IReadOnlyCollection<string> allowedValues)
+    {
+        var trimmed = value.Trim();
+
+        return allowedValues.FirstOrDefault(
+            allowed => string.Equals(allowed, trimmed, StringComparison.OrdinalIgnoreCase))
+            ?? trimmed;
     }
 }

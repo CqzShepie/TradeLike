@@ -26,6 +26,46 @@ public class TradeLikeDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
+        modelBuilder.Entity<Job>(entity =>
+        {
+            entity.Property(j => j.Customer)
+                .IsRequired()
+                .HasMaxLength(100);
+
+            entity.Property(j => j.Phone)
+                .IsRequired()
+                .HasMaxLength(30);
+
+            entity.Property(j => j.JobTitle)
+                .IsRequired()
+                .HasMaxLength(150);
+
+            entity.Property(j => j.Address)
+                .IsRequired()
+                .HasMaxLength(250);
+
+            entity.Property(j => j.Status)
+                .IsRequired()
+                .HasMaxLength(30);
+
+            entity.Property(j => j.Priority)
+                .IsRequired()
+                .HasMaxLength(30);
+
+            entity.Property(j => j.Notes)
+                .HasMaxLength(4000);
+
+            entity.HasOne(j => j.Quote)
+                .WithMany()
+                .HasForeignKey(j => j.QuoteId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(j => j.Engineer)
+                .WithMany()
+                .HasForeignKey(j => j.EngineerId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
         modelBuilder.Entity<Quote>(entity =>
         {
             entity.Property(q => q.CustomerName)

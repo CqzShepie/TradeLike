@@ -1,4 +1,4 @@
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TradeLike.Api.Contracts.Quotes;
@@ -84,6 +84,32 @@ public class QuotesController : ControllerBase
         }
     }
 
+    [HttpPost("{id:int}/convert-to-job")]
+    public async Task<ActionResult<Job>> ConvertQuoteToJob(
+        int id,
+        [FromBody] ConvertQuoteToJobRequest request)
+    {
+        try
+        {
+            var job = await _quoteService.ConvertAcceptedQuoteToJobAsync(id, request);
+
+            if (job is null)
+            {
+                return NotFound();
+            }
+
+            return CreatedAtAction(
+                "GetJob",
+                "Jobs",
+                new { id = job.Id },
+                job);
+        }
+        catch (ValidationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
     [HttpDelete("{id:int}")]
     public async Task<ActionResult<QuoteResponse>> DeleteQuote(int id)
     {
@@ -108,7 +134,9 @@ public class QuotesController : ControllerBase
             DiscountTotal = request.DiscountTotal,
             Status = request.Status,
             Notes = request.Notes,
-            LineItems = request.LineItems.Select(ToLineItem).ToList()
+            LineItems = request.LineItems
+                .Select(ToLineItem)
+                .ToList()
         };
     }
 
@@ -123,7 +151,9 @@ public class QuotesController : ControllerBase
             DiscountTotal = request.DiscountTotal,
             Status = request.Status,
             Notes = request.Notes,
-            LineItems = request.LineItems.Select(ToLineItem).ToList()
+            LineItems = request.LineItems
+                .Select(ToLineItem)
+                .ToList()
         };
     }
 

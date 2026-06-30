@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace TradeLike.Api.Models;
 
@@ -33,9 +34,17 @@ public class Job
     [MaxLength(30)]
     public string Priority { get; set; } = "Normal";
 
+    [MaxLength(4000)]
     public string? Notes { get; set; }
 
+    public int? QuoteId { get; set; }
+
+    [JsonIgnore]
+    public Quote? Quote { get; set; }
+
     public int? EngineerId { get; set; }
+
+    [JsonIgnore]
     public Engineer? Engineer { get; set; }
 
     public void Validate()

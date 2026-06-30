@@ -1,7 +1,8 @@
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 import Sidebar from "../components/layout/Sidebar";
+import type { JobPriority } from "../types/job";
 import type { Quote, QuoteLineItemType, QuoteStatus } from "../types/quote";
 import { quotesService } from "../services/quotesService";
 import { formatMoney } from "../utils/formatMoney";
@@ -9,6 +10,8 @@ import { formatMoney } from "../utils/formatMoney";
 const statuses: QuoteStatus[] = ["Draft", "Sent", "Accepted", "Rejected"];
 
 const lineTypes: QuoteLineItemType[] = ["Labour", "Materials", "Other"];
+
+const priorities: JobPriority[] = ["Low", "Normal", "High", "Urgent"];
 
 const emptyLineItem: Quote["lineItems"][number] = {
   type: "Labour",
@@ -21,13 +24,27 @@ const emptyLineItem: Quote["lineItems"][number] = {
 
 export default function QuoteDetails() {
   const { id } = useParams();
+  const navigate = useNavigate();
 
   const [quote, setQuote] = useState<Quote | null>(null);
   const [form, setForm] = useState<Quote | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+
+  const [conversionJobTitle, setConversionJobTitle] = useState("");
+  const [conversionScheduledDate, setConversionScheduledDate] = useState(
+    getDefaultDateTimeLocal()
+  );
+  const [conversionPhone, setConversionPhone] = useState("");
+  const [conversionAddress, setConversionAddress] = useState("");
+  const [conversionPriority, setConversionPriority] =
+    useState<JobPriority>("Normal");
+  const [conversionNotes, setConversionNotes] = useState("");
+  const [conversionError, setConversionError] = useState("");
+  const [converting, setConverting] = useState(false);
 
   useEffect(() => {
     async function loadQuote() {
@@ -52,6 +69,7 @@ export default function QuoteDetails() {
 
         setQuote(data);
         setForm(safeQuote);
+        setConversionJobTitle(data.title);
       } catch (err) {
         setError(getErrorMessage(err, "Unable to load quote."));
       } finally {
@@ -139,11 +157,51 @@ export default function QuoteDetails() {
 
       setQuote(updated);
       setForm(updated);
+      setConversionJobTitle(updated.title);
       setSuccessMessage("Quote saved successfully.");
     } catch (err) {
       setError(getErrorMessage(err, "Unable to save quote."));
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleConvertToJob(event: FormEvent) {
+    event.preventDefault();
+
+    if (!quote) {
+      return;
+    }
+
+    if (quote.status !== "Accepted") {
+      setConversionError("Mark and save this quote as Accepted before converting it to a job.");
+      return;
+    }
+
+    if (conversionScheduledDate.trim() === "") {
+      setConversionError("Choose a scheduled date and time for the job.");
+      return;
+    }
+
+    try {
+      setConverting(true);
+      setConversionError("");
+
+      const job = await quotesService.convertToJob(quote.id, {
+        jobTitle: conversionJobTitle.trim() || quote.title,
+        scheduledDate: conversionScheduledDate,
+        phone: conversionPhone.trim() || null,
+        address: conversionAddress.trim() || null,
+        priority: conversionPriority,
+        notes: conversionNotes.trim() || null,
+        engineerId: null,
+      });
+
+      navigate(`/jobs/${job.id}`);
+    } catch (err) {
+      setConversionError(getErrorMessage(err, "Unable to convert quote to job."));
+    } finally {
+      setConverting(false);
     }
   }
 
@@ -229,6 +287,9 @@ export default function QuoteDetails() {
     });
   }
 
+  const canConvertSavedQuote = quote?.status === "Accepted";
+  const hasUnsavedStatusChange = quote && form && quote.status !== form.status;
+
   return (
     <div className="flex min-h-screen bg-slate-50">
       <Sidebar />
@@ -296,7 +357,7 @@ export default function QuoteDetails() {
                 </div>
               )}
 
-              <div className="grid gap-6 xl:grid-cols-[1fr_360px]">
+              <div className="grid gap-6 xl:grid-cols-[1fr_380px]">
                 <form
                   noValidate
                   onSubmit={handleSave}
@@ -614,6 +675,137 @@ export default function QuoteDetails() {
                     </Link>
                   </div>
 
+                  <form
+                    onSubmit={handleConvertToJob}
+                    className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
+                  >
+                    <h2 className="text-lg font-bold text-slate-900">
+                      Convert to job
+                    </h2>
+
+                    <p className="mt-1 text-sm text-slate-500">
+                      Once the quote is accepted, create a scheduled job from it.
+                    </p>
+
+                    {conversionError && (
+                      <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700">
+                        {conversionError}
+                      </div>
+                    )}
+
+                    {!canConvertSavedQuote && (
+                      <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                        Mark this quote as <strong>Accepted</strong> and save it
+                        before converting it to a job.
+                      </div>
+                    )}
+
+                    {hasUnsavedStatusChange && (
+                      <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-800">
+                        Save your quote changes before converting.
+                      </div>
+                    )}
+
+                    <div className="mt-5 space-y-4">
+                      <Field label="Job title">
+                        <input
+                          value={conversionJobTitle}
+                          onChange={event =>
+                            setConversionJobTitle(event.target.value)
+                          }
+                          disabled={!canConvertSavedQuote}
+                          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600 disabled:bg-slate-100"
+                        />
+                      </Field>
+
+                      <Field label="Scheduled date and time">
+                        <input
+                          type="datetime-local"
+                          value={conversionScheduledDate}
+                          onChange={event =>
+                            setConversionScheduledDate(event.target.value)
+                          }
+                          disabled={!canConvertSavedQuote}
+                          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600 disabled:bg-slate-100"
+                        />
+                      </Field>
+
+                      <Field
+                        label="Phone"
+                        hint="Leave blank to use the customer record if it has one."
+                      >
+                        <input
+                          value={conversionPhone}
+                          onChange={event =>
+                            setConversionPhone(event.target.value)
+                          }
+                          disabled={!canConvertSavedQuote}
+                          placeholder="Customer phone number"
+                          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600 disabled:bg-slate-100"
+                        />
+                      </Field>
+
+                      <Field
+                        label="Job address"
+                        hint="Leave blank to use the customer record if it has one."
+                      >
+                        <input
+                          value={conversionAddress}
+                          onChange={event =>
+                            setConversionAddress(event.target.value)
+                          }
+                          disabled={!canConvertSavedQuote}
+                          placeholder="Job address"
+                          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600 disabled:bg-slate-100"
+                        />
+                      </Field>
+
+                      <Field label="Priority">
+                        <select
+                          value={conversionPriority}
+                          onChange={event =>
+                            setConversionPriority(
+                              event.target.value as JobPriority
+                            )
+                          }
+                          disabled={!canConvertSavedQuote}
+                          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600 disabled:bg-slate-100"
+                        >
+                          {priorities.map(priority => (
+                            <option key={priority} value={priority}>
+                              {priority}
+                            </option>
+                          ))}
+                        </select>
+                      </Field>
+
+                      <Field label="Conversion notes">
+                        <textarea
+                          value={conversionNotes}
+                          onChange={event =>
+                            setConversionNotes(event.target.value)
+                          }
+                          disabled={!canConvertSavedQuote}
+                          rows={4}
+                          placeholder="Example: Customer accepted by phone. Book for first available engineer."
+                          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600 disabled:bg-slate-100"
+                        />
+                      </Field>
+
+                      <button
+                        type="submit"
+                        disabled={
+                          !canConvertSavedQuote ||
+                          Boolean(hasUnsavedStatusChange) ||
+                          converting
+                        }
+                        className="w-full rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-slate-400"
+                      >
+                        {converting ? "Converting..." : "Convert to Job"}
+                      </button>
+                    </div>
+                  </form>
+
                   <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
                     <h2 className="text-lg font-bold text-slate-900">
                       Saved line items
@@ -718,6 +910,17 @@ function SummaryRow({
       </span>
     </div>
   );
+}
+
+function getDefaultDateTimeLocal() {
+  const date = new Date();
+  date.setDate(date.getDate() + 1);
+  date.setHours(9, 0, 0, 0);
+
+  const offsetMs = date.getTimezoneOffset() * 60_000;
+  const localDate = new Date(date.getTime() - offsetMs);
+
+  return localDate.toISOString().slice(0, 16);
 }
 
 function getErrorMessage(error: unknown, fallback: string) {
