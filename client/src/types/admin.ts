@@ -23,9 +23,8 @@ export type AdminRole =
 export type StaffRole = Exclude<AdminRole, "Customer">;
 
 export type SubscriptionPlan =
-  | "Trial"
-  | "Starter"
-  | "Pro"
+  | "Solo"
+  | "Team"
   | "Business"
   | "Enterprise"
   | "Internal";
