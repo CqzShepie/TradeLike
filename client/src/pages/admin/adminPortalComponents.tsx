@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { authService } from "../../services/authService";
 import type { AdminAuditLog, AdminUser } from "../../types/admin";
 import { permissionDefinitions } from "./adminPortalConstants";
 import {
@@ -199,6 +200,12 @@ export function AdminNavButton({
   onClick: () => void;
   children: ReactNode;
 }) {
+  const currentUser = authService.getUser();
+
+  if (children === "Overview" && currentUser?.role !== "Director") {
+    return null;
+  }
+
   return (
     <button
       type="button"
