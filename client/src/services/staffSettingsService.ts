@@ -5,25 +5,72 @@ import type {
   StaffSettings,
 } from "../types/staffSettings";
 
-const legacyPermissionLabels: Record<string, string> = {
+const legacyPermissionLabels: Record<string, string | null> = {
+  "Customer accounts": "Customer records",
+  "Billing and subscriptions": "Payments",
   "Discounts and free months": "Offers and promotions",
+  "Password resets": "Staff password resets",
+  "Security logs": "Business settings",
+  "Audit logs": "Activity log",
+  "Data exports": "Reports and exports",
+  "Customer impersonation": null,
 };
+
+const allowedPermissions = [
+  "Full access",
+  "Customer records",
+  "Customer notes",
+  "Jobs and scheduling",
+  "Quotes and invoices",
+  "Payments",
+  "Offers and promotions",
+  "Staff password resets",
+  "Email customers",
+  "Staff management",
+  "Staff invites",
+  "Business settings",
+  "Activity log",
+  "Reports and exports",
+];
+
+const allowedPermissionSet = new Set(allowedPermissions.map(permission => permission.toLowerCase()));
 
 function clean(value?: string | null) {
   return value?.trim() ?? "";
 }
 
 function displayPermission(permission: string) {
-  return legacyPermissionLabels[permission] ?? permission;
+  const cleaned = permission.trim();
+  const mapped = legacyPermissionLabels[cleaned] ?? cleaned;
+
+  if (mapped === null) {
+    return null;
+  }
+
+  return allowedPermissionSet.has(mapped.toLowerCase()) ? mapped : null;
+}
+
+function uniquePermissions(permissions: string[]) {
+  const seen = new Set<string>();
+
+  return permissions
+    .map(displayPermission)
+    .filter((permission): permission is string => Boolean(permission))
+    .filter(permission => {
+      const key = permission.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
 }
 
 function toDisplaySettings(settings: StaffSettings): StaffSettings {
   return {
     ...settings,
-    permissionGroups: settings.permissionGroups.map(displayPermission),
+    permissionGroups: uniquePermissions([...allowedPermissions, ...settings.permissionGroups]),
     rolePresets: settings.rolePresets.map(rolePreset => ({
       ...rolePreset,
-      permissions: rolePreset.permissions.map(displayPermission),
+      permissions: uniquePermissions(rolePreset.permissions),
     })),
   };
 }
@@ -48,7 +95,7 @@ export const staffSettingsService = {
     return toDisplaySettings(await apiClient.post<StaffSettings>("/staff-settings/role-presets", {
       name: clean(request.name),
       categoryId: request.categoryId,
-      permissions: request.permissions.map(displayPermission),
+      permissions: uniquePermissions(request.permissions),
     }));
   },
 
