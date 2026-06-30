@@ -126,14 +126,21 @@ export const adminService = {
   },
 
   async createStaff(request: CreateStaffUserRequest) {
-    return (await apiClient.post("/admin/staff", {
+    const response = (await apiClient.post("/admin/staff/invite", {
       ...request,
       firstName: request.firstName.trim(),
       lastName: request.lastName.trim(),
       email: request.email.trim().toLowerCase(),
+      password: request.password ?? "",
       personalAssistantTo: request.personalAssistantTo.trim(),
       adminNotes: request.adminNotes.trim(),
-    })) as AdminUser;
+    })) as {
+      message: string;
+      inviteExpiresAt?: string | null;
+      user: AdminUser;
+    };
+
+    return response.user;
   },
 
   async updateStaffPermissions(
