@@ -12,6 +12,8 @@ public class TradeLikeDbContext : DbContext
 
     public DbSet<User> Users => Set<User>();
 
+    public DbSet<BusinessSettings> BusinessSettings => Set<BusinessSettings>();
+
     public DbSet<AdminAuditLog> AdminAuditLogs => Set<AdminAuditLog>();
 
     public DbSet<Customer> Customers => Set<Customer>();
@@ -117,6 +119,27 @@ public class TradeLikeDbContext : DbContext
             entity.HasIndex(user => user.AccountStatus);
 
             entity.HasIndex(user => user.BillingStatus);
+        });
+
+        modelBuilder.Entity<BusinessSettings>(entity =>
+        {
+            entity.Property(settings => settings.BusinessName)
+                .IsRequired()
+                .HasMaxLength(180);
+
+            entity.Property(settings => settings.DefaultVatRate)
+                .HasPrecision(5, 2)
+                .HasDefaultValue(20m);
+
+            entity.Property(settings => settings.QuotePrefix)
+                .IsRequired()
+                .HasMaxLength(20)
+                .HasDefaultValue("Q");
+
+            entity.Property(settings => settings.InvoicePrefix)
+                .IsRequired()
+                .HasMaxLength(20)
+                .HasDefaultValue("INV");
         });
 
         modelBuilder.Entity<AdminAuditLog>(entity =>
