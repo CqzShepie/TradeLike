@@ -1,4 +1,4 @@
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 using Microsoft.EntityFrameworkCore;
 using TradeLike.Api.Data;
 using TradeLike.Api.Models;
@@ -34,7 +34,7 @@ public class JobService : IJobService
     {
         return await _context.Jobs
             .AsNoTracking()
-            .OrderBy(j => j.ScheduledDate)
+            .OrderBy(job => job.ScheduledDate)
             .ToListAsync();
     }
 
@@ -42,13 +42,15 @@ public class JobService : IJobService
     {
         return await _context.Jobs
             .AsNoTracking()
-            .FirstOrDefaultAsync(j => j.Id == id);
+            .FirstOrDefaultAsync(job => job.Id == id);
     }
 
     public async Task<Job> CreateAsync(Job job)
     {
         NormaliseJob(job);
         ValidateJob(job);
+
+        job.QuoteId = null;
 
         await _context.Jobs.AddAsync(job);
         await _context.SaveChangesAsync();
@@ -105,8 +107,8 @@ public class JobService : IJobService
 
         return await _context.Jobs
             .AsNoTracking()
-            .Where(j => j.ScheduledDate >= today && j.ScheduledDate < tomorrow)
-            .OrderBy(j => j.ScheduledDate)
+            .Where(job => job.ScheduledDate >= today && job.ScheduledDate < tomorrow)
+            .OrderBy(job => job.ScheduledDate)
             .ToListAsync();
     }
 
@@ -124,8 +126,8 @@ public class JobService : IJobService
 
         return await _context.Jobs
             .AsNoTracking()
-            .Where(j => j.ScheduledDate >= start && j.ScheduledDate < end)
-            .OrderBy(j => j.ScheduledDate)
+            .Where(job => job.ScheduledDate >= start && job.ScheduledDate < end)
+            .OrderBy(job => job.ScheduledDate)
             .ToListAsync();
     }
 
