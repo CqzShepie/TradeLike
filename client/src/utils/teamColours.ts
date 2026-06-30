@@ -19,7 +19,7 @@ export const teamColours: TeamColour[] = [
   { value: "orange", label: "Orange", hex: "#ea580c", softHex: "#ffedd5" },
   { value: "rose", label: "Rose", hex: "#e11d48", softHex: "#ffe4e6" },
   { value: "pink", label: "Pink", hex: "#db2777", softHex: "#fce7f3" },
-  { value: "fuchsia", label: "Fuchsia", hex: "#c026d3", softHex: "#fae8ff" },
+  { value: "brown", label: "Brown", hex: "#92400e", softHex: "#fef3c7" },
   { value: "indigo", label: "Indigo", hex: "#4f46e5", softHex: "#e0e7ff" },
   { value: "sky", label: "Sky", hex: "#0284c7", softHex: "#e0f2fe" },
 ];
