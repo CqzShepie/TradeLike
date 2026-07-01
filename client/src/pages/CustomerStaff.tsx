@@ -1,4 +1,5 @@
 ﻿import { useEffect, useMemo, useState } from "react";
+import { useLocation } from "react-router-dom";
 import Sidebar from "../components/layout/Sidebar";
 import { customerStaffService } from "../services/customerStaffService";
 import type { CustomerStaffMember, CustomerStaffWorkspace, CustomerTeam } from "../services/customerStaffService";
@@ -13,8 +14,9 @@ type Tab = "staff" | "teams" | "leave" | "future";
 type LeaveRequest = StaffLeaveRequest;
 
 export default function CustomerStaff() {
+  const location = useLocation();
   const [workspace, setWorkspace] = useState<CustomerStaffWorkspace>(blankWorkspace);
-  const [activeTab, setActiveTab] = useState<Tab>("staff");
+  const [activeTab, setActiveTab] = useState<Tab>(() => location.pathname === "/leave" ? "leave" : "staff");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");

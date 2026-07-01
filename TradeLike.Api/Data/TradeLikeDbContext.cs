@@ -12,6 +12,10 @@ public class TradeLikeDbContext : DbContext
 
     public DbSet<User> Users => Set<User>();
 
+    public DbSet<Plan> Plans => Set<Plan>();
+
+    public DbSet<Subscription> Subscriptions => Set<Subscription>();
+
     public DbSet<BusinessSettings> BusinessSettings => Set<BusinessSettings>();
 
     public DbSet<AdminAuditLog> AdminAuditLogs => Set<AdminAuditLog>();
@@ -46,6 +50,8 @@ public class TradeLikeDbContext : DbContext
 
         modelBuilder.Entity<User>(entity =>
         {
+            entity.HasIndex(user => user.TenantId);
+
             entity.Property(user => user.FirstName)
                 .IsRequired()
                 .HasMaxLength(100);
@@ -67,7 +73,7 @@ public class TradeLikeDbContext : DbContext
             entity.Property(user => user.Role)
                 .IsRequired()
                 .HasMaxLength(40)
-                .HasDefaultValue("Customer");
+                .HasDefaultValue("CustomerDirector");
 
             entity.Property(user => user.PersonalAssistantTo)
                 .HasMaxLength(220);
@@ -133,6 +139,42 @@ public class TradeLikeDbContext : DbContext
             entity.HasIndex(user => user.AccountStatus);
 
             entity.HasIndex(user => user.BillingStatus);
+        });
+
+        modelBuilder.Entity<Plan>(entity =>
+        {
+            entity.Property(plan => plan.Name)
+                .IsRequired()
+                .HasMaxLength(40);
+
+            entity.HasIndex(plan => plan.Name)
+                .IsUnique();
+
+            entity.HasData(
+                new Plan { Id = 1, Name = "Solo", MonthlyPricePence = 3500, MaxIncludedUsers = 1, AdditionalUserCostPence = null, CreatedAt = new DateTime(2026, 7, 1, 0, 0, 0, DateTimeKind.Utc) },
+                new Plan { Id = 2, Name = "Team", MonthlyPricePence = 7500, MaxIncludedUsers = 10, AdditionalUserCostPence = null, CreatedAt = new DateTime(2026, 7, 1, 0, 0, 0, DateTimeKind.Utc) },
+                new Plan { Id = 3, Name = "Business", MonthlyPricePence = 15000, MaxIncludedUsers = 25, AdditionalUserCostPence = 500, CreatedAt = new DateTime(2026, 7, 1, 0, 0, 0, DateTimeKind.Utc) },
+                new Plan { Id = 4, Name = "Enterprise", MonthlyPricePence = null, MaxIncludedUsers = null, AdditionalUserCostPence = null, CreatedAt = new DateTime(2026, 7, 1, 0, 0, 0, DateTimeKind.Utc) });
+        });
+
+        modelBuilder.Entity<Subscription>(entity =>
+        {
+            entity.HasIndex(subscription => subscription.TenantId)
+                .IsUnique();
+
+            entity.Property(subscription => subscription.Status)
+                .IsRequired()
+                .HasMaxLength(30);
+
+            entity.HasOne(subscription => subscription.Tenant)
+                .WithOne()
+                .HasForeignKey<Subscription>(subscription => subscription.TenantId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(subscription => subscription.Plan)
+                .WithMany()
+                .HasForeignKey(subscription => subscription.PlanId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<BusinessSettings>(entity =>

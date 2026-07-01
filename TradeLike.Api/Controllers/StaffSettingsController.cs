@@ -9,7 +9,7 @@ using TradeLike.Api.Data;
 namespace TradeLike.Api.Controllers;
 
 [ApiController]
-[Authorize]
+[Authorize(Policy = "RequireDirectorRole")]
 [Route("api/staff-settings")]
 public class StaffSettingsController : ControllerBase
 {

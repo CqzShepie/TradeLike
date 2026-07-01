@@ -8,7 +8,8 @@ using TradeLike.Api.Security;
 namespace TradeLike.Api.Controllers;
 
 [ApiController]
-[Authorize(Policy = "RequireStaffRole")]
+[Authorize(Policy = "RequireManagerRole")]
+[PlanGuard(Feature.TeamManagement)]
 [Route("api/job-assignments")]
 public sealed class JobAssignmentsController : ControllerBase
 {

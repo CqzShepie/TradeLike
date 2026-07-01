@@ -6,6 +6,8 @@ public class User
 {
     public int Id { get; set; }
 
+    public int TenantId { get; set; }
+
     [Required]
     [MaxLength(100)]
     public string FirstName { get; set; } = string.Empty;
@@ -24,7 +26,7 @@ public class User
 
     [Required]
     [MaxLength(40)]
-    public string Role { get; set; } = "Customer";
+    public string Role { get; set; } = "CustomerDirector";
 
     [MaxLength(220)]
     public string? PersonalAssistantTo { get; set; }

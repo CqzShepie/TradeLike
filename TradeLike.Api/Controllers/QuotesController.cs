@@ -10,7 +10,7 @@ namespace TradeLike.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Policy = "RequireCustomerRole")]
+[Authorize(Policy = "RequireEmployeeRole")]
 public class QuotesController : ControllerBase
 {
     private readonly IQuoteService _quoteService;

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TradeLike.Api.Data;
 using TradeLike.Api.Models;
+using TradeLike.Api.Security;
 using TradeLike.Api.Services;
 
 namespace TradeLike.Api.Controllers;
@@ -65,9 +66,10 @@ public class AuthController : ControllerBase
 
         await _context.SaveChangesAsync();
 
-        var token = CreateToken(user);
+        var planName = await GetPlanNameAsync(user.TenantId == 0 ? user.Id : user.TenantId, user.SubscriptionPlan);
+        var token = CreateToken(user, planName);
 
-        return Ok(BuildAuthResponse(user, token));
+        return Ok(BuildAuthResponse(user, token, planName));
     }
 
     [EnableRateLimiting("auth-register")]
@@ -113,7 +115,7 @@ public class AuthController : ControllerBase
             LastName = "Account",
             Email = email,
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
-            Role = "Customer",
+            Role = CustomerRoles.Director,
             AccountStatus = "Trial",
             IsEmailVerified = false,
             DiscountType = "None",
@@ -124,7 +126,7 @@ public class AuthController : ControllerBase
             BusinessName = businessName,
             OwnerName = businessName,
             OwnerPhone = null,
-            SubscriptionPlan = "Trial",
+            SubscriptionPlan = "Solo",
             BillingStatus = "Trial",
             TrialEndsAt = now.AddDays(14),
             AdminTags = null,
@@ -140,23 +142,49 @@ public class AuthController : ControllerBase
         await _context.Users.AddAsync(user);
         await _context.SaveChangesAsync();
 
-        var token = CreateToken(user);
+        user.TenantId = user.Id;
 
-        return Ok(BuildAuthResponse(user, token));
+        await _context.Subscriptions.AddAsync(new Subscription
+        {
+            TenantId = user.Id,
+            PlanId = 1,
+            SeatsPurchased = 1,
+            BillingStartUtc = now,
+            NextInvoiceDateUtc = now.AddDays(14),
+            Status = "Trial"
+        });
+
+        await _context.SaveChangesAsync();
+
+        var token = CreateToken(user, "Solo");
+
+        return Ok(BuildAuthResponse(user, token, "Solo"));
     }
 
-    private string CreateToken(User user)
+    private string CreateToken(User user, string planName)
     {
         var fullName = $"{user.FirstName} {user.LastName}".Trim();
 
         return _jwtService.GenerateToken(
             userId: user.Id,
+            tenantId: user.TenantId == 0 ? user.Id : user.TenantId,
             email: user.Email,
             name: fullName,
-            role: user.Role);
+            role: user.Role,
+            plan: planName);
     }
 
-    private static object BuildAuthResponse(User user, string token)
+    private async Task<string> GetPlanNameAsync(int tenantId, string fallback)
+    {
+        var subscription = await _context.Subscriptions
+            .AsNoTracking()
+            .Include(item => item.Plan)
+            .FirstOrDefaultAsync(item => item.TenantId == tenantId);
+
+        return subscription?.Plan?.Name ?? (string.IsNullOrWhiteSpace(fallback) || fallback == "Trial" ? "Solo" : fallback);
+    }
+
+    private static object BuildAuthResponse(User user, string token, string planName)
     {
         var fullName = $"{user.FirstName} {user.LastName}".Trim();
 
@@ -169,6 +197,7 @@ public class AuthController : ControllerBase
                 email = user.Email,
                 name = fullName,
                 role = user.Role,
+                plan = planName,
                 personalAssistantTo = user.PersonalAssistantTo,
                 accountStatus = user.AccountStatus,
                 passwordResetRequired = user.PasswordResetRequired,

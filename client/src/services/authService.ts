@@ -1,6 +1,9 @@
 import { apiClient, clearToken, setToken } from "./apiClient";
 
 export type UserRole =
+  | "CustomerDirector"
+  | "CustomerManager"
+  | "CustomerEmployee"
   | "Customer"
   | "Director"
   | "Admin"
@@ -29,6 +32,7 @@ export interface AuthUser {
   email: string;
   name: string;
   role: UserRole;
+  plan?: string | null;
   personalAssistantTo?: string | null;
   accountStatus: string;
   passwordResetRequired: boolean;
@@ -169,11 +173,15 @@ export const authService = {
       return false;
     }
 
-    return user.role !== "Customer";
+    return !["Customer", "CustomerDirector", "CustomerManager", "CustomerEmployee"].includes(user.role);
   },
 
   isDirector(user = readStoredUser()) {
-    return user?.role === "Director";
+    return user?.role === "CustomerDirector" || user?.role === "Director";
+  },
+
+  isManagerOrDirector(user = readStoredUser()) {
+    return user?.role === "CustomerManager" || user?.role === "CustomerDirector";
   },
 
   hasPermission(permission: keyof AuthUser, user = readStoredUser()) {
@@ -181,7 +189,7 @@ export const authService = {
       return false;
     }
 
-    if (user.role === "Director") {
+    if (user.role === "Director" || user.role === "CustomerDirector") {
       return true;
     }
 

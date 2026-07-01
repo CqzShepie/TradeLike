@@ -1,15 +1,16 @@
 using System.Data;
 using System.Data.Common;
-using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TradeLike.Api.Data;
+using TradeLike.Api.Security;
 
 namespace TradeLike.Api.Controllers;
 
 [ApiController]
-[Authorize]
+[Authorize(Policy = "RequireManagerRole")]
+[PlanGuard(Feature.TeamManagement)]
 [Route("api/customer-staff")]
 public sealed class CustomerStaffController : ControllerBase
 {
@@ -424,7 +425,13 @@ public sealed class CustomerStaffController : ControllerBase
             var connection = _context.Database.GetDbConnection();
             await EnsureOpenAsync(connection);
             await using var command = connection.CreateCommand();
-            command.CommandText = "SELECT TOP 1 SubscriptionPlan FROM Users WHERE Id = @Id";
+            command.CommandText = """
+                SELECT TOP 1 COALESCE(p.Name, u.SubscriptionPlan)
+                FROM Users u
+                LEFT JOIN Subscriptions s ON s.TenantId = u.TenantId
+                LEFT JOIN Plans p ON p.Id = s.PlanId
+                WHERE u.TenantId = @Id
+                """;
             AddParameters(command, ("@Id", companyUserId));
             var result = await command.ExecuteScalarAsync();
             return result?.ToString() ?? "Solo";
@@ -437,8 +444,7 @@ public sealed class CustomerStaffController : ControllerBase
 
     private int GetCompanyUserId()
     {
-        var id = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
-        return int.TryParse(id, out var parsed) ? parsed : 0;
+        return TenantHelpers.GetTenantId(HttpContext);
     }
 
     private async Task<int> ExecuteNonQueryAsync(string commandText, params (string Name, object? Value)[] parameters)

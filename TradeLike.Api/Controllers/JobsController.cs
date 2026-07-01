@@ -11,7 +11,7 @@ namespace TradeLike.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Policy = "RequireCustomerRole")]
+[Authorize(Policy = "RequireEmployeeRole")]
 public class JobsController : ControllerBase
 {
     private readonly IJobService _jobService;

@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using TradeLike.Api.Configuration;
 using TradeLike.Api.Data;
+using TradeLike.Api.Security;
 using TradeLike.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -79,14 +80,23 @@ builder.Services
 
 builder.Services.AddAuthorization(options =>
 {
-    options.AddPolicy("RequireCustomerRole", policy =>
-        policy.RequireRole("Customer", "Director"));
+    options.AddPolicy("RequireEmployeeRole", policy =>
+        policy.RequireRole(CustomerRoles.Employee, CustomerRoles.Manager, CustomerRoles.Director, "Customer"));
+
+    options.AddPolicy("RequireManagerRole", policy =>
+        policy.RequireRole(CustomerRoles.Manager, CustomerRoles.Director, "Customer"));
+
+    options.AddPolicy("RequireDirectorRole", policy =>
+        policy.RequireRole(CustomerRoles.Director));
 
     options.AddPolicy("RequireStaffRole", policy =>
         policy.RequireRole("Staff", "Director"));
 
     options.AddPolicy("RequireAdminRole", policy =>
         policy.RequireRole("Director"));
+
+    options.AddPolicy("RequireCustomerRole", policy =>
+        policy.RequireRole(CustomerRoles.Employee, CustomerRoles.Manager, CustomerRoles.Director, "Customer"));
 });
 
 builder.Services.AddRateLimiter(options =>

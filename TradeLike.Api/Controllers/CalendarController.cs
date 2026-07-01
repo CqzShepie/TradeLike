@@ -8,7 +8,7 @@ using TradeLike.Api.Services;
 namespace TradeLike.Api.Controllers;
 
 [ApiController]
-[Authorize(Policy = "RequireCustomerRole")]
+[Authorize(Policy = "RequireEmployeeRole")]
 [Route("api/calendar")]
 public sealed class CalendarController : ControllerBase
 {

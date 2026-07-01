@@ -51,6 +51,7 @@ function AppRouter() {
 
         <Route path="/calendar" element={<ProtectedRoute><CalendarPage /></ProtectedRoute>} />
         <Route path="/team" element={<ProtectedRoute><CustomerStaff /></ProtectedRoute>} />
+        <Route path="/leave" element={<ProtectedRoute><CustomerStaff /></ProtectedRoute>} />
         <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
         <Route path="/support" element={<SupportCenter />} />
 
@@ -58,6 +59,7 @@ function AppRouter() {
         <Route path="/quotes/:id" element={<ProtectedRoute><QuoteDetails /></ProtectedRoute>} />
         <Route path="/invoices" element={<ProtectedRoute><Invoices /></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+        <Route path="/settings/billing" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
         <Route path="/settings/accessibility" element={<ProtectedRoute><A11ySettings /></ProtectedRoute>} />
 
         <Route

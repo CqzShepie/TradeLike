@@ -9,7 +9,8 @@ using TradeLike.Api.Security;
 namespace TradeLike.Api.Controllers;
 
 [ApiController]
-[Authorize(Policy = "RequireCustomerRole")]
+[Authorize(Policy = "RequireManagerRole")]
+[PlanGuard(Feature.LeaveManagement)]
 [Route("api/staff/leave-requests")]
 public sealed class StaffLeaveRequestsController : ControllerBase
 {

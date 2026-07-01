@@ -21,8 +21,9 @@ Required values:
 - `Jwt__ExpiryMinutes`
 - `Frontend__BaseUrl`
 - `AllowedOrigins__0`, `AllowedOrigins__1`, etc.
+- `STRIPE_WEBHOOK_SECRET`
 
-`TradeLike.Api/appsettings.json` keeps JWT and frontend URL placeholders only. The API validates required JWT, frontend URL, and CORS origin configuration at startup.
+`TradeLike.Api/appsettings.json` keeps JWT, frontend URL, and Stripe webhook placeholders only. The API validates required JWT, frontend URL, and CORS origin configuration at startup.
 
 ## Backend Setup
 
@@ -63,3 +64,4 @@ Set `VITE_API_URL` when the API is not running at the default `http://localhost:
 - Configure production secrets in the hosting provider, not in source control.
 - Run EF migrations before deploying API changes that add or modify tables.
 - Keep `AllowedOrigins` aligned with deployed frontend domains.
+- The `Plans` table is seeded by migrations with Solo, Team, Business, and Enterprise. Existing tenants are backfilled into Solo subscriptions.

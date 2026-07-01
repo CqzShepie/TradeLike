@@ -1,3 +1,5 @@
+import { toast } from "sonner";
+
 const BASE_URL = (
   import.meta.env.VITE_API_URL ?? "http://localhost:5001/api"
 ).replace(/\/$/, "");
@@ -57,6 +59,14 @@ async function request<T>(
     }
 
     throw new Error("Session expired. Please sign in again.");
+  }
+
+  if (response.status === 402) {
+    toast.error("Upgrade required");
+
+    if (!window.location.pathname.startsWith("/settings/billing")) {
+      window.location.href = "/settings/billing";
+    }
   }
 
   const responseText = await response.text();

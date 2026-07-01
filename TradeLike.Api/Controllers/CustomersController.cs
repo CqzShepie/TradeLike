@@ -9,7 +9,7 @@ namespace TradeLike.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Policy = "RequireCustomerRole")]
+[Authorize(Policy = "RequireEmployeeRole")]
 public class CustomersController : ControllerBase
 {
     private readonly ICustomerService _customerService;
