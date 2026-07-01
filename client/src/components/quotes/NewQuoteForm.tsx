@@ -10,6 +10,7 @@ import type {
 } from "../../types/quote";
 import { customersService } from "../../services/customersService";
 import { formatMoney } from "../../utils/formatMoney";
+import { SelectMenu } from "../ui";
 
 interface NewQuoteFormProps {
   onAddQuote: (quote: NewQuote) => Promise<void>;
@@ -333,7 +334,7 @@ export default function NewQuoteForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
+      className="rounded-xl border border-white/10 bg-slate-950/50 p-6 shadow-sm shadow-slate-950/30 [&_.bg-blue-50]:!bg-blue-500/10 [&_.bg-red-50]:!bg-red-950/30 [&_.bg-slate-50]:!bg-slate-900/70 [&_.bg-slate-100]:!bg-slate-900/70 [&_.bg-white]:!bg-slate-950/60 [&_.border-blue-100]:!border-blue-400/20 [&_.border-blue-200]:!border-blue-400/30 [&_.border-red-200]:!border-red-400/30 [&_.border-slate-100]:!border-white/10 [&_.border-slate-200]:!border-white/10 [&_.border-slate-300]:!border-white/10 [&_.text-blue-700]:!text-blue-200 [&_.text-red-600]:!text-red-200 [&_.text-red-700]:!text-red-200 [&_.text-slate-400]:!text-slate-500 [&_.text-slate-500]:!text-slate-400 [&_.text-slate-600]:!text-slate-300 [&_.text-slate-700]:!text-slate-300 [&_.text-slate-900]:!text-white [&_input]:!bg-slate-950/60 [&_input]:!text-white [&_input]:placeholder:!text-slate-500 [&_select]:!bg-slate-950/60 [&_select]:!text-white [&_textarea]:!bg-slate-950/60 [&_textarea]:!text-white [&_textarea]:placeholder:!text-slate-500"
     >
       <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div>
@@ -441,17 +442,12 @@ export default function NewQuoteForm({
         </Field>
 
         <Field label="Quote status">
-          <select
+          <SelectMenu
+            ariaLabel="Quote form status"
             value={status}
-            onChange={event => setStatus(event.target.value as QuoteStatus)}
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600"
-          >
-            {statuses.map(option => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </select>
+            onChange={value => setStatus(value as QuoteStatus)}
+            options={statuses.map(option => ({ value: option, label: option }))}
+          />
         </Field>
 
         <Field label="Quote title">
@@ -532,21 +528,16 @@ export default function NewQuoteForm({
 
                 <div className="grid gap-3 md:grid-cols-[160px_120px_180px_120px_150px]">
                   <Field label="Type">
-                    <select
+                    <SelectMenu
+                      ariaLabel={`Line ${index + 1} type`}
                       value={item.type}
-                      onChange={event =>
+                      onChange={value =>
                         updateLineItem(index, {
-                          type: event.target.value as QuoteLineItemType,
+                          type: value as QuoteLineItemType,
                         })
                       }
-                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-blue-600"
-                    >
-                      {lineTypes.map(type => (
-                        <option key={type} value={type}>
-                          {type}
-                        </option>
-                      ))}
-                    </select>
+                      options={lineTypes.map(type => ({ value: type, label: type }))}
+                    />
                   </Field>
 
                   <Field label="Quantity">
@@ -642,24 +633,22 @@ export default function NewQuoteForm({
         <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
           <div className="grid grid-cols-[130px_1fr] gap-3">
             <Field label="Discount type">
-              <select
+              <SelectMenu
+                ariaLabel="Discount type"
                 value={discountType}
-                onChange={event =>
-                  setDiscountType(event.target.value as QuoteDiscountType)
+                onChange={value =>
+                  setDiscountType(value as QuoteDiscountType)
                 }
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-blue-600"
-              >
-                {discountTypes.map(type => (
-                  <option key={type} value={type}>
-                    {type === "Amount" ? "£ amount" : "% percentage"}
-                  </option>
-                ))}
-              </select>
+                options={discountTypes.map(type => ({
+                  value: type,
+                  label: type === "Amount" ? "GBP amount" : "% percentage",
+                }))}
+              />
             </Field>
 
             <Field
               label={
-                discountType === "Amount" ? "Discount value (£)" : "Discount value (%)"
+                discountType === "Amount" ? "Discount value (GBP)" : "Discount value (%)"
               }
             >
               <input

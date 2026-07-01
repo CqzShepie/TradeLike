@@ -12,7 +12,7 @@ import {
   ProductPanel,
   ProductStat,
   SecondaryButton,
-  SelectInput,
+  SelectMenu,
   StatusBadge,
   TextInput,
 } from "../components/ui";
@@ -239,10 +239,15 @@ export default function Invoices() {
                     placeholder="Search invoice, customer, job, quote..."
                     className="border-white/10 bg-slate-950/60 text-white placeholder:text-slate-500"
                   />
-                  <SelectInput value={statusFilter} onChange={event => setStatusFilter(event.target.value as InvoiceStatus | "All")} className="border-white/10 bg-slate-950/60 text-white">
-                    <option value="All">All statuses</option>
-                    {statuses.map(status => <option key={status} value={status}>{status}</option>)}
-                  </SelectInput>
+                  <SelectMenu
+                    ariaLabel="Invoice status filter"
+                    value={statusFilter}
+                    onChange={value => setStatusFilter(value as InvoiceStatus | "All")}
+                    options={[
+                      { value: "All", label: "All statuses" },
+                      ...statuses.map(status => ({ value: status, label: status })),
+                    ]}
+                  />
                 </div>
               </div>
 
@@ -296,11 +301,16 @@ function CreatePanel({
         <h2 className="text-lg font-bold text-white">{title}</h2>
       </div>
       <div className="mt-4 grid gap-3">
-        <SelectInput value={selectValue} onChange={event => onSelect(event.target.value)} className="border-white/10 bg-slate-950/60 text-white">
-          <option value="">Choose source</option>
-          {options.map(option => <option key={option.id} value={option.id}>{option.label}</option>)}
-        </SelectInput>
-        <PrimaryButton type="button" onClick={onCreate} disabled={disabled} fullWidth>
+        <SelectMenu
+          ariaLabel={`${title} source`}
+          value={selectValue}
+          onChange={onSelect}
+          options={[
+            { value: "", label: "Choose source" },
+            ...options.map(option => ({ value: String(option.id), label: option.label })),
+          ]}
+        />
+        <PrimaryButton type="button" onClick={onCreate} disabled={disabled} fullWidth title={disabled ? "Choose a source first." : undefined}>
           Create invoice
         </PrimaryButton>
       </div>
@@ -330,9 +340,12 @@ function InvoiceRow({
             {invoice.quoteId && <Link to={`/quotes/${invoice.quoteId}`}>Quote #{invoice.quoteId}</Link>}
           </div>
         </div>
-        <SelectInput value={invoice.status} onChange={event => onStatusChange(event.target.value as InvoiceStatus)} className="border-white/10 bg-slate-900 text-white">
-          {statuses.map(status => <option key={status} value={status}>{status}</option>)}
-        </SelectInput>
+        <SelectMenu
+          ariaLabel={`${invoice.invoiceNumber} status`}
+          value={invoice.status}
+          onChange={value => onStatusChange(value as InvoiceStatus)}
+          options={statuses.map(status => ({ value: status, label: status }))}
+        />
         <div>
           <StatusBadge status={invoice.status} />
           <p className="mt-2 text-lg font-bold text-white">{money.format(invoice.total)}</p>

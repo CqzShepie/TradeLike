@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 
 import Quotes from "./Quotes";
@@ -53,6 +53,30 @@ describe("Quotes", () => {
 
     expect(screen.getByRole("alert")).toHaveTextContent("Unable to load quotes");
     expect(screen.queryByText(/System\.|at TradeLike/i)).not.toBeInTheDocument();
+  });
+
+  it("renders a dark status filter and opens a dark listbox", () => {
+    mockedUseQuotes.mockReturnValue({
+      quotes: [],
+      loading: false,
+      error: null,
+      addQuote: vi.fn(),
+      updateQuote: vi.fn(),
+      deleteQuote: vi.fn(),
+      startEdit: vi.fn(),
+      editingQuote: null,
+      cancelEdit: vi.fn(),
+      reloadQuotes: vi.fn(),
+    });
+
+    renderQuotes();
+
+    const statusFilter = screen.getByRole("combobox", { name: /quote status filter/i });
+    expect(statusFilter).toHaveClass("bg-slate-950/60");
+
+    fireEvent.click(statusFilter);
+
+    expect(screen.getByRole("listbox")).toHaveClass("bg-slate-950");
   });
 });
 

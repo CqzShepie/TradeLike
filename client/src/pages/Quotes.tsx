@@ -14,7 +14,7 @@ import {
   ProductPanel,
   ProductStat,
   SecondaryButton,
-  SelectInput,
+  SelectMenu,
   StatusBadge,
 } from "../components/ui";
 import type { Quote, QuoteStatus } from "../types/quote";
@@ -155,17 +155,18 @@ function Quotes() {
                 </p>
               </div>
               <div className="w-full max-w-xs">
-                <SelectInput
+                <SelectMenu
+                  ariaLabel="Quote status filter"
                   value={statusFilter}
-                  onChange={event => setStatusFilter(event.target.value as QuoteStatusFilter)}
-                  className="border-white/10 bg-slate-950/60 text-white"
-                >
-                  <option value="All">All statuses</option>
-                  <option value="Draft">Draft</option>
-                  <option value="Sent">Sent</option>
-                  <option value="Accepted">Accepted</option>
-                  <option value="Rejected">Rejected</option>
-                </SelectInput>
+                  onChange={value => setStatusFilter(value as QuoteStatusFilter)}
+                  options={[
+                    { value: "All", label: "All statuses" },
+                    { value: "Draft", label: "Draft" },
+                    { value: "Sent", label: "Sent" },
+                    { value: "Accepted", label: "Accepted" },
+                    { value: "Rejected", label: "Rejected" },
+                  ]}
+                />
               </div>
             </div>
 

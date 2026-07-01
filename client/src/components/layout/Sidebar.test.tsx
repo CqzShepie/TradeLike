@@ -84,11 +84,12 @@ describe("Sidebar", () => {
     expect(screen.getByText("Dashboard")).toBeInTheDocument();
   });
 
-  it("does not show API, Branding or Import Export as top-level sidebar items", () => {
+  it("does not show premium settings or Inventory as top-level Solo sidebar items", () => {
     localStorage.setItem("tradelike_user", JSON.stringify(soloDirectorUser));
 
     renderSidebarWithLocation();
 
+    expect(screen.queryByRole("link", { name: /inventory/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /api/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /branding/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /import \/ export/i })).not.toBeInTheDocument();

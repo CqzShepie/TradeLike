@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import WeekGrid from "./WeekGrid";
 import WeekNavigation from "./WeekNavigation";
 import RouteMapModal from "./RouteMapModal";
+import { SelectMenu } from "../ui";
 import { useWeekJobs } from "../../hooks/useWeekJobs";
 import { jobsService } from "../../services/jobsService";
 import { customerStaffService } from "../../services/customerStaffService";
@@ -138,6 +139,12 @@ export default function WeekCalendar() {
     function handleNextWeek() { setCurrentWeek(previous => { const date = new Date(previous); date.setDate(date.getDate() + 7); return startOfWeek(date); }); }
 
     const selectedEngineerId = selectedCalendar.startsWith("staff:") ? Number(selectedCalendar.replace("staff:", "")) : null;
+    const calendarOptions = [
+        { value: "all", label: "Merged: everyone" },
+        ...(canUseStaffScheduling ? [{ value: "unassigned", label: "Unassigned jobs" }] : []),
+        ...(canUseStaffScheduling ? members.map(member => ({ value: `staff:${member.id}`, label: `${member.firstName} ${member.lastName}` })) : []),
+        ...(canUseStaffScheduling ? teams.map(team => ({ value: `team:${team.id}`, label: `Team: ${team.name}` })) : []),
+    ];
 
     return (
         <div className="relative overflow-x-auto rounded-2xl border border-white/10 bg-slate-900/80 shadow-2xl shadow-slate-950/20">
@@ -164,25 +171,14 @@ export default function WeekCalendar() {
                             Optimise Route
                         </button>
                     )}
-                    <select
-                        className="rounded-lg border border-white/10 bg-slate-950/70 px-3 py-2 text-xs font-semibold text-slate-100 outline-none focus:ring-2 focus:ring-blue-500"
+                    <SelectMenu
+                        ariaLabel="Calendar dispatch filter"
                         value={selectedCalendar}
-                        onChange={event => setSelectedCalendar(event.target.value)}
+                        onChange={setSelectedCalendar}
                         disabled={!canUseStaffScheduling}
-                    >
-                        <option value="all">Merged: everyone</option>
-                        {canUseStaffScheduling && <option value="unassigned">Unassigned jobs</option>}
-                        {canUseStaffScheduling && members.map(member => (
-                            <option key={member.id} value={`staff:${member.id}`}>
-                                {member.firstName} {member.lastName}
-                            </option>
-                        ))}
-                        {canUseStaffScheduling && teams.map(team => (
-                            <option key={team.id} value={`team:${team.id}`}>
-                                Team: {team.name}
-                            </option>
-                        ))}
-                    </select>
+                        options={calendarOptions}
+                        buttonClassName="px-3 py-2 text-xs"
+                    />
                 </div>
             </div>
             <WeekGrid

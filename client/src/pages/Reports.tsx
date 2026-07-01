@@ -10,7 +10,7 @@ import {
   ProductPanel,
   ProductStat,
   SecondaryButton,
-  SelectInput,
+  SelectMenu,
 } from "../components/ui";
 import { customerStaffService } from "../services/customerStaffService";
 import { jobAssignmentsService } from "../services/jobAssignmentsService";
@@ -174,14 +174,24 @@ export default function Reports() {
         <>
           <ProductPanel>
             <div className="grid gap-3 md:grid-cols-2">
-              <SelectInput value={teamFilter} onChange={event => setTeamFilter(event.target.value)} className="border-white/10 bg-slate-950/60 text-white">
-                <option value="all">All teams</option>
-                {workspace.teams.map(team => <option key={team.id} value={team.id}>{team.name}</option>)}
-              </SelectInput>
-              <SelectInput value={staffFilter} onChange={event => setStaffFilter(event.target.value)} className="border-white/10 bg-slate-950/60 text-white">
-                <option value="all">All staff</option>
-                {workspace.members.map(member => <option key={member.id} value={member.id}>{member.firstName} {member.lastName}</option>)}
-              </SelectInput>
+              <SelectMenu
+                ariaLabel="Reports team filter"
+                value={teamFilter}
+                onChange={setTeamFilter}
+                options={[
+                  { value: "all", label: "All teams" },
+                  ...workspace.teams.map(team => ({ value: String(team.id), label: team.name })),
+                ]}
+              />
+              <SelectMenu
+                ariaLabel="Reports staff filter"
+                value={staffFilter}
+                onChange={setStaffFilter}
+                options={[
+                  { value: "all", label: "All staff" },
+                  ...workspace.members.map(member => ({ value: String(member.id), label: `${member.firstName} ${member.lastName}` })),
+                ]}
+              />
             </div>
           </ProductPanel>
 
