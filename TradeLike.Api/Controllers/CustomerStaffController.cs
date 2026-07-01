@@ -14,10 +14,12 @@ namespace TradeLike.Api.Controllers;
 public sealed class CustomerStaffController : ControllerBase
 {
     private readonly TradeLikeDbContext _context;
+    private readonly IConfiguration _configuration;
 
-    public CustomerStaffController(TradeLikeDbContext context)
+    public CustomerStaffController(TradeLikeDbContext context, IConfiguration configuration)
     {
         _context = context;
+        _configuration = configuration;
     }
 
     [HttpGet]
@@ -113,15 +115,16 @@ public sealed class CustomerStaffController : ControllerBase
         }
 
         var now = DateTime.UtcNow;
+        var inviteExpiresAt = now.AddDays(14);
         var token = Guid.NewGuid().ToString("N");
 
         var memberId = await ExecuteScalarIntAsync(
             """
             INSERT INTO CustomerStaffMembers
-                (CompanyUserId, FirstName, LastName, Email, Phone, RoleName, Status, PermissionPresetName, Skills, ServiceArea, WorkingHours, CalendarColour, IsTwoFactorRequired, LastLoginAt, InviteToken, InviteSentAt, InviteAcceptedAt, ResetPasswordRequestedAt, CreatedAt, UpdatedAt)
+                (CompanyUserId, FirstName, LastName, Email, Phone, RoleName, Status, PermissionPresetName, Skills, ServiceArea, WorkingHours, CalendarColour, IsTwoFactorRequired, LastLoginAt, InviteToken, InviteSentAt, InviteExpiresAt, InviteAcceptedAt, ResetPasswordRequestedAt, CreatedAt, UpdatedAt)
             OUTPUT INSERTED.Id
             VALUES
-                (@CompanyUserId, @FirstName, @LastName, @Email, @Phone, @RoleName, 'InvitePending', @PermissionPresetName, @Skills, @ServiceArea, @WorkingHours, @CalendarColour, 0, NULL, @InviteToken, @InviteSentAt, NULL, NULL, @CreatedAt, @UpdatedAt)
+                (@CompanyUserId, @FirstName, @LastName, @Email, @Phone, @RoleName, 'InvitePending', @PermissionPresetName, @Skills, @ServiceArea, @WorkingHours, @CalendarColour, 0, NULL, @InviteToken, @InviteSentAt, @InviteExpiresAt, NULL, NULL, @CreatedAt, @UpdatedAt)
             """,
             ("@CompanyUserId", companyUserId),
             ("@FirstName", firstName),
@@ -136,14 +139,15 @@ public sealed class CustomerStaffController : ControllerBase
             ("@CalendarColour", CleanOptional(request.CalendarColour, 40) ?? "blue"),
             ("@InviteToken", token),
             ("@InviteSentAt", now),
+            ("@InviteExpiresAt", inviteExpiresAt),
             ("@CreatedAt", now),
             ("@UpdatedAt", now));
 
         await ReplaceMemberTeamsAsync(memberId, companyUserId, request.TeamIds);
 
         var workspace = await LoadWorkspaceAsync();
-        var origin = Request.Headers.Origin.FirstOrDefault() ?? Request.Headers.Referer.FirstOrDefault()?.TrimEnd('/') ?? "http://localhost:5173";
-        var inviteLink = $"{origin}/accept-company-staff-invite?token={token}";
+        var frontendBaseUrl = _configuration["Frontend:BaseUrl"]?.TrimEnd('/');
+        var inviteLink = $"{frontendBaseUrl}/accept-company-staff-invite?token={Uri.EscapeDataString(token)}";
 
         return Ok(new CreateCustomerStaffMemberResponse(workspace, inviteLink));
     }

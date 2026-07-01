@@ -398,6 +398,11 @@ public class TradeLikeDbContext : DbContext
 
             entity.Property(member => member.InviteToken)
                 .HasMaxLength(120);
+
+            entity.Property(member => member.InviteExpiresAt)
+                .HasDefaultValueSql("DATEADD(day, 14, SYSUTCDATETIME())");
+
+            entity.HasIndex(member => member.InviteExpiresAt);
         });
 
         modelBuilder.Entity<CustomerStaffMemberTeam>(entity =>

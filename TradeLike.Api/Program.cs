@@ -44,6 +44,8 @@ var jwt = jwtSection.Get<JwtSettings>()
     ?? throw new InvalidOperationException("Jwt configuration is required.");
 
 ValidateJwtSettings(jwt);
+var frontendBaseUrl = builder.Configuration["Frontend:BaseUrl"];
+ValidateFrontendBaseUrl(frontendBaseUrl);
 
 builder.Services
     .AddOptions<JwtSettings>()
@@ -106,6 +108,18 @@ builder.Services.AddRateLimiter(options =>
             factory: _ => new FixedWindowRateLimiterOptions
             {
                 PermitLimit = 3,
+                Window = TimeSpan.FromMinutes(10),
+                QueueLimit = 0,
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                AutoReplenishment = true
+            }));
+
+    options.AddPolicy("company-staff-invite", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: GetClientIpAddress(context),
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 5,
                 Window = TimeSpan.FromMinutes(10),
                 QueueLimit = 0,
                 QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
@@ -208,6 +222,21 @@ static bool IsMissingOrPlaceholder(string value)
 {
     return string.IsNullOrWhiteSpace(value) ||
         string.Equals(value, JwtSettings.EnvironmentPlaceholder, StringComparison.OrdinalIgnoreCase);
+}
+
+static void ValidateFrontendBaseUrl(string? baseUrl)
+{
+    if (string.IsNullOrWhiteSpace(baseUrl) ||
+        string.Equals(baseUrl, JwtSettings.EnvironmentPlaceholder, StringComparison.OrdinalIgnoreCase))
+    {
+        throw new InvalidOperationException("Frontend:BaseUrl must be set in configuration or environment.");
+    }
+
+    if (!Uri.TryCreate(baseUrl, UriKind.Absolute, out var uri) ||
+        (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+    {
+        throw new InvalidOperationException("Frontend:BaseUrl must be an absolute HTTP or HTTPS URL.");
+    }
 }
 
 static string GetClientIpAddress(HttpContext context)

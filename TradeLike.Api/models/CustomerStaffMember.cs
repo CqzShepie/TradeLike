@@ -61,6 +61,8 @@ public class CustomerStaffMember
 
     public DateTime? InviteSentAt { get; set; }
 
+    public DateTime? InviteExpiresAt { get; set; }
+
     public DateTime? InviteAcceptedAt { get; set; }
 
     public DateTime? ResetPasswordRequestedAt { get; set; }

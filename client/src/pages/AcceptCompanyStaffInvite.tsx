@@ -9,14 +9,13 @@ type InvitePreview = {
   roleName: string;
   status: string;
   inviteSentAt?: string | null;
+  inviteExpiresAt?: string | null;
   inviteAcceptedAt?: string | null;
 };
 
 export default function AcceptCompanyStaffInvite() {
   const token = new URLSearchParams(window.location.search).get("token") ?? "";
   const [preview, setPreview] = useState<InvitePreview | null>(null);
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -25,10 +24,12 @@ export default function AcceptCompanyStaffInvite() {
   useEffect(() => {
     async function load() {
       try {
-        const result = await apiClient.get(`/customer-staff-invites/preview?token=${encodeURIComponent(token)}`) as InvitePreview;
+        const result = await apiClient.get(
+          `/customer-staff-invites/preview?token=${encodeURIComponent(token)}`
+        ) as InvitePreview;
         setPreview(result);
       } catch {
-        setError("This invite link could not be found.");
+        setError("This invite link could not be found or has expired.");
       } finally {
         setLoading(false);
       }
@@ -38,22 +39,12 @@ export default function AcceptCompanyStaffInvite() {
   }, [token]);
 
   async function acceptInvite() {
-    if (password.length < 8) {
-      setError("Password must be at least 8 characters.");
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      setError("Passwords do not match.");
-      return;
-    }
-
     try {
       setSaving(true);
       setError("");
-      const result = await apiClient.post("/customer-staff-invites/accept", { token, password }) as InvitePreview;
+      const result = await apiClient.post("/customer-staff-invites/accept", { token }) as InvitePreview;
       setPreview(result);
-      setMessage("Invite accepted. You can now return to the login page once account login is enabled for company staff.");
+      setMessage("Invite accepted. Company staff login is pending and will be enabled in a later update.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to accept invite.");
     } finally {
@@ -76,16 +67,31 @@ export default function AcceptCompanyStaffInvite() {
             <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
               <p className="font-bold text-slate-900">{preview.firstName} {preview.lastName}</p>
               <p>{preview.email}</p>
-              <p className="mt-1 text-blue-700">{preview.roleName} · {preview.status}</p>
+              <p className="mt-1 text-blue-700">{preview.roleName} - {preview.status}</p>
+              {preview.inviteExpiresAt && (
+                <p className="mt-2 text-xs text-slate-500">
+                  Expires {new Date(preview.inviteExpiresAt).toLocaleString("en-GB")}
+                </p>
+              )}
             </div>
 
             {preview.status === "Active" ? (
-              <p className="text-sm text-slate-600">This invite has already been accepted.</p>
+              <p className="text-sm text-slate-600">
+                This invite has been accepted. Company staff login is pending and will be enabled in a later update.
+              </p>
             ) : (
               <>
-                <input type="password" value={password} onChange={event => setPassword(event.target.value)} placeholder="Create password" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600" />
-                <input type="password" value={confirmPassword} onChange={event => setConfirmPassword(event.target.value)} placeholder="Confirm password" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600" />
-                <button type="button" disabled={saving} onClick={acceptInvite} className="w-full rounded-lg bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:bg-slate-300">{saving ? "Accepting..." : "Accept invite"}</button>
+                <p className="rounded-lg border border-blue-100 bg-blue-50 p-3 text-sm text-blue-800">
+                  Accepting this invite activates your company staff profile. Password login for company staff is not enabled yet.
+                </p>
+                <button
+                  type="button"
+                  disabled={saving}
+                  onClick={acceptInvite}
+                  className="w-full rounded-lg bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:bg-slate-300"
+                >
+                  {saving ? "Accepting..." : "Accept invite"}
+                </button>
               </>
             )}
           </div>
