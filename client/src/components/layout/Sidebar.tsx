@@ -6,6 +6,13 @@ import Logo from "./Logo";
 import { useGlobalSearch } from "../../contexts/useGlobalSearch";
 import { useAuth } from "../../hooks/useAuth";
 
+type SidebarNavItem = {
+  to: string;
+  label: string;
+  icon: typeof LayoutDashboard;
+  end?: boolean;
+};
+
 function Sidebar() {
   const [showHomeConfirm, setShowHomeConfirm] = useState(false);
   const navigate = useNavigate();
@@ -19,12 +26,12 @@ function Sidebar() {
     };
   }, []);
 
-  const navItems = [
-    { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  const navItems: SidebarNavItem[] = [
+    { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, end: true },
     { to: "/customers", label: "Customers", icon: Users },
     { to: "/jobs", label: "Jobs", icon: Briefcase },
     { to: "/quotes", label: "Quotes", icon: FileText },
-    { to: "/calendar", label: "Calendar", icon: CalendarDays },
+    { to: "/calendar", label: "Calendar", icon: CalendarDays, end: true },
     ...(isManagerOrDirector
       ? [
           { to: "/team", label: "Team", icon: UserCog },
@@ -36,12 +43,12 @@ function Sidebar() {
       : []),
     ...(isDirector
       ? [
-          { to: "/settings/api", label: "API", icon: Code2 },
-          { to: "/settings/branding", label: "Branding", icon: Palette },
-          { to: "/settings/import-export", label: "Import / Export", icon: UploadCloud },
+          { to: "/settings/api", label: "API", icon: Code2, end: true },
+          { to: "/settings/branding", label: "Branding", icon: Palette, end: true },
+          { to: "/settings/import-export", label: "Import / Export", icon: UploadCloud, end: true },
         ]
       : []),
-    { to: "/settings", label: "Settings", icon: Settings2 },
+    { to: "/settings", label: "Settings", icon: Settings2, end: true },
   ];
 
   function goToHomeScreen() {
@@ -70,6 +77,7 @@ function Sidebar() {
             <NavLink
               key={item.to}
               to={item.to}
+              end={item.end}
               className={({ isActive }) =>
                 [
                   "group flex items-center gap-3 rounded-2xl border px-4 py-3 text-sm font-medium transition",
