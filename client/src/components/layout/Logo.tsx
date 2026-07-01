@@ -11,7 +11,10 @@ function Logo({ tone = "light", className }: LogoProps) {
   return (
     <Link
       to="/"
-      className={classNames("inline-flex items-center gap-3 font-bold transition hover:opacity-90", className)}
+      className={classNames(
+        "inline-flex flex-none items-center gap-3 whitespace-nowrap font-bold transition hover:opacity-90",
+        className
+      )}
     >
       <span
         className={classNames(
@@ -25,12 +28,12 @@ function Logo({ tone = "light", className }: LogoProps) {
       </span>
       <span
         className={classNames(
-          "text-[1.05rem] tracking-[0.02em] sm:text-[1.15rem]",
+          "whitespace-nowrap text-[1.05rem] leading-none tracking-[0.01em] sm:text-[1.15rem]",
           tone === "dark" ? "text-white" : "text-slate-950"
         )}
       >
         <span className="font-extrabold">TRADE</span>
-        <span className="font-extrabold text-blue-500">LIKE</span>
+        <span className="font-extrabold text-blue-400">LIKE</span>
       </span>
     </Link>
   );

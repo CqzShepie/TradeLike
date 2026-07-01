@@ -247,14 +247,7 @@ function Customers() {
                   editingCustomer={editingCustomer}
                   onCancelEdit={handleCloseForm}
                 />
-              ) : (
-                <Card tone="dark" padding="lg" className="border-slate-800">
-                  <h2 className="text-xl font-bold text-white">Quick start</h2>
-                  <p className="mt-2 text-sm leading-6 text-slate-300">
-                    Add a customer to capture contact details, job notes and follow-up information. Use the list on the left to search and manage records.
-                  </p>
-                </Card>
-              )}
+              ) : null}
             </div>
           </>
         )}
