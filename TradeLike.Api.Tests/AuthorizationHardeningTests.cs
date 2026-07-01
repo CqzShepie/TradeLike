@@ -17,6 +17,18 @@ namespace TradeLike.Api.Tests;
 
 public sealed class AuthorizationHardeningTests
 {
+    [Theory]
+    [InlineData("Director")]
+    [InlineData("Customer")]
+    [InlineData("CustomerDirector")]
+    [InlineData("director")]
+    public void LegacyOwnerRolesNormaliseToCustomerDirector(string role)
+    {
+        Assert.Equal(CustomerRoles.Director, CustomerRoles.Normalize(role));
+        Assert.True(CustomerRoles.IsDirector(role));
+        Assert.True(CustomerRoles.IsCustomerRole(role));
+    }
+
     [Fact]
     public async Task CrossTenantJobReadReturns404()
     {

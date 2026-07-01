@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using System.Security.Claims;
 using System.Threading.RateLimiting;
 using Azure.Identity;
 using Azure.Security.KeyVault.Secrets;
@@ -206,55 +207,29 @@ builder.Services.AddAuthorization(options =>
      */
 
     options.AddPolicy("RequireCustomerRole", policy =>
-        policy.RequireRole(
-            "Customer",
-            "CustomerEmployee",
-            "CustomerManager",
-            "CustomerDirector",
-            "Director"
-        ));
+        policy.RequireAssertion(context => HasAnyRole(context.User, CustomerRoles.EmployeeRoles)));
 
     options.AddPolicy("RequireEmployeeRole", policy =>
-        policy.RequireRole(
-            "Customer",
-            "CustomerEmployee",
-            "CustomerManager",
-            "CustomerDirector",
-            "Director"
-        ));
+        policy.RequireAssertion(context => HasAnyRole(context.User, CustomerRoles.EmployeeRoles)));
 
     options.AddPolicy("RequireManagerRole", policy =>
-        policy.RequireRole(
-            "CustomerManager",
-            "CustomerDirector",
-            "Director"
-        ));
+        policy.RequireAssertion(context => HasAnyRole(context.User, CustomerRoles.ManagerRoles)));
 
     options.AddPolicy("RequireLeaderRole", policy =>
-        policy.RequireRole(
-            "CustomerManager",
-            "CustomerDirector",
-            "Director"
-        ));
+        policy.RequireAssertion(context => HasAnyRole(context.User, CustomerRoles.ManagerRoles)));
 
     options.AddPolicy("RequireDirectorRole", policy =>
-        policy.RequireRole(
-            "CustomerDirector",
-            "Director"
-        ));
+        policy.RequireAssertion(context => HasAnyRole(context.User, CustomerRoles.DirectorRoles)));
 
     options.AddPolicy("RequireAdminRole", policy =>
-        policy.RequireRole(
-            "CustomerDirector",
-            "Director"
-        ));
+        policy.RequireAssertion(context => HasAnyRole(context.User, CustomerRoles.DirectorRoles)));
 
     options.AddPolicy("RequireStaffRole", policy =>
-        policy.RequireRole(
-            "Staff",
-            "Director",
-            "CustomerDirector"
-        ));
+        policy.RequireAssertion(context => HasAnyRole(context.User,
+            CustomerRoles.Staff,
+            CustomerRoles.LegacyDirector,
+            CustomerRoles.Director
+        )));
 });
 
 builder.Services.AddRateLimiter(options =>
@@ -512,6 +487,19 @@ static void ValidateAllowedOrigins(IReadOnlyCollection<string> origins)
             throw new InvalidOperationException("AllowedOrigins entries must be absolute HTTP or HTTPS origins.");
         }
     }
+}
+
+static bool HasAnyRole(ClaimsPrincipal user, params string[] allowedRoles)
+{
+    var allowed = allowedRoles
+        .Select(CustomerRoles.Normalize)
+        .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+    return user
+        .FindAll(ClaimTypes.Role)
+        .Concat(user.FindAll("role"))
+        .Select(claim => CustomerRoles.Normalize(claim.Value))
+        .Any(allowed.Contains);
 }
 
 static string GetClientIpAddress(HttpContext context)

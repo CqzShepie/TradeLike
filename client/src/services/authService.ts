@@ -95,7 +95,10 @@ export function normalizeUserRole(role: UserRole | string | null | undefined): U
 
 function saveSession(response: LoginResponse) {
   localStorage.setItem("tradelike_token", response.token);
-  localStorage.setItem("tradelike_user", JSON.stringify(response.user));
+  localStorage.setItem("tradelike_user", JSON.stringify({
+    ...response.user,
+    role: normalizeUserRole(response.user.role),
+  }));
 
   setToken(response.token);
 }
@@ -108,7 +111,11 @@ function readStoredUser() {
   }
 
   try {
-    return JSON.parse(rawUser) as AuthUser;
+    const user = JSON.parse(rawUser) as AuthUser;
+    return {
+      ...user,
+      role: normalizeUserRole(user.role),
+    };
   } catch {
     localStorage.removeItem("tradelike_user");
     return null;

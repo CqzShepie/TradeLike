@@ -164,13 +164,14 @@ public class AuthController : ControllerBase
     private string CreateToken(User user, string planName)
     {
         var fullName = $"{user.FirstName} {user.LastName}".Trim();
+        var role = CustomerRoles.Normalize(user.Role);
 
         return _jwtService.GenerateToken(
             userId: user.Id,
             tenantId: user.TenantId == 0 ? user.Id : user.TenantId,
             email: user.Email,
             name: fullName,
-            role: user.Role,
+            role: role,
             plan: planName);
     }
 
@@ -187,6 +188,7 @@ public class AuthController : ControllerBase
     private static object BuildAuthResponse(User user, string token, string planName)
     {
         var fullName = $"{user.FirstName} {user.LastName}".Trim();
+        var role = CustomerRoles.Normalize(user.Role);
 
         return new
         {
@@ -196,7 +198,7 @@ public class AuthController : ControllerBase
                 id = user.Id,
                 email = user.Email,
                 name = fullName,
-                role = user.Role,
+                role,
                 plan = planName,
                 personalAssistantTo = user.PersonalAssistantTo,
                 accountStatus = user.AccountStatus,
