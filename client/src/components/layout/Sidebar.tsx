@@ -32,9 +32,7 @@ function Sidebar() {
   return (
     <>
       <aside className="fixed inset-y-0 left-0 z-40 flex w-72 flex-col border-r border-white/10 bg-slate-950 px-5 py-6 text-slate-100 shadow-2xl shadow-slate-950/40">
-        <button type="button" onClick={() => setShowHomeConfirm(true)} className="mb-8 flex items-center justify-start">
-          <Logo tone="dark" />
-        </button>
+        <Logo tone="dark" onClick={() => setShowHomeConfirm(true)} className="mb-8" />
 
         <nav className="flex flex-col gap-2">
           {navItems.map(item => (

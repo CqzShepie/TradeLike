@@ -5,17 +5,17 @@ import { classNames } from "../ui/classNames";
 type LogoProps = {
   tone?: "light" | "dark";
   className?: string;
+  onClick?: () => void;
 };
 
-function Logo({ tone = "light", className }: LogoProps) {
-  return (
-    <Link
-      to="/"
-      className={classNames(
-        "inline-flex flex-none items-center gap-3 whitespace-nowrap font-bold transition hover:opacity-90",
-        className
-      )}
-    >
+function Logo({ tone = "light", className, onClick }: LogoProps) {
+  const classes = classNames(
+    "inline-flex flex-none items-center gap-3 whitespace-nowrap font-bold transition hover:opacity-90",
+    className
+  );
+
+  const content = (
+    <>
       <span
         className={classNames(
           "inline-flex h-10 w-10 items-center justify-center rounded-2xl border",
@@ -35,6 +35,20 @@ function Logo({ tone = "light", className }: LogoProps) {
         <span className="font-extrabold">TRADE</span>
         <span className="font-extrabold text-blue-400">LIKE</span>
       </span>
+    </>
+  );
+
+  if (onClick) {
+    return (
+      <button type="button" onClick={onClick} className={classes}>
+        {content}
+      </button>
+    );
+  }
+
+  return (
+    <Link to="/" className={classes}>
+      {content}
     </Link>
   );
 }
