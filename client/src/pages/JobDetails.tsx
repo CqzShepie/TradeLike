@@ -1,8 +1,9 @@
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 
 import JobDetailsAssignmentPanel from "../components/jobs/JobDetailsAssignmentPanel";
+import JobQuoteLinkPanel from "../components/jobs/JobQuoteLinkPanel";
 import { ProductPage, ProductPanel } from "../components/ui";
 import type { Job, JobPriority, JobStatus } from "../types/job";
 import { jobsService } from "../services/jobsService";
@@ -17,13 +18,14 @@ const priorities: JobPriority[] = ["Low", "Normal", "High", "Urgent"];
 
 export default function JobDetails() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [job, setJob] = useState<Job | null>(null);
   const [form, setForm] = useState<Job | null>(null);
   const [editing, setEditing] = useState(false);
-  const [quoteNumber, setQuoteNumber] = useState("");
   const [newNote, setNewNote] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [deleting, setDeleting] = useState(false);
   const { user } = useAuth();
   const showStaffScheduling = canUseStaffScheduling(user);
 
@@ -60,38 +62,6 @@ export default function JobDetails() {
     setMessage("Job saved.");
   }
 
-  async function linkQuote(event: FormEvent) {
-    event.preventDefault();
-
-    if (!job) {
-      return;
-    }
-
-    const quoteId = Number(quoteNumber);
-
-    if (!Number.isInteger(quoteId) || quoteId <= 0) {
-      setError("Enter a valid quote number.");
-      return;
-    }
-
-    const updated = await jobsService.linkQuote(job.id, quoteId);
-    setJob(updated);
-    setForm(updated);
-    setQuoteNumber("");
-    setMessage(`Linked Quote #${quoteId}.`);
-  }
-
-  async function unlinkQuote() {
-    if (!job) {
-      return;
-    }
-
-    const updated = await jobsService.unlinkQuote(job.id);
-    setJob(updated);
-    setForm(updated);
-    setMessage("Quote link removed.");
-  }
-
   async function saveNotes(nextNotes: string[]) {
     if (!job) {
       return;
@@ -120,6 +90,32 @@ export default function JobDetails() {
   async function removeNote(index: number) {
     await saveNotes(notes.filter((_, itemIndex) => itemIndex !== index));
     setMessage("Note removed.");
+  }
+
+  async function deleteJob() {
+    if (!job) {
+      return;
+    }
+
+    const confirmation = job.status === "Completed"
+      ? "Completed job records should normally be kept. Delete anyway?"
+      : "Are you sure you want to delete this job?";
+
+    if (!window.confirm(confirmation)) {
+      return;
+    }
+
+    try {
+      setDeleting(true);
+      setError("");
+      await jobsService.delete(job.id);
+      setMessage("Job deleted.");
+      navigate("/jobs");
+    } catch (err) {
+      setError(err instanceof Error && err.message.trim() !== "" ? err.message : "Unable to delete job.");
+    } finally {
+      setDeleting(false);
+    }
   }
 
   return (
@@ -185,7 +181,7 @@ export default function JobDetails() {
               <div className="mt-4 max-h-72 space-y-2 overflow-y-auto pr-2">
                 {notes.length === 0 && (
                   <p className="rounded-lg border border-dashed border-white/10 bg-slate-900 p-4 text-sm text-slate-400">
-                    No notes added yet.
+                    Nothing recorded yet.
                   </p>
                 )}
                 {notes.map((note, index) => (
@@ -197,30 +193,28 @@ export default function JobDetails() {
 
           <aside className="space-y-6">
             {showStaffScheduling && <JobDetailsAssignmentPanel job={job} />}
-            <ProductPanel>
-              <h2 className="text-lg font-bold text-white">Quote link</h2>
-              <form onSubmit={linkQuote} className="mt-4 flex gap-2">
-                <input
-                  value={quoteNumber}
-                  onChange={event => setQuoteNumber(event.target.value)}
-                  placeholder="Quote number"
-                  className="min-w-0 flex-1 rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white placeholder:text-slate-500"
-                />
-                <button type="submit" className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white">
-                  Link
-                </button>
-              </form>
-              {job.quoteId && (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <Link to={`/quotes/${job.quoteId}`} className="rounded-lg border border-blue-400/30 px-3 py-2 text-xs font-semibold text-blue-200 hover:bg-blue-500/10">
-                    Open quote
-                  </Link>
-                  <button type="button" onClick={unlinkQuote} className="rounded-lg border border-white/10 px-3 py-2 text-xs font-semibold text-slate-100 hover:bg-white/10">
-                    Remove link
-                  </button>
-                </div>
-              )}
-            </ProductPanel>
+            <JobQuoteLinkPanel
+              job={job}
+              onJobChange={updated => {
+                setJob(updated);
+                setForm(updated);
+              }}
+            />
+            <div className="rounded-xl border border-red-400/30 bg-red-950/30 p-5">
+              <p className="text-xs font-semibold uppercase tracking-wide text-red-200">Danger zone</p>
+              <h2 className="mt-2 text-lg font-bold text-white">Delete job</h2>
+              <p className="mt-2 text-sm leading-6 text-red-100/80">
+                Remove this job only if it was created in error. Completed job records should normally be kept.
+              </p>
+              <button
+                type="button"
+                onClick={deleteJob}
+                disabled={deleting}
+                className="mt-4 rounded-lg border border-red-300/40 px-4 py-2 text-sm font-semibold text-red-100 hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {deleting ? "Deleting..." : "Delete job"}
+              </button>
+            </div>
           </aside>
         </div>
       )}

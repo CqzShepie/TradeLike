@@ -173,6 +173,12 @@ export function canUseStaffScheduling(user: Pick<AuthUser, "plan" | "role"> | nu
     roleAllowsFeature(user?.role, "staff-scheduling");
 }
 
+export function canViewCustomerHistory(user: Pick<AuthUser, "plan" | "role" | "canViewAuditLogs"> | null | undefined) {
+  return Boolean(user) &&
+    planIncludesFeature(user?.plan, "team-management") &&
+    (roleAllowsFeature(user?.role, "team-management") || Boolean(user?.canViewAuditLogs));
+}
+
 export function canAccessRoute(user: AuthUser | null, routeConfig: EntitlementRouteConfig): AccessDecision {
   if (!user) {
     return "denied";

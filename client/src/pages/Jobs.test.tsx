@@ -139,6 +139,43 @@ describe("Jobs", () => {
     }));
   });
 
+  it("shows the linked quote section inside the job edit form", () => {
+    setStoredUser("Solo", "CustomerDirector");
+    vi.mocked(useJobs).mockReturnValue({
+      jobs: [],
+      loading: false,
+      error: null,
+      reloadJobs: vi.fn(),
+      addJob: vi.fn(),
+      deleteJob: vi.fn(),
+      updateJob: vi.fn(),
+      editingJob: {
+        id: 1,
+        customer: "Sarah Johnson",
+        phone: "07981 125031",
+        jobTitle: "Boiler service",
+        address: "1 Trade Street",
+        scheduledDate: "2026-07-02T09:00",
+        status: "Scheduled",
+        priority: "Normal",
+        quoteId: null,
+        sourceQuote: null,
+      },
+      startEdit: vi.fn(),
+      cancelEdit: vi.fn(),
+    });
+
+    render(
+      <MemoryRouter>
+        <Jobs />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByText("Linked quote")).toBeInTheDocument();
+    expect(screen.getByText("No quote linked")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /link quote/i })).toBeInTheDocument();
+  });
+
   it("hides staff and team controls for Solo users in the job workspace", () => {
     setStoredUser("Solo", "CustomerDirector");
     vi.mocked(useJobs).mockReturnValue({

@@ -4,6 +4,7 @@ import { MemoryRouter } from "react-router-dom";
 import Quotes from "./Quotes";
 import { useQuotes } from "../hooks/useQuotes";
 import { ApiError } from "../services/apiClient";
+import type { Quote } from "../types/quote";
 
 vi.mock("../hooks/useQuotes", () => ({
   useQuotes: vi.fn(),
@@ -78,6 +79,28 @@ describe("Quotes", () => {
 
     expect(screen.getByRole("listbox")).toHaveClass("bg-slate-950");
   });
+
+  it("does not render Delete in quote list row actions", () => {
+    mockedUseQuotes.mockReturnValue({
+      quotes: [buildQuote()],
+      loading: false,
+      error: null,
+      addQuote: vi.fn(),
+      updateQuote: vi.fn(),
+      deleteQuote: vi.fn(),
+      startEdit: vi.fn(),
+      editingQuote: null,
+      cancelEdit: vi.fn(),
+      reloadQuotes: vi.fn(),
+    });
+
+    renderQuotes();
+
+    expect(screen.getByRole("link", { name: /view/i })).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: /send/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("button", { name: /edit/i }).length).toBeGreaterThan(0);
+    expect(screen.queryAllByRole("button", { name: /delete/i })).toHaveLength(0);
+  });
 });
 
 function renderQuotes() {
@@ -86,4 +109,25 @@ function renderQuotes() {
       <Quotes />
     </MemoryRouter>
   );
+}
+
+function buildQuote(): Quote {
+  return {
+    id: 101,
+    customerId: 7,
+    customerName: "Sarah Johnson",
+    title: "Boiler service",
+    description: "Annual service",
+    amount: 120,
+    subtotal: 100,
+    vatTotal: 20,
+    discountType: "Amount",
+    discountValue: 0,
+    discountTotal: 0,
+    total: 120,
+    status: "Sent",
+    notes: null,
+    createdAt: "2026-07-01T10:00:00.000Z",
+    lineItems: [],
+  };
 }

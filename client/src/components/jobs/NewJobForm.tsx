@@ -6,12 +6,14 @@ import type {
 } from "../../types/job";
 import type { NewJob } from "../../types/newJob";
 import { SelectMenu, TextArea, TextInput } from "../ui";
+import JobQuoteLinkPanel from "./JobQuoteLinkPanel";
 
 type NewJobFormProps = {
     onAddJob: (job: NewJob) => Promise<void> | void;
     onUpdateJob?: (job: Job) => Promise<void> | void;
     editingJob?: Job | null;
     onCancelEdit?: () => void;
+    onJobChange?: (job: Job) => void;
 };
 
 const statuses: JobStatus[] = [
@@ -33,6 +35,7 @@ function NewJobForm({
     onUpdateJob,
     editingJob,
     onCancelEdit,
+    onJobChange,
 }: NewJobFormProps) {
     const [customer, setCustomer] = useState("");
     const [phone, setPhone] = useState("");
@@ -226,6 +229,10 @@ function NewJobForm({
                             placeholder="Access notes, materials needed, parking, customer preferences, risks, completion notes, etc."
                         />
                     </Field>
+                </div>
+
+                <div className="md:col-span-2">
+                    <JobQuoteLinkPanel job={editingJob ?? null} onJobChange={onJobChange} />
                 </div>
             </div>
 

@@ -47,6 +47,7 @@ export default function QuoteDetails() {
   const [conversionNotes, setConversionNotes] = useState("");
   const [conversionError, setConversionError] = useState("");
   const [converting, setConverting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     async function loadQuote() {
@@ -213,6 +214,34 @@ export default function QuoteDetails() {
       setConversionError(getErrorMessage(err, "Unable to convert quote to job."));
     } finally {
       setConverting(false);
+    }
+  }
+
+  async function handleDeleteQuote() {
+    if (!quote) {
+      return;
+    }
+
+    const confirmation =
+      quote.status === "Accepted"
+        ? "Accepted quotes should normally be kept. Delete this quote anyway?"
+        : "Are you sure you want to delete this quote?";
+
+    if (!window.confirm(confirmation)) {
+      return;
+    }
+
+    try {
+      setDeleting(true);
+      setError("");
+      setSuccessMessage("");
+      await quotesService.delete(quote.id);
+      setSuccessMessage("Quote deleted.");
+      navigate("/quotes");
+    } catch (err) {
+      setError(getErrorMessage(err, "Unable to delete quote."));
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -825,8 +854,28 @@ export default function QuoteDetails() {
                       Notes
                     </p>
                     <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-amber-950">
-                      {form.notes || "No quote notes added yet."}
+                      {form.notes || "Nothing recorded yet."}
                     </p>
+                  </div>
+
+                  <div className="rounded-xl border border-red-400/30 bg-red-950/30 p-6">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-red-200">
+                      Danger zone
+                    </p>
+                    <h2 className="mt-2 text-lg font-bold text-white">
+                      Delete quote
+                    </h2>
+                    <p className="mt-2 text-sm leading-6 text-red-100/80">
+                      Remove this quote only when it was created in error. Accepted quotes should normally be kept for your records.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={handleDeleteQuote}
+                      disabled={deleting}
+                      className="mt-4 rounded-lg border border-red-300/40 px-4 py-2 text-sm font-semibold text-red-100 hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {deleting ? "Deleting..." : "Delete quote"}
+                    </button>
                   </div>
                 </aside>
               </div>

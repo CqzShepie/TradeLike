@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import type { ReactNode } from "react";
 
 import CustomerCard from "./CustomerCard";
-import { Badge, DangerButton, EmptyState, SecondaryButton, TableShell } from "../ui";
+import { DangerButton, EmptyState, SecondaryButton, TableShell } from "../ui";
 
 import type { Customer } from "../../types/customer";
 
@@ -91,10 +91,7 @@ export default function CustomerList({
                   {customer.address || "No address"}
                 </td>
                 <td className="px-5 py-4 align-top">
-                  <Badge tone={customer.notes ? "green" : "neutral"}>
-                    {customer.notes ? "Has notes" : "No notes"}
-                  </Badge>
-                  <p className="mt-2 max-w-md text-sm leading-6 text-slate-300">
+                  <p className="max-w-md text-sm leading-6 text-slate-300">
                     {customer.notes?.trim() || "Nothing recorded yet."}
                   </p>
                 </td>
