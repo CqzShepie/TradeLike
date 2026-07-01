@@ -25,6 +25,7 @@ describe("CustomerList", () => {
     );
 
     expect(screen.getAllByText("Nothing recorded yet.").length).toBeGreaterThan(0);
+    expect(screen.queryByText(/Has notes/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/No notes/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/No notes recorded/i)).not.toBeInTheDocument();
   });
@@ -50,6 +51,7 @@ describe("CustomerList", () => {
     );
 
     expect(screen.getAllByText("Prefers morning appointments.").length).toBeGreaterThan(0);
+    expect(screen.queryByText(/Has notes/i)).not.toBeInTheDocument();
     expect(screen.queryByText("Nothing recorded yet.")).not.toBeInTheDocument();
   });
 });
