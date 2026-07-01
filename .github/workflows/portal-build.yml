@@ -1,0 +1,36 @@
+name: Portal Build
+
+on:
+  pull_request:
+    paths:
+      - "portal/**"
+      - ".github/workflows/portal-build.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "portal/**"
+      - ".github/workflows/portal-build.yml"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+
+      - name: Install shared client tooling
+        run: npm ci
+        working-directory: client
+
+      - name: Build portal
+        run: npm run build
+        working-directory: portal

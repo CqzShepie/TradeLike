@@ -22,6 +22,7 @@ import AcceptCompanyStaffInvite from "../pages/AcceptCompanyStaffInvite";
 import AcceptStaffInvite from "../pages/AcceptStaffInvite";
 import CustomerStaff from "../pages/CustomerStaff";
 import Reports from "../pages/Reports";
+import ReportsOverview from "../pages/ReportsOverview";
 import SupportCenter from "../pages/SupportCenter";
 import ProtectedRoute from "./ProtectedRoute";
 import StaffRoute from "./StaffRoute";
@@ -53,6 +54,7 @@ function AppRouter() {
         <Route path="/team" element={<ProtectedRoute><CustomerStaff /></ProtectedRoute>} />
         <Route path="/leave" element={<ProtectedRoute><CustomerStaff /></ProtectedRoute>} />
         <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
+        <Route path="/reports/overview" element={<ProtectedRoute><ReportsOverview /></ProtectedRoute>} />
         <Route path="/support" element={<SupportCenter />} />
 
         <Route path="/quotes" element={<ProtectedRoute><Quotes /></ProtectedRoute>} />

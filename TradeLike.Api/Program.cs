@@ -1,16 +1,69 @@
 using System.Text;
+using System.Text.Json;
 using System.Threading.RateLimiting;
+using Azure.Identity;
+using Azure.Security.KeyVault.Secrets;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.IdentityModel.Tokens;
+using Serilog;
+using Serilog.Context;
+using Serilog.Events;
+using Serilog.Sinks.ApplicationInsights.TelemetryConverters;
+using Microsoft.ApplicationInsights.Extensibility;
 using TradeLike.Api.Configuration;
 using TradeLike.Api.Data;
+using TradeLike.Api.Observability;
+using TradeLike.Api.Api.RoutePlanner;
 using TradeLike.Api.Security;
 using TradeLike.Api.Services;
 
+Log.Logger = new LoggerConfiguration()
+    .MinimumLevel.Information()
+    .WriteTo.Console()
+    .CreateBootstrapLogger();
+
 var builder = WebApplication.CreateBuilder(args);
+
+var keyVaultUri = builder.Configuration["AZURE_VAULT_URI"];
+if (!string.IsNullOrWhiteSpace(keyVaultUri))
+{
+    builder.Configuration.AddAzureKeyVault(
+        new Uri(keyVaultUri),
+        new DefaultAzureCredential());
+}
+
+builder.Host.UseSerilog((context, _, configuration) =>
+{
+    configuration
+        .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
+        .MinimumLevel.Override("Microsoft.EntityFrameworkCore.Database.Command",
+            context.HostingEnvironment.IsDevelopment() ? LogEventLevel.Information : LogEventLevel.Warning)
+        .Enrich.FromLogContext();
+
+    if (context.HostingEnvironment.IsDevelopment())
+    {
+        configuration.WriteTo.Console();
+        return;
+    }
+
+    var appInsightsKey = context.Configuration["APPINSIGHTS_KEY"];
+    if (!string.IsNullOrWhiteSpace(appInsightsKey))
+    {
+        var telemetryConfiguration = TelemetryConfiguration.CreateDefault();
+        telemetryConfiguration.ConnectionString = appInsightsKey.StartsWith("InstrumentationKey=", StringComparison.OrdinalIgnoreCase)
+            ? appInsightsKey
+            : $"InstrumentationKey={appInsightsKey}";
+
+        configuration.WriteTo.ApplicationInsights(
+            telemetryConfiguration,
+            TelemetryConverter.Traces);
+    }
+});
 
 // Controllers
 builder.Services.AddControllers()
@@ -30,14 +83,48 @@ builder.Services.AddControllers()
     });
 
 // Database
+var connectionString = GetConfiguredConnectionString(builder.Configuration, builder.Environment);
 builder.Services.AddDbContext<TradeLikeDbContext>(options =>
-    options.UseSqlServer(
-        builder.Configuration.GetConnectionString("TradeLikeDatabase")));
+{
+    options.UseSqlServer(connectionString);
+
+    if (builder.Environment.IsDevelopment())
+    {
+        options.LogTo(Console.WriteLine, LogLevel.Information);
+    }
+});
 
 // Application Services
 builder.Services.AddScoped<ICustomerService, CustomerService>();
 builder.Services.AddScoped<IJobService, JobService>();
 builder.Services.AddScoped<IQuoteService, QuoteService>();
+var redisConnection = builder.Configuration["REDIS_CONN"];
+if (!string.IsNullOrWhiteSpace(redisConnection))
+{
+    builder.Services.AddStackExchangeRedisCache(options =>
+    {
+        options.Configuration = redisConnection;
+        options.InstanceName = "TradeLike:";
+    });
+}
+else
+{
+    builder.Services.AddDistributedMemoryCache();
+}
+
+builder.Services.AddHttpClient<GoogleRoutePlanner>();
+builder.Services.AddHttpClient();
+builder.Services.AddHealthChecks()
+    .AddCheck<SqlHealthCheck>("sql")
+    .AddCheck<KeyVaultHealthCheck>("key_vault")
+    .AddCheck<StripeHealthCheck>("stripe");
+builder.Services.Configure<HealthCheckPublisherOptions>(options =>
+{
+    options.Delay = TimeSpan.FromSeconds(15);
+    options.Period = TimeSpan.FromMinutes(1);
+    options.Predicate = _ => true;
+});
+builder.Services.AddSingleton<IHealthCheckPublisher, SlackHealthAlertPublisher>();
 
 // JWT
 var jwtSection = builder.Configuration.GetSection("Jwt");
@@ -47,6 +134,10 @@ var jwt = jwtSection.Get<JwtSettings>()
 ValidateJwtSettings(jwt);
 var frontendBaseUrl = builder.Configuration["Frontend:BaseUrl"];
 ValidateFrontendBaseUrl(frontendBaseUrl);
+if (!builder.Environment.IsDevelopment())
+{
+    ValidateRequiredSecret(builder.Configuration, "Stripe:SecretKey");
+}
 var allowedOrigins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>()
     ?? throw new InvalidOperationException("AllowedOrigins must be configured.");
 ValidateAllowedOrigins(allowedOrigins);
@@ -171,9 +262,57 @@ app.UseCors("AllowFrontend");
 app.UseRateLimiter();
 
 app.UseAuthentication();
+app.Use(async (context, next) =>
+{
+    using (LogContext.PushProperty("TenantId", context.User.FindFirst("tid")?.Value ?? "anonymous"))
+    using (LogContext.PushProperty("UserId", context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "anonymous"))
+    {
+        await next();
+    }
+});
 app.UseAuthorization();
 
 app.MapControllers();
+
+app.MapHealthChecks("/healthz", new HealthCheckOptions
+{
+    ResponseWriter = async (context, report) =>
+    {
+        context.Response.ContentType = "application/json";
+        await context.Response.WriteAsync(JsonSerializer.Serialize(new
+        {
+            status = report.Status.ToString(),
+            totalDuration = report.TotalDuration.TotalMilliseconds,
+            checks = report.Entries.Select(entry => new
+            {
+                name = entry.Key,
+                status = entry.Value.Status.ToString(),
+                duration = entry.Value.Duration.TotalMilliseconds,
+                description = entry.Value.Description,
+                error = entry.Value.Exception?.Message
+            })
+        }));
+    }
+});
+
+var startedAt = DateTimeOffset.UtcNow;
+app.MapGet("/metrics", async (HealthCheckService healthChecks) =>
+{
+    var report = await healthChecks.CheckHealthAsync();
+    var status = report.Status == HealthStatus.Healthy ? 1 : 0;
+    var uptime = (DateTimeOffset.UtcNow - startedAt).TotalSeconds;
+
+    return Results.Text(
+        string.Join('\n',
+            "# HELP tradelike_health_status 1 when healthy, 0 otherwise.",
+            "# TYPE tradelike_health_status gauge",
+            $"tradelike_health_status {status}",
+            "# HELP tradelike_uptime_seconds API process uptime in seconds.",
+            "# TYPE tradelike_uptime_seconds gauge",
+            $"tradelike_uptime_seconds {uptime:F0}",
+            string.Empty),
+        "text/plain");
+});
 
 app.MapGet("/", () => Results.Ok(new
 {
@@ -228,10 +367,42 @@ static IEnumerable<string> GetJwtSettingsErrors(JwtSettings settings)
     }
 }
 
-static bool IsMissingOrPlaceholder(string value)
+static bool IsMissingOrPlaceholder(string? value)
 {
     return string.IsNullOrWhiteSpace(value) ||
         string.Equals(value, JwtSettings.EnvironmentPlaceholder, StringComparison.OrdinalIgnoreCase);
+}
+
+static string GetConfiguredConnectionString(IConfiguration configuration, IWebHostEnvironment environment)
+{
+    var defaultConnection = configuration.GetConnectionString("DefaultConnection");
+    if (!IsMissingOrPlaceholder(defaultConnection))
+    {
+        return defaultConnection!;
+    }
+
+    if (!environment.IsDevelopment())
+    {
+        throw new InvalidOperationException(
+            "ConnectionStrings:DefaultConnection must be set in configuration or environment.");
+    }
+
+    var legacyConnection = configuration.GetConnectionString("TradeLikeDatabase");
+    if (!IsMissingOrPlaceholder(legacyConnection))
+    {
+        return legacyConnection!;
+    }
+
+    throw new InvalidOperationException(
+        "ConnectionStrings:DefaultConnection must be set in configuration or environment.");
+}
+
+static void ValidateRequiredSecret(IConfiguration configuration, string key)
+{
+    if (IsMissingOrPlaceholder(configuration[key]))
+    {
+        throw new InvalidOperationException($"{key} must be set in configuration or environment.");
+    }
 }
 
 static void ValidateFrontendBaseUrl(string? baseUrl)
