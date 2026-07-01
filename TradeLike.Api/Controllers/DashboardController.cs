@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TradeLike.Api.Data;
+using TradeLike.Api.Security;
 
 namespace TradeLike.Api.Controllers;
 
@@ -20,8 +21,11 @@ public class DashboardController : ControllerBase
     [HttpGet("summary")]
     public async Task<IActionResult> GetSummary()
     {
+        var tenantId = TenantHelpers.GetTenantId(HttpContext);
+
         var jobs = await _context.Jobs
             .AsNoTracking()
+            .Where(job => job.TenantId == tenantId)
             .Select(job => new DashboardJobResponse(
                 job.Id,
                 job.Customer,

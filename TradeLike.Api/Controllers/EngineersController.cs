@@ -7,7 +7,7 @@ using TradeLike.Api.Security;
 namespace TradeLike.Api.Controllers;
 
 [ApiController]
-[Authorize(Policy = "RequireCustomerRole")]          // ← changed (was RequireStaffRole)
+[Authorize(Policy = "RequireStaffRole")]
 [Route("api/[controller]")]
 public class EngineersController : ControllerBase
 {
@@ -46,12 +46,12 @@ public class EngineersController : ControllerBase
             .Where(j =>
                 j.TenantId == tenantId &&
                 j.ScheduledDate >= weekStart &&
-                j.ScheduledDate <  weekEnd)
+                j.ScheduledDate < weekEnd)
             .GroupBy(j => j.EngineerId)
             .Select(g => new
             {
                 EngineerId = g.Key,
-                JobCount   = g.Count()
+                JobCount = g.Count()
             })
             .ToListAsync();
 
