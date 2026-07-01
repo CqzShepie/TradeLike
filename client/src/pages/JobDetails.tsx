@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 
 import JobDetailsAssignmentPanel from "../components/jobs/JobDetailsAssignmentPanel";
+import JobQuoteLinkPanel from "../components/jobs/JobQuoteLinkPanel";
 import { ProductPage, ProductPanel } from "../components/ui";
 import type { Job, JobPriority, JobStatus } from "../types/job";
 import { jobsService } from "../services/jobsService";
@@ -20,7 +21,6 @@ export default function JobDetails() {
   const [job, setJob] = useState<Job | null>(null);
   const [form, setForm] = useState<Job | null>(null);
   const [editing, setEditing] = useState(false);
-  const [quoteNumber, setQuoteNumber] = useState("");
   const [newNote, setNewNote] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -58,38 +58,6 @@ export default function JobDetails() {
     setForm(updated);
     setEditing(false);
     setMessage("Job saved.");
-  }
-
-  async function linkQuote(event: FormEvent) {
-    event.preventDefault();
-
-    if (!job) {
-      return;
-    }
-
-    const quoteId = Number(quoteNumber);
-
-    if (!Number.isInteger(quoteId) || quoteId <= 0) {
-      setError("Enter a valid quote number.");
-      return;
-    }
-
-    const updated = await jobsService.linkQuote(job.id, quoteId);
-    setJob(updated);
-    setForm(updated);
-    setQuoteNumber("");
-    setMessage(`Linked Quote #${quoteId}.`);
-  }
-
-  async function unlinkQuote() {
-    if (!job) {
-      return;
-    }
-
-    const updated = await jobsService.unlinkQuote(job.id);
-    setJob(updated);
-    setForm(updated);
-    setMessage("Quote link removed.");
   }
 
   async function saveNotes(nextNotes: string[]) {
@@ -197,30 +165,13 @@ export default function JobDetails() {
 
           <aside className="space-y-6">
             {showStaffScheduling && <JobDetailsAssignmentPanel job={job} />}
-            <ProductPanel>
-              <h2 className="text-lg font-bold text-white">Quote link</h2>
-              <form onSubmit={linkQuote} className="mt-4 flex gap-2">
-                <input
-                  value={quoteNumber}
-                  onChange={event => setQuoteNumber(event.target.value)}
-                  placeholder="Quote number"
-                  className="min-w-0 flex-1 rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white placeholder:text-slate-500"
-                />
-                <button type="submit" className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white">
-                  Link
-                </button>
-              </form>
-              {job.quoteId && (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <Link to={`/quotes/${job.quoteId}`} className="rounded-lg border border-blue-400/30 px-3 py-2 text-xs font-semibold text-blue-200 hover:bg-blue-500/10">
-                    Open quote
-                  </Link>
-                  <button type="button" onClick={unlinkQuote} className="rounded-lg border border-white/10 px-3 py-2 text-xs font-semibold text-slate-100 hover:bg-white/10">
-                    Remove link
-                  </button>
-                </div>
-              )}
-            </ProductPanel>
+            <JobQuoteLinkPanel
+              job={job}
+              onJobChange={updated => {
+                setJob(updated);
+                setForm(updated);
+              }}
+            />
           </aside>
         </div>
       )}

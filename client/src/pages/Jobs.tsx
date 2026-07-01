@@ -216,6 +216,9 @@ function Jobs() {
                   setShowForm(false);
                 }}
                 editingJob={editingJob}
+                onJobChange={() => {
+                  void reloadJobs();
+                }}
                 onCancelEdit={() => {
                   cancelEdit();
                   setShowForm(false);
