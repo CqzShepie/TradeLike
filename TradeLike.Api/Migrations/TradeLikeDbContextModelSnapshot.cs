@@ -81,6 +81,9 @@ namespace TradeLike.Api.Migrations
                         .HasMaxLength(80)
                         .HasColumnType("nvarchar(80)");
 
+                    b.Property<int>("TenantId")
+                        .HasColumnType("int");
+
                     b.Property<string>("UserAgent")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
@@ -97,7 +100,125 @@ namespace TradeLike.Api.Migrations
 
                     b.HasIndex("TargetId");
 
+                    b.HasIndex("TenantId");
+
                     b.ToTable("AdminAuditLogs");
+                });
+
+            modelBuilder.Entity("TradeLike.Api.Models.BusinessSettings", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AddressLine1")
+                        .HasMaxLength(220)
+                        .HasColumnType("nvarchar(220)");
+
+                    b.Property<string>("AddressLine2")
+                        .HasMaxLength(220)
+                        .HasColumnType("nvarchar(220)");
+
+                    b.Property<string>("BankAccountName")
+                        .HasMaxLength(180)
+                        .HasColumnType("nvarchar(180)");
+
+                    b.Property<string>("BankAccountNumber")
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<string>("BankName")
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<string>("BankSortCode")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("BusinessName")
+                        .IsRequired()
+                        .HasMaxLength(180)
+                        .HasColumnType("nvarchar(180)");
+
+                    b.Property<string>("Country")
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<string>("County")
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<decimal>("DefaultVatRate")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(5, 2)
+                        .HasColumnType("decimal(5,2)")
+                        .HasDefaultValue(20m);
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<string>("EmailFooter")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<string>("InvoicePrefix")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasDefaultValue("INV");
+
+                    b.Property<string>("LegalName")
+                        .HasMaxLength(180)
+                        .HasColumnType("nvarchar(180)");
+
+                    b.Property<string>("LogoUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("PaymentTerms")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("Phone")
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<string>("Postcode")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("QuotePrefix")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasDefaultValue("Q");
+
+                    b.Property<string>("Town")
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("VatNumber")
+                        .HasMaxLength(60)
+                        .HasColumnType("nvarchar(60)");
+
+                    b.Property<string>("Website")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("BusinessSettings");
                 });
 
             modelBuilder.Entity("TradeLike.Api.Models.Customer", b =>
@@ -127,9 +248,232 @@ namespace TradeLike.Api.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<int>("TenantId")
+                        .HasColumnType("int");
+
                     b.HasKey("Id");
 
+                    b.HasIndex("TenantId");
+
                     b.ToTable("Customers");
+                });
+
+            modelBuilder.Entity("TradeLike.Api.Models.CustomerStaffMember", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("CalendarColour")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<int>("CompanyUserId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("FirstName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime?>("InviteAcceptedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("InviteExpiresAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("DATEADD(day, 14, SYSUTCDATETIME())");
+
+                    b.Property<DateTime?>("InviteSentAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("InviteToken")
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<bool>("IsTwoFactorRequired")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("LastLoginAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("LastName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("PermissionPresetName")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<string>("Phone")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<DateTime?>("ResetPasswordRequestedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("RoleName")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<string>("ServiceArea")
+                        .IsRequired()
+                        .HasMaxLength(250)
+                        .HasColumnType("nvarchar(250)");
+
+                    b.Property<string>("Skills")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("WorkingHours")
+                        .IsRequired()
+                        .HasMaxLength(250)
+                        .HasColumnType("nvarchar(250)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CompanyUserId");
+
+                    b.HasIndex("InviteExpiresAt");
+
+                    b.HasIndex("InviteToken");
+
+                    b.HasIndex("CompanyUserId", "Email")
+                        .IsUnique();
+
+                    b.ToTable("CustomerStaffMembers");
+                });
+
+            modelBuilder.Entity("TradeLike.Api.Models.CustomerStaffMemberTeam", b =>
+                {
+                    b.Property<int>("StaffMemberId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TeamId")
+                        .HasColumnType("int");
+
+                    b.HasKey("StaffMemberId", "TeamId");
+
+                    b.HasIndex("TeamId");
+
+                    b.ToTable("CustomerStaffMemberTeams");
+                });
+
+            modelBuilder.Entity("TradeLike.Api.Models.CustomerStaffSecurityRequest", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CompanyUserId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("RequestType")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<int>("StaffMemberId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CompanyUserId");
+
+                    b.HasIndex("StaffMemberId");
+
+                    b.ToTable("CustomerStaffSecurityRequests");
+                });
+
+            modelBuilder.Entity("TradeLike.Api.Models.CustomerStaffTeam", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Colour")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<int>("CompanyUserId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DefaultJobType")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<string>("ServiceArea")
+                        .IsRequired()
+                        .HasMaxLength(250)
+                        .HasColumnType("nvarchar(250)");
+
+                    b.Property<int?>("TeamLeadStaffId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("WorkingHours")
+                        .IsRequired()
+                        .HasMaxLength(250)
+                        .HasColumnType("nvarchar(250)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CompanyUserId");
+
+                    b.ToTable("CustomerStaffTeams");
                 });
 
             modelBuilder.Entity("TradeLike.Api.Models.Engineer", b =>
@@ -150,7 +494,12 @@ namespace TradeLike.Api.Migrations
                     b.Property<string>("Phone")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<int>("TenantId")
+                        .HasColumnType("int");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("TenantId");
 
                     b.ToTable("Engineers");
                 });
@@ -168,6 +517,13 @@ namespace TradeLike.Api.Migrations
                         .HasMaxLength(250)
                         .HasColumnType("nvarchar(250)");
 
+                    b.Property<int?>("AssignedTeamId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("CalendarColour")
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
                     b.Property<string>("Customer")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -180,6 +536,9 @@ namespace TradeLike.Api.Migrations
                         .IsRequired()
                         .HasMaxLength(150)
                         .HasColumnType("nvarchar(150)");
+
+                    b.Property<int?>("LeadStaffMemberId")
+                        .HasColumnType("int");
 
                     b.Property<string>("Notes")
                         .HasMaxLength(4000)
@@ -201,10 +560,16 @@ namespace TradeLike.Api.Migrations
                     b.Property<DateTime>("ScheduledDate")
                         .HasColumnType("datetime2");
 
+                    b.Property<DateTime?>("ScheduledEndDate")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(30)
                         .HasColumnType("nvarchar(30)");
+
+                    b.Property<int>("TenantId")
+                        .HasColumnType("int");
 
                     b.HasKey("Id");
 
@@ -212,7 +577,122 @@ namespace TradeLike.Api.Migrations
 
                     b.HasIndex("QuoteId");
 
+                    b.HasIndex("TenantId");
+
                     b.ToTable("Jobs");
+                });
+
+            modelBuilder.Entity("TradeLike.Api.Models.JobAssignment", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("JobId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("LeadStaffMemberId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TenantId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("JobId");
+
+                    b.HasIndex("LeadStaffMemberId");
+
+                    b.HasIndex("TenantId", "JobId")
+                        .IsUnique();
+
+                    b.ToTable("JobAssignments");
+                });
+
+            modelBuilder.Entity("TradeLike.Api.Models.JobAssignmentStaff", b =>
+                {
+                    b.Property<int>("JobAssignmentId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("StaffMemberId")
+                        .HasColumnType("int");
+
+                    b.HasKey("JobAssignmentId", "StaffMemberId");
+
+                    b.HasIndex("StaffMemberId");
+
+                    b.ToTable("JobAssignmentStaff");
+                });
+
+            modelBuilder.Entity("TradeLike.Api.Models.Plan", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("AdditionalUserCostPence")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("MaxIncludedUsers")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("MonthlyPricePence")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("Plans");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            CreatedAt = new DateTime(2026, 7, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            MaxIncludedUsers = 1,
+                            MonthlyPricePence = 3500,
+                            Name = "Solo"
+                        },
+                        new
+                        {
+                            Id = 2,
+                            CreatedAt = new DateTime(2026, 7, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            MaxIncludedUsers = 10,
+                            MonthlyPricePence = 7500,
+                            Name = "Team"
+                        },
+                        new
+                        {
+                            Id = 3,
+                            AdditionalUserCostPence = 500,
+                            CreatedAt = new DateTime(2026, 7, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            MaxIncludedUsers = 25,
+                            MonthlyPricePence = 15000,
+                            Name = "Business"
+                        },
+                        new
+                        {
+                            Id = 4,
+                            CreatedAt = new DateTime(2026, 7, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Name = "Enterprise"
+                        });
                 });
 
             modelBuilder.Entity("TradeLike.Api.Models.Quote", b =>
@@ -272,6 +752,9 @@ namespace TradeLike.Api.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<int>("TenantId")
+                        .HasColumnType("int");
+
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -286,6 +769,8 @@ namespace TradeLike.Api.Migrations
                         .HasColumnType("decimal(18,2)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("TenantId");
 
                     b.ToTable("Quotes");
                 });
@@ -314,6 +799,9 @@ namespace TradeLike.Api.Migrations
                     b.Property<int>("QuoteId")
                         .HasColumnType("int");
 
+                    b.Property<int>("TenantId")
+                        .HasColumnType("int");
+
                     b.Property<string>("Type")
                         .IsRequired()
                         .HasMaxLength(30)
@@ -331,7 +819,96 @@ namespace TradeLike.Api.Migrations
 
                     b.HasIndex("QuoteId");
 
-                    b.ToTable("QuoteLineItems", (string)null);
+                    b.HasIndex("TenantId");
+
+                    b.ToTable("QuoteLineItems");
+                });
+
+            modelBuilder.Entity("TradeLike.Api.Models.StaffLeaveRequest", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("EndDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int>("StaffMemberId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("StartDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)")
+                        .HasDefaultValue("Pending");
+
+                    b.Property<int>("TenantId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StaffMemberId");
+
+                    b.HasIndex("TenantId", "StaffMemberId");
+
+                    b.HasIndex("TenantId", "StartDate", "EndDate");
+
+                    b.ToTable("StaffLeaveRequests");
+                });
+
+            modelBuilder.Entity("TradeLike.Api.Models.Subscription", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("BillingStartUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("NextInvoiceDateUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("PlanId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SeatsPurchased")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<int>("TenantId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PlanId");
+
+                    b.HasIndex("TenantId")
+                        .IsUnique();
+
+                    b.ToTable("Subscriptions");
                 });
 
             modelBuilder.Entity("TradeLike.Api.Models.User", b =>
@@ -533,7 +1110,7 @@ namespace TradeLike.Api.Migrations
                         .ValueGeneratedOnAdd()
                         .HasMaxLength(40)
                         .HasColumnType("nvarchar(40)")
-                        .HasDefaultValue("Customer");
+                        .HasDefaultValue("CustomerDirector");
 
                     b.Property<string>("SubscriptionPlan")
                         .IsRequired()
@@ -545,6 +1122,9 @@ namespace TradeLike.Api.Migrations
                     b.Property<string>("SupportNotes")
                         .HasMaxLength(4000)
                         .HasColumnType("nvarchar(4000)");
+
+                    b.Property<int>("TenantId")
+                        .HasColumnType("int");
 
                     b.Property<DateTime?>("TrialEndsAt")
                         .HasColumnType("datetime2");
@@ -562,6 +1142,8 @@ namespace TradeLike.Api.Migrations
                         .IsUnique();
 
                     b.HasIndex("Role");
+
+                    b.HasIndex("TenantId");
 
                     b.ToTable("Users");
                 });
@@ -583,6 +1165,43 @@ namespace TradeLike.Api.Migrations
                     b.Navigation("Quote");
                 });
 
+            modelBuilder.Entity("TradeLike.Api.Models.JobAssignment", b =>
+                {
+                    b.HasOne("TradeLike.Api.Models.Job", "Job")
+                        .WithMany()
+                        .HasForeignKey("JobId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("TradeLike.Api.Models.CustomerStaffMember", "LeadStaffMember")
+                        .WithMany()
+                        .HasForeignKey("LeadStaffMemberId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Job");
+
+                    b.Navigation("LeadStaffMember");
+                });
+
+            modelBuilder.Entity("TradeLike.Api.Models.JobAssignmentStaff", b =>
+                {
+                    b.HasOne("TradeLike.Api.Models.JobAssignment", "JobAssignment")
+                        .WithMany("StaffMembers")
+                        .HasForeignKey("JobAssignmentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("TradeLike.Api.Models.CustomerStaffMember", "StaffMember")
+                        .WithMany()
+                        .HasForeignKey("StaffMemberId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("JobAssignment");
+
+                    b.Navigation("StaffMember");
+                });
+
             modelBuilder.Entity("TradeLike.Api.Models.QuoteLineItem", b =>
                 {
                     b.HasOne("TradeLike.Api.Models.Quote", "Quote")
@@ -592,6 +1211,41 @@ namespace TradeLike.Api.Migrations
                         .IsRequired();
 
                     b.Navigation("Quote");
+                });
+
+            modelBuilder.Entity("TradeLike.Api.Models.StaffLeaveRequest", b =>
+                {
+                    b.HasOne("TradeLike.Api.Models.CustomerStaffMember", "StaffMember")
+                        .WithMany()
+                        .HasForeignKey("StaffMemberId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("StaffMember");
+                });
+
+            modelBuilder.Entity("TradeLike.Api.Models.Subscription", b =>
+                {
+                    b.HasOne("TradeLike.Api.Models.Plan", "Plan")
+                        .WithMany()
+                        .HasForeignKey("PlanId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("TradeLike.Api.Models.User", "Tenant")
+                        .WithOne()
+                        .HasForeignKey("TradeLike.Api.Models.Subscription", "TenantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Plan");
+
+                    b.Navigation("Tenant");
+                });
+
+            modelBuilder.Entity("TradeLike.Api.Models.JobAssignment", b =>
+                {
+                    b.Navigation("StaffMembers");
                 });
 
             modelBuilder.Entity("TradeLike.Api.Models.Quote", b =>

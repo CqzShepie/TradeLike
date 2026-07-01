@@ -16,9 +16,8 @@ export function useWeekJobs(weekStart: Date) {
                 setLoading(true);
                 setError(null);
 
-                const [weekRows, allRows, assignmentRows] = await Promise.allSettled([
+                const [weekRows, assignmentRows] = await Promise.allSettled([
                     jobsService.getWeek(toLocalDateOnly(weekStart)),
-                    jobsService.getAll(),
                     jobAssignmentsService.getAll(),
                 ]);
 
@@ -31,11 +30,8 @@ export function useWeekJobs(weekStart: Date) {
                 const map = new Map<number, Job>();
                 if (weekRows.status === "fulfilled") {
                     weekRows.value.forEach(job => map.set(job.id, withAssignmentMeta(job, assignmentMap)));
-                }
-                if (allRows.status === "fulfilled") {
-                    allRows.value
-                        .filter(job => isInWeek(job, weekStart))
-                        .forEach(job => map.set(job.id, withAssignmentMeta(job, assignmentMap)));
+                } else {
+                    throw weekRows.reason;
                 }
 
                 if (isMounted) {
@@ -80,11 +76,3 @@ function toLocalDateOnly(date: Date) {
     return `${year}-${month}-${day}`;
 }
 
-function isInWeek(job: Job, weekStart: Date) {
-    const start = new Date(weekStart);
-    start.setHours(0, 0, 0, 0);
-    const end = new Date(start);
-    end.setDate(end.getDate() + 7);
-    const jobDate = new Date(job.scheduledDate);
-    return jobDate >= start && jobDate < end;
-}

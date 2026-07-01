@@ -1,10 +1,14 @@
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace TradeLike.Api.Models;
 
 public class Quote
 {
     public int Id { get; set; }
+
+    [JsonIgnore]
+    public int TenantId { get; set; }
 
     public int CustomerId { get; set; }
 

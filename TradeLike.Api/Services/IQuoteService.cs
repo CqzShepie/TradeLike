@@ -5,17 +5,18 @@ namespace TradeLike.Api.Services;
 
 public interface IQuoteService
 {
-    Task<IReadOnlyList<Quote>> GetAllAsync();
+    Task<IReadOnlyList<Quote>> GetAllAsync(int tenantId);
 
-    Task<Quote?> GetByIdAsync(int id);
+    Task<Quote?> GetByIdAsync(int id, int tenantId);
 
-    Task<Quote> CreateAsync(Quote quote);
+    Task<Quote> CreateAsync(Quote quote, int tenantId);
 
-    Task<Quote?> UpdateAsync(int id, Quote quote);
+    Task<Quote?> UpdateAsync(int id, Quote quote, int tenantId);
 
-    Task<Quote?> DeleteAsync(int id);
+    Task<Quote?> DeleteAsync(int id, int tenantId);
 
     Task<Job?> ConvertAcceptedQuoteToJobAsync(
         int quoteId,
-        ConvertQuoteToJobRequest request);
+        ConvertQuoteToJobRequest request,
+        int tenantId);
 }

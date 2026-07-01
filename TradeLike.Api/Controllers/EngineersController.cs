@@ -1,10 +1,14 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TradeLike.Api.Data;
+using TradeLike.Api.Security;
 
 namespace TradeLike.Api.Controllers;
 
 [ApiController]
+[Authorize(Policy = "RequireManagerRole")]
+[PlanGuard(Feature.TeamManagement)]
 [Route("api/[controller]")]
 public class EngineersController : ControllerBase
 {
@@ -18,37 +22,40 @@ public class EngineersController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
+        var tenantId = TenantHelpers.GetTenantId(HttpContext);
+
         var engineers = await _context.Engineers
             .AsNoTracking()
+            .Where(e => e.TenantId == tenantId)
             .OrderBy(e => e.Name)
             .ToListAsync();
 
         return Ok(engineers);
     }
 
-    // 🔥 NEW: workload per engineer for a week
+    /// <summary>
+    /// Returns scheduled-job counts for each engineer for the given week.
+    /// </summary>
     [HttpGet("workload")]
     public async Task<IActionResult> GetWorkload(DateTime weekStart)
     {
+        var tenantId = TenantHelpers.GetTenantId(HttpContext);
         var weekEnd = weekStart.AddDays(7);
 
         var jobs = await _context.Jobs
             .AsNoTracking()
             .Where(j =>
+                j.TenantId == tenantId &&
                 j.ScheduledDate >= weekStart &&
-                j.ScheduledDate < weekEnd &&
-                j.EngineerId != null)
-            .ToListAsync();
-
-        var workload = jobs
-            .GroupBy(j => new { j.EngineerId, Day = j.ScheduledDate.Date })
+                j.ScheduledDate < weekEnd)
+            .GroupBy(j => j.EngineerId)
             .Select(g => new
             {
-                engineerId = g.Key.EngineerId,
-                date = g.Key.Day,
-                jobCount = g.Count()
-            });
+                EngineerId = g.Key,
+                JobCount = g.Count()
+            })
+            .ToListAsync();
 
-        return Ok(workload);
+        return Ok(jobs);
     }
 }

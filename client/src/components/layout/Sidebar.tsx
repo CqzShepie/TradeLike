@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
-import { Briefcase, CalendarDays, FileText, LayoutDashboard, Settings2, Users } from "lucide-react";
+import { Briefcase, CalendarDays, FileText, LayoutDashboard, Settings2, Users, UserCog, BarChart3, Umbrella } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
 
 import Logo from "./Logo";
+import { useAuth } from "../../hooks/useAuth";
 
 function Sidebar() {
   const [showHomeConfirm, setShowHomeConfirm] = useState(false);
   const navigate = useNavigate();
+  const { isManagerOrDirector } = useAuth();
 
   useEffect(() => {
     document.body.classList.add("bg-slate-950");
@@ -21,6 +23,13 @@ function Sidebar() {
     { to: "/jobs", label: "Jobs", icon: Briefcase },
     { to: "/quotes", label: "Quotes", icon: FileText },
     { to: "/calendar", label: "Calendar", icon: CalendarDays },
+    ...(isManagerOrDirector
+      ? [
+          { to: "/team", label: "Team", icon: UserCog },
+          { to: "/leave", label: "Leave", icon: Umbrella },
+          { to: "/reports", label: "Reports", icon: BarChart3 },
+        ]
+      : []),
     { to: "/settings", label: "Settings", icon: Settings2 },
   ];
 

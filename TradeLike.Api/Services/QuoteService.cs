@@ -44,28 +44,31 @@ public class QuoteService : IQuoteService
         _context = context;
     }
 
-    public async Task<IReadOnlyList<Quote>> GetAllAsync()
+    public async Task<IReadOnlyList<Quote>> GetAllAsync(int tenantId)
     {
         return await _context.Quotes
             .AsNoTracking()
             .Include(q => q.LineItems)
+            .Where(q => q.TenantId == tenantId)
             .OrderByDescending(q => q.CreatedAt)
             .ToListAsync();
     }
 
-    public async Task<Quote?> GetByIdAsync(int id)
+    public async Task<Quote?> GetByIdAsync(int id, int tenantId)
     {
         return await _context.Quotes
             .AsNoTracking()
             .Include(q => q.LineItems)
-            .FirstOrDefaultAsync(q => q.Id == id);
+            .FirstOrDefaultAsync(q => q.Id == id && q.TenantId == tenantId);
     }
 
-    public async Task<Quote> CreateAsync(Quote quote)
+    public async Task<Quote> CreateAsync(Quote quote, int tenantId)
     {
         NormaliseQuote(quote);
         ValidateQuote(quote);
+        await EnsureCustomerBelongsToTenantAsync(quote.CustomerId, tenantId);
         CalculateTotals(quote);
+        AssignTenant(quote, tenantId);
 
         quote.CreatedAt = DateTime.UtcNow;
 
@@ -75,15 +78,17 @@ public class QuoteService : IQuoteService
         return quote;
     }
 
-    public async Task<Quote?> UpdateAsync(int id, Quote updatedQuote)
+    public async Task<Quote?> UpdateAsync(int id, Quote updatedQuote, int tenantId)
     {
         NormaliseQuote(updatedQuote);
         ValidateQuote(updatedQuote);
+        await EnsureCustomerBelongsToTenantAsync(updatedQuote.CustomerId, tenantId);
         CalculateTotals(updatedQuote);
+        AssignTenant(updatedQuote, tenantId);
 
         var quote = await _context.Quotes
             .Include(q => q.LineItems)
-            .FirstOrDefaultAsync(q => q.Id == id);
+            .FirstOrDefaultAsync(q => q.Id == id && q.TenantId == tenantId);
 
         if (quote is null)
         {
@@ -111,6 +116,7 @@ public class QuoteService : IQuoteService
         {
             quote.LineItems.Add(new QuoteLineItem
             {
+                TenantId = tenantId,
                 Type = item.Type,
                 Description = item.Description,
                 Quantity = item.Quantity,
@@ -122,14 +128,16 @@ public class QuoteService : IQuoteService
 
         await _context.SaveChangesAsync();
 
-        return await GetByIdAsync(id);
+        return await GetByIdAsync(id, tenantId);
     }
 
-    public async Task<Quote?> DeleteAsync(int id)
+    public async Task<Quote?> DeleteAsync(int id, int tenantId)
     {
         var quote = await _context.Quotes
             .Include(existingQuote => existingQuote.LineItems)
-            .FirstOrDefaultAsync(existingQuote => existingQuote.Id == id);
+            .FirstOrDefaultAsync(existingQuote =>
+                existingQuote.Id == id &&
+                existingQuote.TenantId == tenantId);
 
         if (quote is null)
         {
@@ -144,12 +152,13 @@ public class QuoteService : IQuoteService
 
     public async Task<Job?> ConvertAcceptedQuoteToJobAsync(
         int quoteId,
-        ConvertQuoteToJobRequest request)
+        ConvertQuoteToJobRequest request,
+        int tenantId)
     {
         var quote = await _context.Quotes
             .AsNoTracking()
             .Include(q => q.LineItems)
-            .FirstOrDefaultAsync(q => q.Id == quoteId);
+            .FirstOrDefaultAsync(q => q.Id == quoteId && q.TenantId == tenantId);
 
         if (quote is null)
         {
@@ -164,7 +173,9 @@ public class QuoteService : IQuoteService
 
         var alreadyConverted = await _context.Jobs
             .AsNoTracking()
-            .AnyAsync(job => job.QuoteId == quoteId);
+            .AnyAsync(job =>
+                job.TenantId == tenantId &&
+                job.QuoteId == quoteId);
 
         if (alreadyConverted)
         {
@@ -174,7 +185,16 @@ public class QuoteService : IQuoteService
 
         var customer = await _context.Customers
             .AsNoTracking()
-            .FirstOrDefaultAsync(customer => customer.Id == quote.CustomerId);
+            .FirstOrDefaultAsync(customer =>
+                customer.Id == quote.CustomerId &&
+                customer.TenantId == tenantId);
+
+        if (customer is null)
+        {
+            throw new ValidationException("Customer was not found.");
+        }
+
+        await EnsureEngineerBelongsToTenantAsync(request.EngineerId, tenantId);
 
         var priority = Canonicalise(
             string.IsNullOrWhiteSpace(request.Priority)
@@ -184,6 +204,7 @@ public class QuoteService : IQuoteService
 
         var job = new Job
         {
+            TenantId = tenantId,
             Customer = quote.CustomerName.Trim(),
             Phone = FirstNonBlank(request.Phone, customer?.Phone),
             JobTitle = FirstNonBlank(request.JobTitle, quote.Title),
@@ -202,6 +223,49 @@ public class QuoteService : IQuoteService
         await _context.SaveChangesAsync();
 
         return job;
+    }
+
+    private async Task EnsureCustomerBelongsToTenantAsync(int customerId, int tenantId)
+    {
+        var customerExists = await _context.Customers
+            .AsNoTracking()
+            .AnyAsync(customer =>
+                customer.Id == customerId &&
+                customer.TenantId == tenantId);
+
+        if (!customerExists)
+        {
+            throw new ValidationException("Customer was not found.");
+        }
+    }
+
+    private async Task EnsureEngineerBelongsToTenantAsync(int? engineerId, int tenantId)
+    {
+        if (engineerId is null)
+        {
+            return;
+        }
+
+        var engineerExists = await _context.Engineers
+            .AsNoTracking()
+            .AnyAsync(engineer =>
+                engineer.Id == engineerId &&
+                engineer.TenantId == tenantId);
+
+        if (!engineerExists)
+        {
+            throw new ValidationException("Engineer was not found.");
+        }
+    }
+
+    private static void AssignTenant(Quote quote, int tenantId)
+    {
+        quote.TenantId = tenantId;
+
+        foreach (var item in quote.LineItems)
+        {
+            item.TenantId = tenantId;
+        }
     }
 
     private static void NormaliseQuote(Quote quote)

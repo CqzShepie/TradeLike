@@ -9,7 +9,7 @@ using TradeLike.Api.Models;
 namespace TradeLike.Api.Controllers;
 
 [ApiController]
-[Authorize]
+[Authorize(Policy = "RequireDirectorRole")]
 [Route("api/business-settings")]
 public class BusinessSettingsController : ControllerBase
 {

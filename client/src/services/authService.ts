@@ -1,6 +1,9 @@
 import { apiClient, clearToken, setToken } from "./apiClient";
 
 export type UserRole =
+  | "CustomerDirector"
+  | "CustomerManager"
+  | "CustomerEmployee"
   | "Customer"
   | "Director"
   | "Admin"
@@ -29,6 +32,7 @@ export interface AuthUser {
   email: string;
   name: string;
   role: UserRole;
+  plan?: string | null;
   personalAssistantTo?: string | null;
   accountStatus: string;
   passwordResetRequired: boolean;
@@ -88,6 +92,31 @@ function readStoredUser() {
   }
 }
 
+function isTokenExpired(token: string) {
+  const [, payload] = token.split(".");
+
+  if (!payload) {
+    return true;
+  }
+
+  try {
+    const decodedPayload = JSON.parse(atob(toBase64(payload))) as { exp?: number };
+
+    if (!decodedPayload.exp) {
+      return true;
+    }
+
+    return decodedPayload.exp * 1000 <= Date.now();
+  } catch {
+    return true;
+  }
+}
+
+function toBase64(value: string) {
+  const padded = value.padEnd(value.length + ((4 - (value.length % 4)) % 4), "=");
+  return padded.replace(/-/g, "+").replace(/_/g, "/");
+}
+
 export const authService = {
   async login(request: LoginRequest): Promise<LoginResponse> {
     const response = await apiClient.post<LoginResponse>("/auth/login", {
@@ -128,16 +157,31 @@ export const authService = {
     return Boolean(localStorage.getItem("tradelike_token"));
   },
 
+  hasValidSession() {
+    const token = localStorage.getItem("tradelike_token");
+
+    if (!token || isTokenExpired(token)) {
+      clearToken();
+      return false;
+    }
+
+    return true;
+  },
+
   isStaffUser(user = readStoredUser()) {
     if (!user) {
       return false;
     }
 
-    return user.role !== "Customer";
+    return !["Customer", "CustomerDirector", "CustomerManager", "CustomerEmployee"].includes(user.role);
   },
 
   isDirector(user = readStoredUser()) {
-    return user?.role === "Director";
+    return user?.role === "CustomerDirector" || user?.role === "Director";
+  },
+
+  isManagerOrDirector(user = readStoredUser()) {
+    return user?.role === "CustomerManager" || user?.role === "CustomerDirector";
   },
 
   hasPermission(permission: keyof AuthUser, user = readStoredUser()) {
@@ -145,7 +189,7 @@ export const authService = {
       return false;
     }
 
-    if (user.role === "Director") {
+    if (user.role === "Director" || user.role === "CustomerDirector") {
       return true;
     }
 

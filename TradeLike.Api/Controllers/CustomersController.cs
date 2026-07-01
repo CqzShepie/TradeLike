@@ -1,13 +1,15 @@
+using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using TradeLike.Api.Models;
+using TradeLike.Api.Contracts.Customers;
+using TradeLike.Api.Security;
 using TradeLike.Api.Services;
 
 namespace TradeLike.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
+[Authorize(Policy = "RequireEmployeeRole")]
 public class CustomersController : ControllerBase
 {
     private readonly ICustomerService _customerService;
@@ -20,7 +22,7 @@ public class CustomersController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetCustomers()
     {
-        var customers = await _customerService.GetAllAsync();
+        var customers = await _customerService.GetAllAsync(TenantHelpers.GetTenantId(HttpContext));
 
         return Ok(customers);
     }
@@ -28,7 +30,7 @@ public class CustomersController : ControllerBase
     [HttpGet("{id:int}")]
     public async Task<IActionResult> GetCustomer(int id)
     {
-        var customer = await _customerService.GetByIdAsync(id);
+        var customer = await _customerService.GetByIdAsync(id, TenantHelpers.GetTenantId(HttpContext));
 
         if (customer is null)
         {
@@ -39,33 +41,47 @@ public class CustomersController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<IActionResult> CreateCustomer([FromBody] Customer customer)
+    public async Task<IActionResult> CreateCustomer([FromBody] CreateCustomerRequest request)
     {
-        var createdCustomer = await _customerService.CreateAsync(customer);
+        try
+        {
+            var createdCustomer = await _customerService.CreateAsync(request, TenantHelpers.GetTenantId(HttpContext));
 
-        return CreatedAtAction(
-            nameof(GetCustomer),
-            new { id = createdCustomer.Id },
-            createdCustomer);
+            return CreatedAtAction(
+                nameof(GetCustomer),
+                new { id = createdCustomer.Id },
+                createdCustomer);
+        }
+        catch (ValidationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
     }
 
     [HttpPut("{id:int}")]
-    public async Task<IActionResult> UpdateCustomer(int id, [FromBody] Customer customer)
+    public async Task<IActionResult> UpdateCustomer(int id, [FromBody] UpdateCustomerRequest request)
     {
-        var updatedCustomer = await _customerService.UpdateAsync(id, customer);
-
-        if (updatedCustomer is null)
+        try
         {
-            return NotFound();
-        }
+            var updatedCustomer = await _customerService.UpdateAsync(id, request, TenantHelpers.GetTenantId(HttpContext));
 
-        return Ok(updatedCustomer);
+            if (updatedCustomer is null)
+            {
+                return NotFound();
+            }
+
+            return Ok(updatedCustomer);
+        }
+        catch (ValidationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
     }
 
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> DeleteCustomer(int id)
     {
-        var deletedCustomer = await _customerService.DeleteAsync(id);
+        var deletedCustomer = await _customerService.DeleteAsync(id, TenantHelpers.GetTenantId(HttpContext));
 
         if (deletedCustomer is null)
         {

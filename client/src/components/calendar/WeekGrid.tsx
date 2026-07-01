@@ -2,6 +2,7 @@ import DayColumn from "./DayColumn";
 import type { Job } from "../../types/job";
 import type { Engineer } from "../../services/engineersService";
 import type { CustomerStaffMember, CustomerTeam } from "../../services/customerStaffService";
+import type { StaffLeaveRequest } from "../../services/staffLeaveService";
 import {
     getJobsForDay,
     getDayIntensity,
@@ -16,6 +17,7 @@ interface WeekGridProps {
     teams?: CustomerTeam[];
     onSelectJob: (job: Job) => void;
     onMoveJob: (job: Job, newDate: Date) => void;
+    leaveRequests?: StaffLeaveRequest[];
 }
 
 export default function WeekGrid({
@@ -25,7 +27,8 @@ export default function WeekGrid({
     staffMembers = [],
     teams = [],
     onSelectJob,
-    onMoveJob
+    onMoveJob,
+    leaveRequests = []
 }: WeekGridProps) {
     const days = Array.from({ length: 7 }, (_, index) => {
         const date = new Date(weekStart);
@@ -51,6 +54,7 @@ export default function WeekGrid({
                         teams={teams}
                         onSelectJob={onSelectJob}
                         onMoveJob={onMoveJob}
+                        leaveRequests={leaveRequests}
                         allJobs={jobs}
                         weekDays={days}
                         intensity={intensity}

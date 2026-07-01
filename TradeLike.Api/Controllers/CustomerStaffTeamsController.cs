@@ -1,15 +1,16 @@
 using System.Data;
 using System.Data.Common;
-using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TradeLike.Api.Data;
+using TradeLike.Api.Security;
 
 namespace TradeLike.Api.Controllers;
 
 [ApiController]
-[Authorize]
+[Authorize(Policy = "RequireManagerRole")]
+[PlanGuard(Feature.TeamManagement)]
 [Route("api/customer-staff/teams")]
 public sealed class CustomerStaffTeamsController : ControllerBase
 {
@@ -23,7 +24,6 @@ public sealed class CustomerStaffTeamsController : ControllerBase
     [HttpPut("{id:int}")]
     public async Task<IActionResult> UpdateTeam(int id, CreateCustomerTeamRequest request)
     {
-        await EnsureSchemaAsync();
         var companyUserId = GetCompanyUserId();
         var entitlements = PlanEntitlements.ForPlan(await LoadPlanAsync(companyUserId));
 
@@ -59,29 +59,6 @@ public sealed class CustomerStaffTeamsController : ControllerBase
         return NoContent();
     }
 
-    private async Task EnsureSchemaAsync()
-    {
-        await ExecuteNonQueryAsync(
-            """
-            IF OBJECT_ID(N'[dbo].[CustomerStaffTeams]', N'U') IS NULL
-            BEGIN
-                CREATE TABLE [dbo].[CustomerStaffTeams] (
-                    [Id] int IDENTITY(1,1) NOT NULL CONSTRAINT [PK_CustomerStaffTeams] PRIMARY KEY,
-                    [CompanyUserId] int NOT NULL,
-                    [Name] nvarchar(120) NOT NULL,
-                    [Description] nvarchar(500) NOT NULL,
-                    [Colour] nvarchar(40) NOT NULL,
-                    [TeamLeadStaffId] int NULL,
-                    [DefaultJobType] nvarchar(120) NOT NULL,
-                    [ServiceArea] nvarchar(250) NOT NULL,
-                    [WorkingHours] nvarchar(250) NOT NULL,
-                    [CreatedAt] datetime2 NOT NULL,
-                    [UpdatedAt] datetime2 NULL
-                );
-            END;
-            """);
-    }
-
     private async Task<string> LoadPlanAsync(int companyUserId)
     {
         try
@@ -89,7 +66,13 @@ public sealed class CustomerStaffTeamsController : ControllerBase
             var connection = _context.Database.GetDbConnection();
             await EnsureOpenAsync(connection);
             await using var command = connection.CreateCommand();
-            command.CommandText = "SELECT TOP 1 SubscriptionPlan FROM Users WHERE Id = @Id";
+            command.CommandText = """
+                SELECT TOP 1 COALESCE(p.Name, u.SubscriptionPlan)
+                FROM Users u
+                LEFT JOIN Subscriptions s ON s.TenantId = u.TenantId
+                LEFT JOIN Plans p ON p.Id = s.PlanId
+                WHERE u.TenantId = @Id
+                """;
             AddParameters(command, ("@Id", companyUserId));
             var result = await command.ExecuteScalarAsync();
             return result?.ToString() ?? "Solo";
@@ -102,8 +85,7 @@ public sealed class CustomerStaffTeamsController : ControllerBase
 
     private int GetCompanyUserId()
     {
-        var id = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
-        return int.TryParse(id, out var parsed) ? parsed : 0;
+        return TenantHelpers.GetTenantId(HttpContext);
     }
 
     private async Task<int> ExecuteNonQueryAsync(string commandText, params (string Name, object? Value)[] parameters)

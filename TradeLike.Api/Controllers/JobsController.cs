@@ -4,13 +4,14 @@ using Microsoft.AspNetCore.Mvc;
 using TradeLike.Api.Contracts.Jobs;
 using TradeLike.Api.Contracts.Quotes;
 using TradeLike.Api.Models;
+using TradeLike.Api.Security;
 using TradeLike.Api.Services;
 
 namespace TradeLike.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
+[Authorize(Policy = "RequireEmployeeRole")]
 public class JobsController : ControllerBase
 {
     private readonly IJobService _jobService;
@@ -23,24 +24,24 @@ public class JobsController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<List<JobResponse>>> GetJobs()
     {
-        var jobs = await _jobService.GetAllAsync();
+        var jobs = await _jobService.GetAllAsync(TenantHelpers.GetTenantId(HttpContext));
         return Ok(jobs.Select(ToResponse).ToList());
     }
 
     [HttpGet("{id:int}")]
     public async Task<ActionResult<JobResponse>> GetJob(int id)
     {
-        var job = await _jobService.GetByIdAsync(id);
+        var job = await _jobService.GetByIdAsync(id, TenantHelpers.GetTenantId(HttpContext));
         if (job is null) return NotFound();
         return Ok(ToResponse(job));
     }
 
     [HttpPost]
-    public async Task<ActionResult<JobResponse>> CreateJob([FromBody] Job job)
+    public async Task<ActionResult<JobResponse>> CreateJob([FromBody] CreateJobRequest request)
     {
         try
         {
-            var created = await _jobService.CreateAsync(job);
+            var created = await _jobService.CreateAsync(request, TenantHelpers.GetTenantId(HttpContext));
             var response = ToResponse(created);
             return CreatedAtAction(nameof(GetJob), new { id = response.Id }, response);
         }
@@ -51,11 +52,11 @@ public class JobsController : ControllerBase
     }
 
     [HttpPut("{id:int}")]
-    public async Task<ActionResult<JobResponse>> UpdateJob(int id, [FromBody] Job job)
+    public async Task<ActionResult<JobResponse>> UpdateJob(int id, [FromBody] UpdateJobRequest request)
     {
         try
         {
-            var updated = await _jobService.UpdateAsync(id, job);
+            var updated = await _jobService.UpdateAsync(id, request, TenantHelpers.GetTenantId(HttpContext));
             if (updated is null) return NotFound();
             return Ok(ToResponse(updated));
         }
@@ -68,7 +69,7 @@ public class JobsController : ControllerBase
     [HttpDelete("{id:int}")]
     public async Task<ActionResult<JobResponse>> DeleteJob(int id)
     {
-        var deleted = await _jobService.DeleteAsync(id);
+        var deleted = await _jobService.DeleteAsync(id, TenantHelpers.GetTenantId(HttpContext));
         if (deleted is null) return NotFound();
         return Ok(ToResponse(deleted));
     }
@@ -76,7 +77,7 @@ public class JobsController : ControllerBase
     [HttpGet("today")]
     public async Task<ActionResult<List<JobResponse>>> GetTodayJobs()
     {
-        var jobs = await _jobService.GetTodayAsync();
+        var jobs = await _jobService.GetTodayAsync(TenantHelpers.GetTenantId(HttpContext));
         return Ok(jobs.Select(ToResponse).ToList());
     }
 
@@ -84,7 +85,7 @@ public class JobsController : ControllerBase
     public async Task<ActionResult<List<JobResponse>>> GetWeekJobs([FromQuery] DateTime? start)
     {
         var weekStart = start?.Date ?? DateTime.Today;
-        var jobs = await _jobService.GetWeekAsync(weekStart);
+        var jobs = await _jobService.GetWeekAsync(weekStart, TenantHelpers.GetTenantId(HttpContext));
         return Ok(jobs.Select(ToResponse).ToList());
     }
 
@@ -93,7 +94,7 @@ public class JobsController : ControllerBase
     {
         try
         {
-            var updated = await _jobService.LinkQuoteAsync(id, request.QuoteId);
+            var updated = await _jobService.LinkQuoteAsync(id, request.QuoteId, TenantHelpers.GetTenantId(HttpContext));
             if (updated is null) return NotFound();
             return Ok(ToResponse(updated));
         }
@@ -106,7 +107,7 @@ public class JobsController : ControllerBase
     [HttpDelete("{id:int}/source-quote")]
     public async Task<ActionResult<JobResponse>> UnlinkSourceQuote(int id)
     {
-        var updated = await _jobService.UnlinkQuoteAsync(id);
+        var updated = await _jobService.UnlinkQuoteAsync(id, TenantHelpers.GetTenantId(HttpContext));
         if (updated is null) return NotFound();
         return Ok(ToResponse(updated));
     }

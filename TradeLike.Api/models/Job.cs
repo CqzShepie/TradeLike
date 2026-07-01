@@ -7,6 +7,9 @@ public class Job
 {
     public int Id { get; set; }
 
+    [JsonIgnore]
+    public int TenantId { get; set; }
+
     [Required]
     [MaxLength(100)]
     public string Customer { get; set; } = string.Empty;
@@ -46,6 +49,18 @@ public class Job
 
     [JsonIgnore]
     public Engineer? Engineer { get; set; }
+
+    [JsonIgnore]
+    public int? AssignedTeamId { get; set; }
+
+    [JsonIgnore]
+    public int? LeadStaffMemberId { get; set; }
+
+    [JsonIgnore]
+    public DateTime? ScheduledEndDate { get; set; }
+
+    [JsonIgnore]
+    public string? CalendarColour { get; set; }
 
     public void Validate()
     {

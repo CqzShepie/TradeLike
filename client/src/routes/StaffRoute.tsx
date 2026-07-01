@@ -5,7 +5,7 @@ export default function StaffRoute({ children }: { children: React.ReactNode }) 
   const location = useLocation();
   const user = authService.getUser();
 
-  if (!authService.isLoggedIn() || !user) {
+  if (!authService.hasValidSession() || !user) {
     const returnUrl = `${location.pathname}${location.search}`;
 
     return (

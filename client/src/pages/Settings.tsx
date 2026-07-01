@@ -1,10 +1,17 @@
 ﻿import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
+import { useLocation } from "react-router-dom";
 import Sidebar from "../components/layout/Sidebar";
 import PlanLimitsPanel from "../components/settings/PlanLimitsPanel";
+import Currency from "../components/ui/Currency";
+import { useAuth } from "../hooks/useAuth";
+import { billingService } from "../services/billingService";
+import type { BillingSubscription } from "../services/billingService";
 import { businessSettingsService } from "../services/businessSettingsService";
 import { staffSettingsService } from "../services/staffSettingsService";
 import type { StaffCategory, StaffRolePreset, StaffSettings } from "../services/staffSettingsService";
+import { usersService } from "../services/usersService";
+import type { CustomerUser } from "../services/usersService";
 import type { UpdateBusinessSettingsRequest } from "../types/businessSettings";
 import { formatPhone, formatSortCode } from "../utils/inputFormatters";
 
@@ -74,7 +81,8 @@ const blankSettings: UpdateBusinessSettingsRequest = {
 const blankStaffSettings: StaffSettings = { categories: [], rolePresets: [], permissionGroups: [] };
 
 export default function Settings() {
-  const [activeTab, setActiveTab] = useState<SettingsTab>("business");
+  const location = useLocation();
+  const [activeTab, setActiveTab] = useState<SettingsTab>(() => location.pathname === "/settings/billing" ? "billing" : "business");
   const [activeStaffSettingsTab, setActiveStaffSettingsTab] = useState<StaffSettingsTab>("categories");
   const [form, setForm] = useState<UpdateBusinessSettingsRequest>(blankSettings);
   const [loading, setLoading] = useState(true);
@@ -257,7 +265,43 @@ function EmailSettingsPanel({ footer, onFooterChange }: { footer: string; onFoot
 }
 
 function BillingSettingsPanel() {
-  return <div className="space-y-6"><PlanLimitsPanel /><SettingsPanel title="Billing controls"><div className="grid gap-3 md:grid-cols-2"><SettingCard title="User limits" body="Solo 1, Team 2-10, Business 11-25, Enterprise unlimited." /><SettingCard title="Team management" body="Controlled by plan, with flexible team sizes inside the total user count." /><SettingCard title="Reporting" body="Basic on Solo, advanced on Team, custom reporting on Business and Enterprise." /><SettingCard title="API access" body="Reserved for Business and Enterprise plans." /></div></SettingsPanel></div>;
+  const { isDirector } = useAuth();
+  const [subscription, setSubscription] = useState<BillingSubscription | null>(null);
+  const [users, setUsers] = useState<CustomerUser[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    Promise.all([billingService.getSubscription(), usersService.getUsers()])
+      .then(([subscriptionRow, userRows]) => {
+        if (cancelled) return;
+        setSubscription(subscriptionRow);
+        setUsers(userRows);
+      })
+      .catch(err => {
+        if (cancelled) return;
+        setError(getErrorMessage(err, "Unable to load billing details."));
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => { cancelled = true; };
+  }, []);
+
+  async function updateRole(user: CustomerUser, role: "CustomerManager" | "CustomerEmployee") {
+    try {
+      setError("");
+      const updated = await usersService.updateRole(user.id, role);
+      setUsers(previous => previous.map(item => item.id === user.id ? updated : item));
+    } catch (err) {
+      setError(getErrorMessage(err, "Unable to update user role."));
+    }
+  }
+
+  return <div className="space-y-6"><PlanLimitsPanel />{error && <Alert tone="error" onClose={() => setError("")}>{error}</Alert>}{loading ? <SettingsPanel title="Billing"><p className="text-sm text-slate-500">Loading billing...</p></SettingsPanel> : <SettingsPanel title="Current plan"><div className="grid gap-4 md:grid-cols-3"><SettingCard title="Plan" body={subscription?.planName ?? "Not set"} /><SettingCard title="Monthly price" body={subscription ? <><Currency valuePence={subscription.monthlyPricePence} currency="GBP" />/month</> : "Not set"} /><SettingCard title="Included users" body={subscription?.maxIncludedUsers == null ? "Unlimited" : String(subscription.maxIncludedUsers)} /><SettingCard title="Seats purchased" body={String(subscription?.seatsPurchased ?? 0)} /><SettingCard title="Status" body={subscription?.status ?? "Not set"} /><SettingCard title="Next invoice" body={subscription ? formatDate(subscription.nextInvoiceDateUtc) : "Not set"} /></div></SettingsPanel>}<SettingsPanel title="Users"><div className="overflow-hidden rounded-lg border border-slate-200">{users.length === 0 ? <p className="p-4 text-sm text-slate-500">No users found.</p> : users.map(user => <div key={user.id} className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 p-4 last:border-b-0"><div><p className="font-semibold text-slate-900">{user.name || user.email}</p><p className="text-sm text-slate-500">{user.email}</p><p className="mt-1 text-xs font-semibold text-blue-700">{formatCustomerRole(user.role)} · {user.status}</p></div>{isDirector && user.role !== "CustomerDirector" && <div className="flex gap-2">{user.role !== "CustomerManager" && <button type="button" onClick={() => updateRole(user, "CustomerManager")} className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700">Promote</button>}{user.role !== "CustomerEmployee" && <button type="button" onClick={() => updateRole(user, "CustomerEmployee")} className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">Demote</button>}</div>}</div>)}</div></SettingsPanel></div>;
 }
 
 
@@ -287,7 +331,7 @@ function StaffSettingsPanel({ activeTab, setActiveTab, settings, loading, saving
   return <SettingsPanel title="Staff settings"><p className="text-sm text-slate-600">Customer-company staff categories, role presets and permissions live here. These stay separate from the ShepieStudio internal staff portal.</p>{error && <Alert tone="error" onClose={onClearError}>{error}</Alert>}{message && <Alert tone="success" onClose={onClearMessage}>{message}</Alert>}<div className="mt-5 grid gap-3 md:grid-cols-3">{staffSettingsTabs.map(tab => <button key={tab.id} type="button" onClick={() => setActiveTab(tab.id)} className={`rounded-lg border p-4 text-left transition ${activeTab === tab.id ? "border-blue-600 bg-blue-600 text-white" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`}><span className="block text-sm font-bold">{tab.label}</span><span className={`mt-1 block text-xs ${activeTab === tab.id ? "text-blue-100" : "text-slate-500"}`}>{tab.description}</span></button>)}</div>{loading ? <p className="mt-6 text-sm text-slate-500">Loading staff settings...</p> : <>{activeTab === "categories" && <div className="mt-6 space-y-5"><div className="grid gap-3 md:grid-cols-2">{settings.categories.map(category => <div key={category.id} className="rounded-lg border border-slate-200 bg-slate-50 p-4"><div className="flex items-start justify-between gap-4"><div><p className="font-semibold text-slate-900">{category.name}</p><p className="mt-1 text-sm text-slate-600">{category.description}</p></div><button type="button" disabled={saving} onClick={() => onDeleteCategory(category)} className="rounded-lg border border-red-200 px-3 py-1 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50">Delete</button></div></div>)}</div><div className="rounded-lg border border-slate-200 p-4"><h3 className="font-semibold text-slate-900">Create staff category</h3><div className="mt-4 grid gap-4 md:grid-cols-2"><Field label="Category name"><Input value={categoryName} onChange={setCategoryName} /></Field><Field label="Description"><Input value={categoryDescription} onChange={setCategoryDescription} /></Field></div><button type="button" disabled={saving} onClick={addCategory} className="mt-4 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300">{saving ? "Saving..." : "Add category"}</button></div></div>}{activeTab === "roles" && <div className="mt-6 space-y-5"><div className="rounded-lg border border-slate-200 p-4"><h3 className="font-semibold text-slate-900">Create role preset</h3><div className="mt-4 grid gap-4 md:grid-cols-2"><Field label="Role name"><Input value={roleName} onChange={setRoleName} /></Field><label className="block"><span className="mb-2 block text-sm font-medium text-slate-700">Staff category</span><select value={roleCategoryId || String(settings.categories[0]?.id ?? "")} onChange={event => setRoleCategoryId(event.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600">{settings.categories.map(category => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label></div><div className="mt-4"><p className="mb-2 text-sm font-medium text-slate-700">Default permissions</p><div className="flex flex-wrap gap-2">{settings.permissionGroups.map(permission => <button key={permission} type="button" onClick={() => togglePermission(permission)} className={`rounded-full border px-3 py-1 text-xs font-semibold ${selectedPermissions.includes(permission) ? "border-blue-600 bg-blue-600 text-white" : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"}`}>{permission}</button>)}</div></div><button type="button" disabled={saving || settings.categories.length === 0} onClick={addRolePreset} className="mt-4 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300">{saving ? "Saving..." : "Add role preset"}</button></div><div className="grid gap-3">{settings.rolePresets.map(role => <div key={role.id} className="rounded-lg border border-slate-200 bg-slate-50 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-semibold text-slate-900">{role.name}</p><p className="text-sm text-slate-600">{role.categoryName}</p></div><button type="button" disabled={saving} onClick={() => onDeleteRolePreset(role)} className="rounded-lg border border-red-200 px-3 py-1 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50">Delete</button></div><div className="mt-3 flex flex-wrap gap-2">{role.permissions.map(permission => <span key={permission} className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-700 ring-1 ring-slate-200">{permission}</span>)}</div></div>)}</div></div>}{activeTab === "permissions" && <div className="mt-6 grid gap-3 md:grid-cols-2">{settings.permissionGroups.map(permission => <div key={permission} className="rounded-lg border border-slate-200 bg-slate-50 p-4"><p className="font-semibold text-slate-900">{permission}</p><p className="mt-1 text-sm text-slate-600">{permissionDescriptions[permission] ?? "Custom permission group for role presets."}</p></div>)}</div>}</>}</SettingsPanel>;
 }
 
-function SettingCard({ title, body }: { title: string; body: string }) {
+function SettingCard({ title, body }: { title: string; body: React.ReactNode }) {
   return <div className="rounded-lg border border-slate-200 bg-slate-50 p-4"><p className="font-semibold text-slate-900">{title}</p><p className="mt-1 text-sm text-slate-600">{body}</p></div>;
 }
 
@@ -299,6 +343,8 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 function Input({ value, onChange, type = "text", min, max, step }: { value: string; onChange: (value: string) => void; type?: string; min?: string; max?: string; step?: string }) { return <input value={value} type={type} min={min} max={max} step={step} onChange={event => onChange(event.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600" />; }
 function Textarea({ value, onChange, rows }: { value: string; onChange: (value: string) => void; rows: number }) { return <textarea value={value} rows={rows} onChange={event => onChange(event.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600" />; }
 function getErrorMessage(error: unknown, fallback: string) { return error instanceof Error && error.message.trim() !== "" ? error.message : fallback; }
+function formatDate(value: string) { const date = new Date(value); return Number.isNaN(date.getTime()) ? "Not set" : date.toLocaleDateString("en-GB"); }
+function formatCustomerRole(role: string) { return role.replace("Customer", ""); }
 
 
 

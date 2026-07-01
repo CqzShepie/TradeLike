@@ -16,7 +16,7 @@ public class JwtService
         _settings = settings.Value;
     }
 
-    public string GenerateToken(int userId, string email, string name, string role)
+    public string GenerateToken(int userId, int tenantId, string email, string name, string role, string plan)
     {
         var claims = new[]
         {
@@ -27,6 +27,8 @@ public class JwtService
             new Claim(ClaimTypes.Name, name),
             new Claim(ClaimTypes.Role, role),
             new Claim("role", role),
+            new Claim("plan", plan),
+            new Claim("tid", tenantId.ToString()),
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };
 
