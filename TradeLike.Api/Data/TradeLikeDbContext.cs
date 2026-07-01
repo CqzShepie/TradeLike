@@ -34,6 +34,8 @@ public class TradeLikeDbContext : DbContext
 
     public DbSet<CustomerStaffSecurityRequest> CustomerStaffSecurityRequests => Set<CustomerStaffSecurityRequest>();
 
+    public DbSet<StaffLeaveRequest> StaffLeaveRequests => Set<StaffLeaveRequest>();
+
     public DbSet<JobAssignment> JobAssignments => Set<JobAssignment>();
 
     public DbSet<JobAssignmentStaff> JobAssignmentStaff => Set<JobAssignmentStaff>();
@@ -429,6 +431,36 @@ public class TradeLikeDbContext : DbContext
             entity.Property(request => request.Status)
                 .IsRequired()
                 .HasMaxLength(80);
+        });
+
+        modelBuilder.Entity<StaffLeaveRequest>(entity =>
+        {
+            entity.HasIndex(request => new
+                {
+                    request.TenantId,
+                    request.StaffMemberId
+                });
+
+            entity.HasIndex(request => new
+            {
+                request.TenantId,
+                request.StartDate,
+                request.EndDate
+            });
+
+            entity.Property(request => request.Reason)
+                .IsRequired()
+                .HasMaxLength(500);
+
+            entity.Property(request => request.Status)
+                .IsRequired()
+                .HasMaxLength(30)
+                .HasDefaultValue("Pending");
+
+            entity.HasOne(request => request.StaffMember)
+                .WithMany()
+                .HasForeignKey(request => request.StaffMemberId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<JobAssignment>(entity =>

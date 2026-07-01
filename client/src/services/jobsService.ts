@@ -45,7 +45,7 @@ export const jobsService = {
   },
 
   async getWeek(start: string) {
-    const jobs = (await apiClient.get(`/jobs/week?start=${start}`)) as Job[];
+    const jobs = (await apiClient.get(`/calendar/week?start=${start}`)) as Job[];
     return jobs.map(normaliseJob);
   },
 

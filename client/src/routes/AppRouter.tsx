@@ -9,6 +9,7 @@ import PreviousJobs from "../pages/PreviousJobs";
 import Customers from "../pages/Customers";
 import CustomerDetails from "../pages/CustomerDetails";
 import CalendarPage from "../pages/Calendar";
+import A11ySettings from "../pages/AccessibilitySettings";
 import Signup from "../pages/Signup";
 import Login from "../pages/Login";
 import Quotes from "../pages/Quotes";
@@ -17,9 +18,12 @@ import Invoices from "../pages/Invoices";
 import AdminPortal from "../pages/AdminPortal";
 import Settings from "../pages/Settings";
 import CompanyInvite from "../pages/CompanyInvite";
+import AcceptCompanyStaffInvite from "../pages/AcceptCompanyStaffInvite";
+import AcceptStaffInvite from "../pages/AcceptStaffInvite";
 import CustomerStaff from "../pages/CustomerStaff";
 import Reports from "../pages/Reports";
 import SupportCenter from "../pages/SupportCenter";
+import ProtectedRoute from "./ProtectedRoute";
 import StaffRoute from "./StaffRoute";
 
 function AppRouter() {
@@ -30,28 +34,31 @@ function AppRouter() {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/signup" element={<Signup />} />
+        <Route path="/register" element={<Signup />} />
         <Route path="/login" element={<Login />} />
         <Route path="/company-invite" element={<CompanyInvite />} />
-        <Route path="/accept-company-staff-invite" element={<CompanyInvite />} />
+        <Route path="/accept-staff-invite" element={<AcceptStaffInvite />} />
+        <Route path="/accept-company-staff-invite" element={<AcceptCompanyStaffInvite />} />
 
-        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
 
-        <Route path="/jobs" element={<Jobs />} />
-        <Route path="/job-history" element={<PreviousJobs />} />
-        <Route path="/jobs/:id" element={<JobDetails />} />
+        <Route path="/jobs" element={<ProtectedRoute><Jobs /></ProtectedRoute>} />
+        <Route path="/job-history" element={<ProtectedRoute><PreviousJobs /></ProtectedRoute>} />
+        <Route path="/jobs/:id" element={<ProtectedRoute><JobDetails /></ProtectedRoute>} />
 
-        <Route path="/customers" element={<Customers />} />
-        <Route path="/customers/:id" element={<CustomerDetails />} />
+        <Route path="/customers" element={<ProtectedRoute><Customers /></ProtectedRoute>} />
+        <Route path="/customers/:id" element={<ProtectedRoute><CustomerDetails /></ProtectedRoute>} />
 
-        <Route path="/calendar" element={<CalendarPage />} />
-        <Route path="/team" element={<CustomerStaff />} />
-        <Route path="/reports" element={<Reports />} />
+        <Route path="/calendar" element={<ProtectedRoute><CalendarPage /></ProtectedRoute>} />
+        <Route path="/team" element={<ProtectedRoute><CustomerStaff /></ProtectedRoute>} />
+        <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
         <Route path="/support" element={<SupportCenter />} />
 
-        <Route path="/quotes" element={<Quotes />} />
-        <Route path="/quotes/:id" element={<QuoteDetails />} />
-        <Route path="/invoices" element={<Invoices />} />
-        <Route path="/settings" element={<Settings />} />
+        <Route path="/quotes" element={<ProtectedRoute><Quotes /></ProtectedRoute>} />
+        <Route path="/quotes/:id" element={<ProtectedRoute><QuoteDetails /></ProtectedRoute>} />
+        <Route path="/invoices" element={<ProtectedRoute><Invoices /></ProtectedRoute>} />
+        <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+        <Route path="/settings/accessibility" element={<ProtectedRoute><A11ySettings /></ProtectedRoute>} />
 
         <Route
           path="/admin"

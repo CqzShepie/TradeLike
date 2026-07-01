@@ -88,6 +88,31 @@ function readStoredUser() {
   }
 }
 
+function isTokenExpired(token: string) {
+  const [, payload] = token.split(".");
+
+  if (!payload) {
+    return true;
+  }
+
+  try {
+    const decodedPayload = JSON.parse(atob(toBase64(payload))) as { exp?: number };
+
+    if (!decodedPayload.exp) {
+      return true;
+    }
+
+    return decodedPayload.exp * 1000 <= Date.now();
+  } catch {
+    return true;
+  }
+}
+
+function toBase64(value: string) {
+  const padded = value.padEnd(value.length + ((4 - (value.length % 4)) % 4), "=");
+  return padded.replace(/-/g, "+").replace(/_/g, "/");
+}
+
 export const authService = {
   async login(request: LoginRequest): Promise<LoginResponse> {
     const response = await apiClient.post<LoginResponse>("/auth/login", {
@@ -126,6 +151,17 @@ export const authService = {
 
   isLoggedIn() {
     return Boolean(localStorage.getItem("tradelike_token"));
+  },
+
+  hasValidSession() {
+    const token = localStorage.getItem("tradelike_token");
+
+    if (!token || isTokenExpired(token)) {
+      clearToken();
+      return false;
+    }
+
+    return true;
   },
 
   isStaffUser(user = readStoredUser()) {

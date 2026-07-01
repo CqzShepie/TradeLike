@@ -1,11 +1,10 @@
 import { Navigate, useLocation } from "react-router-dom";
 import { authService } from "../services/authService";
 
-export default function StaffRoute({ children }: { children: React.ReactNode }) {
+export default function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const location = useLocation();
-  const user = authService.getUser();
 
-  if (!authService.hasValidSession() || !user) {
+  if (!authService.hasValidSession()) {
     const returnUrl = `${location.pathname}${location.search}`;
 
     return (
@@ -14,10 +13,6 @@ export default function StaffRoute({ children }: { children: React.ReactNode }) 
         replace
       />
     );
-  }
-
-  if (!authService.isStaffUser(user)) {
-    return <Navigate to="/dashboard" replace />;
   }
 
   return <>{children}</>;

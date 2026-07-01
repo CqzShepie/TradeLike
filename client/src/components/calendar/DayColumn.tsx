@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { Job } from "../../types/job";
 import type { Engineer } from "../../services/engineersService";
 import type { CustomerStaffMember, CustomerTeam } from "../../services/customerStaffService";
+import type { StaffLeaveRequest } from "../../services/staffLeaveService";
 import { getTeamColour } from "../../utils/teamColours";
 import { getDayLoad, getEngineerLoadsForDay } from "../../utils/dispatchRules";
 
@@ -13,22 +14,20 @@ interface DayColumnProps {
     teams?: CustomerTeam[];
     onSelectJob: (job: Job) => void;
     onMoveJob: (job: Job, newDate: Date) => void;
+    leaveRequests?: StaffLeaveRequest[];
     allJobs: Job[];
     weekDays: Date[];
     intensity?: number;
     isOverloaded?: boolean;
 }
 
-type LeaveRequest = { id: number; staffMemberId: number; startDate: string; endDate: string; reason: string; status: "Pending" | "Approved" | "Rejected"; };
-const leaveStorageKey = "tradelike_staff_leave_requests";
-
-export default function DayColumn({ date, jobs, engineers, staffMembers = [], teams = [], onSelectJob, onMoveJob, allJobs }: DayColumnProps) {
-    const [selectedLeave, setSelectedLeave] = useState<(LeaveRequest & { staffName: string; teamName: string }) | null>(null);
+export default function DayColumn({ date, jobs, engineers, staffMembers = [], teams = [], onSelectJob, onMoveJob, leaveRequests = [], allJobs }: DayColumnProps) {
+    const [selectedLeave, setSelectedLeave] = useState<(StaffLeaveRequest & { staffName: string; teamName: string }) | null>(null);
     const dayName = date.toLocaleDateString("en-GB", { weekday: "long" });
     const dayNumber = date.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
     const load = getDayLoad(allJobs, date);
     const engineerLoads = Object.entries(getEngineerLoadsForDay(allJobs, date));
-    const leaveItems = getLeaveForDate(date, engineers, staffMembers, teams);
+    const leaveItems = getLeaveForDate(date, leaveRequests, engineers, staffMembers, teams);
 
     function getEngineerName(engineerId: number | null | undefined) {
         if (engineerId == null) return "Unassigned";
@@ -51,7 +50,7 @@ export default function DayColumn({ date, jobs, engineers, staffMembers = [], te
     );
 }
 
-function getLeaveForDate(date: Date, engineers: Engineer[], staffMembers: CustomerStaffMember[], teams: CustomerTeam[]) { const target = startOfDay(date).getTime(); try { const rows = JSON.parse(localStorage.getItem(leaveStorageKey) ?? "[]") as LeaveRequest[]; return rows.filter(row => row.status !== "Rejected" && startOfDay(row.startDate).getTime() <= target && startOfDay(row.endDate).getTime() >= target).map(row => { const staff = staffMembers.find(member => member.id === row.staffMemberId); const team = staff?.teamIds?.[0] ? teams.find(item => item.id === staff.teamIds[0]) : null; return { ...row, staffName: staff ? `${staff.firstName} ${staff.lastName}` : engineers.find(engineer => engineer.id === row.staffMemberId)?.name ?? `Staff ${row.staffMemberId}`, teamName: team?.name ?? "No Team Recorded" }; }); } catch { return []; } }
+function getLeaveForDate(date: Date, leaveRequests: StaffLeaveRequest[], engineers: Engineer[], staffMembers: CustomerStaffMember[], teams: CustomerTeam[]) { const target = startOfDay(date).getTime(); return leaveRequests.filter(row => row.status !== "Rejected" && startOfDay(row.startDate).getTime() <= target && startOfDay(row.endDate).getTime() >= target).map(row => { const staff = staffMembers.find(member => member.id === row.staffMemberId); const team = staff?.teamIds?.[0] ? teams.find(item => item.id === staff.teamIds[0]) : null; return { ...row, staffName: staff ? `${staff.firstName} ${staff.lastName}` : engineers.find(engineer => engineer.id === row.staffMemberId)?.name ?? `Staff ${row.staffMemberId}`, teamName: team?.name ?? "No Team Recorded" }; }); }
 function Detail({ label, value }: { label: string; value: string }) { return <div><p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{label}</p><p className="mt-1 font-medium text-slate-900">{value}</p></div>; }
 function startOfDay(value: Date | string) { const date = new Date(value); date.setHours(0, 0, 0, 0); return date; }
 function formatDate(value: string) { const date = new Date(value); return Number.isNaN(date.getTime()) ? "Not set" : date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }); }

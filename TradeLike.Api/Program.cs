@@ -46,6 +46,9 @@ var jwt = jwtSection.Get<JwtSettings>()
 ValidateJwtSettings(jwt);
 var frontendBaseUrl = builder.Configuration["Frontend:BaseUrl"];
 ValidateFrontendBaseUrl(frontendBaseUrl);
+var allowedOrigins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>()
+    ?? throw new InvalidOperationException("AllowedOrigins must be configured.");
+ValidateAllowedOrigins(allowedOrigins);
 
 builder.Services
     .AddOptions<JwtSettings>()
@@ -137,10 +140,7 @@ builder.Services.AddCors(options =>
     options.AddPolicy("AllowFrontend", policy =>
     {
         policy
-            .WithOrigins(
-                "http://localhost:5173",
-                "https://app.tradelike.co.uk",
-                "https://gray-glacier-03cac3803.7.azurestaticapps.net")
+            .WithOrigins(allowedOrigins)
             .AllowAnyHeader()
             .AllowAnyMethod();
     });
@@ -236,6 +236,29 @@ static void ValidateFrontendBaseUrl(string? baseUrl)
         (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
     {
         throw new InvalidOperationException("Frontend:BaseUrl must be an absolute HTTP or HTTPS URL.");
+    }
+}
+
+static void ValidateAllowedOrigins(IReadOnlyCollection<string> origins)
+{
+    if (origins.Count == 0)
+    {
+        throw new InvalidOperationException("AllowedOrigins must contain at least one origin.");
+    }
+
+    foreach (var origin in origins)
+    {
+        if (string.IsNullOrWhiteSpace(origin) ||
+            string.Equals(origin, JwtSettings.EnvironmentPlaceholder, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException("AllowedOrigins entries must be set in configuration or environment.");
+        }
+
+        if (!Uri.TryCreate(origin, UriKind.Absolute, out var uri) ||
+            (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+        {
+            throw new InvalidOperationException("AllowedOrigins entries must be absolute HTTP or HTTPS origins.");
+        }
     }
 }
 
