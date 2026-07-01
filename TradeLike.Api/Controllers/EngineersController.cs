@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TradeLike.Api.Data;
@@ -5,6 +6,7 @@ using TradeLike.Api.Data;
 namespace TradeLike.Api.Controllers;
 
 [ApiController]
+[Authorize(Policy = "RequireStaffRole")]
 [Route("api/[controller]")]
 public class EngineersController : ControllerBase
 {

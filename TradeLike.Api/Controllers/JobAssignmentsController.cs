@@ -8,7 +8,7 @@ using TradeLike.Api.Data;
 namespace TradeLike.Api.Controllers;
 
 [ApiController]
-[Authorize]
+[Authorize(Policy = "RequireStaffRole")]
 [Route("api/job-assignments")]
 public sealed class JobAssignmentsController : ControllerBase
 {

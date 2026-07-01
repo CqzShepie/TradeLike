@@ -7,7 +7,7 @@ namespace TradeLike.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
+[Authorize(Policy = "RequireCustomerRole")]
 public class DashboardController : ControllerBase
 {
     private readonly TradeLikeDbContext _context;

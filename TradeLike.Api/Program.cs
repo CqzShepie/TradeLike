@@ -57,7 +57,17 @@ builder.Services
         };
     });
 
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("RequireCustomerRole", policy =>
+        policy.RequireRole("Customer", "Director"));
+
+    options.AddPolicy("RequireStaffRole", policy =>
+        policy.RequireRole("Staff", "Director"));
+
+    options.AddPolicy("RequireAdminRole", policy =>
+        policy.RequireRole("Director"));
+});
 
 builder.Services.AddRateLimiter(options =>
 {
