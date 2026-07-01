@@ -23,6 +23,8 @@ export {
   ProductStat,
 } from "./ProductPage";
 export { default as SelectInput } from "./SelectInput";
+export { default as SelectMenu } from "./SelectMenu";
+export type { SelectMenuOption } from "./SelectMenu";
 export { default as SectionHeader } from "./SectionHeader";
 export { default as StatsGrid } from "./StatsGrid";
 export { default as StatusBadge } from "./StatusBadge";

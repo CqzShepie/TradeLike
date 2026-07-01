@@ -13,7 +13,7 @@ import {
   ProductPanel,
   ProductStat,
   SecondaryButton,
-  SelectInput,
+  SelectMenu,
   StatusBadge,
   TextInput,
 } from "../components/ui";
@@ -234,28 +234,48 @@ function Jobs() {
                 placeholder="Search jobs, client, job number, quote, team or engineer..."
                 className="border-white/10 bg-slate-950/60 text-white placeholder:text-slate-500"
               />
-              <SelectInput value={statusFilter} onChange={event => setStatusFilter(event.target.value as JobStatus | "All")} className="border-white/10 bg-slate-950/60 text-white">
-                <option value="All">All statuses</option>
-                <option value="Scheduled">Scheduled</option>
-                <option value="InProgress">In progress</option>
-                <option value="Completed">Completed</option>
-                <option value="Cancelled">Cancelled</option>
-              </SelectInput>
-              <SelectInput value={priorityFilter} onChange={event => setPriorityFilter(event.target.value as JobPriority | "All")} className="border-white/10 bg-slate-950/60 text-white">
-                <option value="All">All priorities</option>
-                <option value="Low">Low</option>
-                <option value="Normal">Normal</option>
-                <option value="High">High</option>
-                <option value="Urgent">Urgent</option>
-              </SelectInput>
-              <SelectInput value={teamFilter} onChange={event => setTeamFilter(event.target.value)} className="border-white/10 bg-slate-950/60 text-white">
-                <option value="All">All teams</option>
-                {teams.map(team => <option key={team.id} value={team.id}>{team.name}</option>)}
-              </SelectInput>
-              <SelectInput value={engineerFilter} onChange={event => setEngineerFilter(event.target.value)} className="border-white/10 bg-slate-950/60 text-white">
-                <option value="All">All engineers</option>
-                {members.map(member => <option key={member.id} value={member.id}>{getMemberName(member)}</option>)}
-              </SelectInput>
+              <SelectMenu
+                ariaLabel="Job status filter"
+                value={statusFilter}
+                onChange={value => setStatusFilter(value as JobStatus | "All")}
+                options={[
+                  { value: "All", label: "All statuses" },
+                  { value: "Scheduled", label: "Scheduled" },
+                  { value: "InProgress", label: "In progress" },
+                  { value: "Completed", label: "Completed" },
+                  { value: "Cancelled", label: "Cancelled" },
+                ]}
+              />
+              <SelectMenu
+                ariaLabel="Job priority filter"
+                value={priorityFilter}
+                onChange={value => setPriorityFilter(value as JobPriority | "All")}
+                options={[
+                  { value: "All", label: "All priorities" },
+                  { value: "Low", label: "Low" },
+                  { value: "Normal", label: "Normal" },
+                  { value: "High", label: "High" },
+                  { value: "Urgent", label: "Urgent" },
+                ]}
+              />
+              <SelectMenu
+                ariaLabel="Job team filter"
+                value={teamFilter}
+                onChange={setTeamFilter}
+                options={[
+                  { value: "All", label: "All teams" },
+                  ...teams.map(team => ({ value: String(team.id), label: team.name })),
+                ]}
+              />
+              <SelectMenu
+                ariaLabel="Job engineer filter"
+                value={engineerFilter}
+                onChange={setEngineerFilter}
+                options={[
+                  { value: "All", label: "All engineers" },
+                  ...members.map(member => ({ value: String(member.id), label: getMemberName(member) })),
+                ]}
+              />
             </div>
 
             <div className="mt-6">

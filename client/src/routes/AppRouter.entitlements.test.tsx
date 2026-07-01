@@ -113,6 +113,14 @@ describe("AppRouter entitlement guards", () => {
     expect(screen.getByRole("heading", { name: /upgrade required/i })).toBeInTheDocument();
   });
 
+  it("shows UpgradeRequired when a Solo user visits Inventory directly", () => {
+    setSession(soloDirector);
+
+    renderRouter("/inventory");
+
+    expect(screen.getByRole("heading", { name: /upgrade required/i })).toBeInTheDocument();
+  });
+
   it("shows UpgradeRequired when a Solo user visits advanced reports directly", () => {
     setSession(soloDirector);
 

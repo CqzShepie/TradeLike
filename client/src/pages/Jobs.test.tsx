@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import Jobs from "./Jobs";
 import { useJobs } from "../hooks/useJobs";
@@ -45,6 +45,59 @@ describe("Jobs", () => {
     );
 
     expect(screen.getByText("No jobs found.")).toBeInTheDocument();
+  });
+
+  it("renders dark select filters and opens a dark listbox", () => {
+    vi.mocked(useJobs).mockReturnValue({
+      jobs: [],
+      loading: false,
+      error: null,
+      reloadJobs: vi.fn(),
+      addJob: vi.fn(),
+      deleteJob: vi.fn(),
+      updateJob: vi.fn(),
+      editingJob: null,
+      startEdit: vi.fn(),
+      cancelEdit: vi.fn(),
+    });
+
+    render(
+      <MemoryRouter>
+        <Jobs />
+      </MemoryRouter>
+    );
+
+    const statusFilter = screen.getByRole("combobox", { name: /job status filter/i });
+    expect(statusFilter).toHaveClass("bg-slate-950/60");
+
+    fireEvent.click(statusFilter);
+
+    expect(screen.getByRole("listbox")).toHaveClass("bg-slate-950");
+  });
+
+  it("keeps Previous Job Records intentionally enabled", () => {
+    vi.mocked(useJobs).mockReturnValue({
+      jobs: [],
+      loading: false,
+      error: null,
+      reloadJobs: vi.fn(),
+      addJob: vi.fn(),
+      deleteJob: vi.fn(),
+      updateJob: vi.fn(),
+      editingJob: null,
+      startEdit: vi.fn(),
+      cancelEdit: vi.fn(),
+    });
+
+    render(
+      <MemoryRouter>
+        <Jobs />
+      </MemoryRouter>
+    );
+
+    const previousJobs = screen.getByRole("button", { name: /previous job records/i });
+    expect(previousJobs).not.toBeDisabled();
+    expect(previousJobs).toHaveClass("bg-white/5");
   });
 
   it("renders job stat cards", () => {

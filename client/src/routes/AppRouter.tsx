@@ -128,7 +128,7 @@ function NavigationAccessRoute({ path, children }: { path: string; children: Rea
   }
 
   if (access === "upgrade") {
-    return <UpgradeRequired />;
+    return <UpgradeRequired featureName={item?.label} minimumPlan={item?.minimumPlan} />;
   }
 
   return <>{children}</>;

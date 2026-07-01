@@ -5,6 +5,7 @@ import type {
     JobStatus,
 } from "../../types/job";
 import type { NewJob } from "../../types/newJob";
+import { SelectMenu, TextArea, TextInput } from "../ui";
 
 type NewJobFormProps = {
     onAddJob: (job: NewJob) => Promise<void> | void;
@@ -138,14 +139,14 @@ function NewJobForm({
     return (
         <form
             onSubmit={handleSubmit}
-            className="mb-8 rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
+            className="rounded-xl border border-white/10 bg-slate-950/50 p-6 shadow-sm shadow-slate-950/30"
         >
             <div className="mb-5">
-                <h2 className="text-lg font-bold text-slate-900">
+                <h2 className="text-lg font-bold text-white">
                     {editingJob ? "Edit Job" : "New Job"}
                 </h2>
 
-                <p className="mt-1 text-sm text-slate-500">
+                <p className="mt-1 text-sm text-slate-400">
                     Add job details, priority, schedule, and internal notes.
                 </p>
             </div>
@@ -158,86 +159,70 @@ function NewJobForm({
 
             <div className="grid gap-4 md:grid-cols-2">
                 <Field label="Customer">
-                    <input
+                    <TextInput
                         value={customer}
                         onChange={event => setCustomer(event.target.value)}
-                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600"
                     />
                 </Field>
 
                 <Field label="Phone">
-                    <input
+                    <TextInput
                         value={phone}
                         onChange={event => setPhone(event.target.value)}
-                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600"
                     />
                 </Field>
 
                 <Field label="Job Title">
-                    <input
+                    <TextInput
                         value={jobTitle}
                         onChange={event => setJobTitle(event.target.value)}
-                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600"
                     />
                 </Field>
 
                 <Field label="Scheduled Date">
-                    <input
+                    <TextInput
                         type="datetime-local"
                         value={scheduledDate}
                         onChange={event => setScheduledDate(event.target.value)}
                         min="2024-01-01T00:00"
                         max="2099-12-31T23:59"
-                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600"
                     />
                 </Field>
 
                 <Field label="Status">
-                    <select
+                    <SelectMenu
+                        ariaLabel="Job form status"
                         value={status}
-                        onChange={event => setStatus(event.target.value as JobStatus)}
-                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600"
-                    >
-                        {statuses.map(option => (
-                            <option key={option} value={option}>
-                                {formatStatus(option)}
-                            </option>
-                        ))}
-                    </select>
+                        onChange={value => setStatus(value as JobStatus)}
+                        options={statuses.map(option => ({ value: option, label: formatStatus(option) }))}
+                    />
                 </Field>
 
                 <Field label="Priority">
-                    <select
+                    <SelectMenu
+                        ariaLabel="Job form priority"
                         value={priority}
-                        onChange={event => setPriority(event.target.value as JobPriority)}
-                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600"
-                    >
-                        {priorities.map(option => (
-                            <option key={option} value={option}>
-                                {option}
-                            </option>
-                        ))}
-                    </select>
+                        onChange={value => setPriority(value as JobPriority)}
+                        options={priorities.map(option => ({ value: option, label: option }))}
+                    />
                 </Field>
 
                 <div className="md:col-span-2">
                     <Field label="Address">
-                        <input
+                        <TextInput
                             value={address}
                             onChange={event => setAddress(event.target.value)}
-                            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600"
                         />
                     </Field>
                 </div>
 
                 <div className="md:col-span-2">
                     <Field label="Job Notes">
-                        <textarea
+                        <TextArea
                             value={notes}
                             onChange={event => setNotes(event.target.value)}
                             rows={4}
                             placeholder="Access notes, materials needed, parking, customer preferences, risks, completion notes, etc."
-                            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600"
                         />
                     </Field>
                 </div>
@@ -248,7 +233,7 @@ function NewJobForm({
                     <button
                         type="button"
                         onClick={onCancelEdit}
-                        className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                        className="rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-slate-100 hover:bg-white/10"
                     >
                         Cancel
                     </button>
@@ -257,7 +242,7 @@ function NewJobForm({
                 <button
                     type="submit"
                     disabled={saving}
-                    className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-400"
+                    className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-500 disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500"
                 >
                     {saving
                         ? "Saving..."
@@ -279,7 +264,7 @@ function Field({
 }) {
     return (
         <label className="block">
-            <span className="mb-1 block text-sm font-medium text-slate-700">
+            <span className="mb-1 block text-sm font-medium text-slate-300">
                 {label}
             </span>
 
