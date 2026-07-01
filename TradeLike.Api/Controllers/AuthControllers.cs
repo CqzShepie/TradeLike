@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TradeLike.Api.Data;
@@ -10,9 +11,6 @@ namespace TradeLike.Api.Controllers;
 [Route("api/[controller]")]
 public class AuthController : ControllerBase
 {
-    private const string BootstrapDirectorEmail = "admin@tradelike.co.uk";
-    private const string BootstrapDirectorPassword = "Password123!";
-
     private readonly TradeLikeDbContext _context;
     private readonly JwtService _jwtService;
 
@@ -35,15 +33,14 @@ public class AuthController : ControllerBase
         string Password
     );
 
+    [EnableRateLimiting("auth-login")]
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
         await EnsureAdminUpgradeSchemaExistsAsync();
 
         var email = request.Email.Trim().ToLowerInvariant();
-        var password = request.Password.Trim();
-
-        await EnsurePermanentDirectorExistsAsync();
+        var password = request.Password ?? string.Empty;
 
         var user = await _context.Users
             .FirstOrDefaultAsync(existingUser => existingUser.Email == email);
@@ -75,6 +72,7 @@ public class AuthController : ControllerBase
         return Ok(BuildAuthResponse(user, token));
     }
 
+    [EnableRateLimiting("auth-register")]
     [HttpPost("register")]
     public async Task<IActionResult> Register([FromBody] RegisterRequest request)
     {
@@ -82,7 +80,7 @@ public class AuthController : ControllerBase
 
         var businessName = request.BusinessName.Trim();
         var email = request.Email.Trim().ToLowerInvariant();
-        var password = request.Password.Trim();
+        var password = request.Password ?? string.Empty;
 
         if (businessName.Length == 0)
         {
@@ -207,142 +205,6 @@ public class AuthController : ControllerBase
                 canViewSecurityLogs = user.CanViewSecurityLogs
             }
         };
-    }
-
-    private async Task EnsurePermanentDirectorExistsAsync()
-    {
-        var existingDirector = await _context.Users
-            .FirstOrDefaultAsync(user => user.Email == BootstrapDirectorEmail);
-
-        if (existingDirector is not null)
-        {
-            existingDirector.FirstName = "Thomas";
-            existingDirector.LastName = "Kennington";
-            existingDirector.Role = "Director";
-            existingDirector.PersonalAssistantTo = null;
-            existingDirector.AccountStatus = "Active";
-            existingDirector.IsEmailVerified = true;
-            existingDirector.DiscountType = "None";
-            existingDirector.DiscountValue = 0;
-            existingDirector.FreeMonths = 0;
-            existingDirector.FreeMonthsExpireAt = null;
-            existingDirector.PasswordResetRequired = false;
-
-            existingDirector.BusinessName = "TradeLike";
-            existingDirector.OwnerName = "Thomas Kennington";
-            existingDirector.OwnerPhone = null;
-            existingDirector.SubscriptionPlan = "Internal";
-            existingDirector.BillingStatus = "Internal";
-            existingDirector.TrialEndsAt = null;
-            existingDirector.AdminTags = "Internal, Director";
-            existingDirector.SupportNotes = null;
-            existingDirector.HealthStatus = "Green";
-            existingDirector.AccountSource = "Permanent Director";
-            existingDirector.CancelReason = null;
-            existingDirector.OnboardingEmailSentAt = null;
-
-            GiveDirectorPermissions(existingDirector);
-
-            existingDirector.UpdatedAt = DateTime.UtcNow;
-
-            await _context.SaveChangesAsync();
-            return;
-        }
-
-        var now = DateTime.UtcNow;
-
-        var director = new User
-        {
-            FirstName = "Thomas",
-            LastName = "Kennington",
-            Email = BootstrapDirectorEmail,
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword(BootstrapDirectorPassword),
-            Role = "Director",
-            PersonalAssistantTo = null,
-            AccountStatus = "Active",
-            IsEmailVerified = true,
-            DiscountType = "None",
-            DiscountValue = 0,
-            FreeMonths = 0,
-            FreeMonthsExpireAt = null,
-            PasswordResetRequired = false,
-
-            BusinessName = "TradeLike",
-            OwnerName = "Thomas Kennington",
-            OwnerPhone = null,
-            SubscriptionPlan = "Internal",
-            BillingStatus = "Internal",
-            TrialEndsAt = null,
-            AdminTags = "Internal, Director",
-            SupportNotes = null,
-            HealthStatus = "Green",
-            AccountSource = "Permanent Director",
-            CancelReason = null,
-            OnboardingEmailSentAt = null,
-
-            CanManageAccounts = true,
-            CanManageStaff = true,
-            CanManageBilling = true,
-            CanManageSecurity = true,
-            CanViewAuditLogs = true,
-
-            CanCreateCustomers = true,
-            CanEditCustomers = true,
-            CanCancelCustomers = true,
-            CanResetPasswords = true,
-            CanVerifyEmails = true,
-            CanSendEmails = true,
-            CanManageDiscounts = true,
-            CanManageFreeMonths = true,
-            CanViewCustomerNotes = true,
-            CanEditCustomerNotes = true,
-            CanViewBilling = true,
-            CanManageSubscriptions = true,
-            CanExportData = true,
-            CanImpersonateCustomer = true,
-            CanDeleteData = true,
-            CanViewStaff = true,
-            CanCreateStaff = true,
-            CanCancelStaff = true,
-            CanEditStaffPermissions = true,
-            CanViewSecurityLogs = true,
-
-            CreatedAt = now,
-            UpdatedAt = now
-        };
-
-        await _context.Users.AddAsync(director);
-        await _context.SaveChangesAsync();
-    }
-
-    private static void GiveDirectorPermissions(User user)
-    {
-        user.CanManageAccounts = true;
-        user.CanManageStaff = true;
-        user.CanManageBilling = true;
-        user.CanManageSecurity = true;
-        user.CanViewAuditLogs = true;
-
-        user.CanCreateCustomers = true;
-        user.CanEditCustomers = true;
-        user.CanCancelCustomers = true;
-        user.CanResetPasswords = true;
-        user.CanVerifyEmails = true;
-        user.CanSendEmails = true;
-        user.CanManageDiscounts = true;
-        user.CanManageFreeMonths = true;
-        user.CanViewCustomerNotes = true;
-        user.CanEditCustomerNotes = true;
-        user.CanViewBilling = true;
-        user.CanManageSubscriptions = true;
-        user.CanExportData = true;
-        user.CanImpersonateCustomer = true;
-        user.CanDeleteData = true;
-        user.CanViewStaff = true;
-        user.CanCreateStaff = true;
-        user.CanCancelStaff = true;
-        user.CanEditStaffPermissions = true;
-        user.CanViewSecurityLogs = true;
     }
 
     private async Task EnsureAdminUpgradeSchemaExistsAsync()
