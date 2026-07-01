@@ -91,9 +91,11 @@ export default function CustomerList({
                   {customer.address || "No address"}
                 </td>
                 <td className="px-5 py-4 align-top">
-                  <Badge tone={customer.notes ? "green" : "neutral"}>
-                    {customer.notes ? "Has notes" : "No notes"}
-                  </Badge>
+                  {customer.notes?.trim() && (
+                    <Badge tone="green">
+                      Has notes
+                    </Badge>
+                  )}
                   <p className="mt-2 max-w-md text-sm leading-6 text-slate-300">
                     {customer.notes?.trim() || "Nothing recorded yet."}
                   </p>

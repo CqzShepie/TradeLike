@@ -185,7 +185,7 @@ export default function JobDetails() {
               <div className="mt-4 max-h-72 space-y-2 overflow-y-auto pr-2">
                 {notes.length === 0 && (
                   <p className="rounded-lg border border-dashed border-white/10 bg-slate-900 p-4 text-sm text-slate-400">
-                    No notes added yet.
+                    Nothing recorded yet.
                   </p>
                 )}
                 {notes.map((note, index) => (

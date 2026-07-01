@@ -46,7 +46,7 @@ function NoteList({
       <div className="max-h-96 overflow-y-auto space-y-4 pr-2">
         {notes.length === 0 ? (
           <p className="text-slate-500">
-            No notes yet.
+            Nothing recorded yet.
           </p>
         ) : (
           notes.map((note) =>

@@ -825,7 +825,7 @@ export default function QuoteDetails() {
                       Notes
                     </p>
                     <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-amber-950">
-                      {form.notes || "No quote notes added yet."}
+                      {form.notes || "Nothing recorded yet."}
                     </p>
                   </div>
                 </aside>

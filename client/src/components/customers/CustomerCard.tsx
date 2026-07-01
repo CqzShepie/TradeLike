@@ -53,7 +53,7 @@ function CustomerCard({
             </p>
             <p className="line-clamp-3">
               <span className="font-semibold text-slate-100">Notes:</span>{" "}
-              {customer.notes?.trim() || "No notes"}
+              {customer.notes?.trim() || "Nothing recorded yet."}
             </p>
           </div>
         </div>
