@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Route, Routes, useLocation } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 
 import Home from "../pages/Home";
 import Dashboard from "../pages/Dashboard";
@@ -23,7 +23,12 @@ import AcceptStaffInvite from "../pages/AcceptStaffInvite";
 import CustomerStaff from "../pages/CustomerStaff";
 import Reports from "../pages/Reports";
 import ReportsOverview from "../pages/ReportsOverview";
+import ApiDeveloperPage from "../pages/api-dev/ApiDeveloperPage";
+import BrandingPage from "../pages/branding/BrandingPage";
+import ImportExportPage from "../pages/import/ImportExportPage";
+import Inventory from "../pages/inventory/Inventory";
 import SupportCenter from "../pages/SupportCenter";
+import { authService } from "../services/authService";
 import ProtectedRoute from "./ProtectedRoute";
 import StaffRoute from "./StaffRoute";
 
@@ -54,7 +59,8 @@ function AppRouter() {
         <Route path="/team" element={<ProtectedRoute><CustomerStaff /></ProtectedRoute>} />
         <Route path="/leave" element={<ProtectedRoute><CustomerStaff /></ProtectedRoute>} />
         <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
-        <Route path="/reports/overview" element={<ProtectedRoute><ReportsOverview /></ProtectedRoute>} />
+        <Route path="/reports/overview" element={<ManagerRoute><ReportsOverview /></ManagerRoute>} />
+        <Route path="/inventory" element={<ManagerRoute><Inventory /></ManagerRoute>} />
         <Route path="/support" element={<SupportCenter />} />
 
         <Route path="/quotes" element={<ProtectedRoute><Quotes /></ProtectedRoute>} />
@@ -63,6 +69,9 @@ function AppRouter() {
         <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
         <Route path="/settings/billing" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
         <Route path="/settings/accessibility" element={<ProtectedRoute><A11ySettings /></ProtectedRoute>} />
+        <Route path="/settings/api" element={<DirectorRoute><ApiDeveloperPage /></DirectorRoute>} />
+        <Route path="/settings/branding" element={<DirectorRoute><BrandingPage /></DirectorRoute>} />
+        <Route path="/settings/import-export" element={<DirectorRoute><ImportExportPage /></DirectorRoute>} />
 
         <Route
           path="/admin"
@@ -77,6 +86,26 @@ function AppRouter() {
       </Routes>
     </>
   );
+}
+
+function ManagerRoute({ children }: { children: React.ReactNode }) {
+  if (!authService.hasValidSession()) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return authService.isManagerOrDirector()
+    ? <>{children}</>
+    : <Navigate to="/dashboard" replace />;
+}
+
+function DirectorRoute({ children }: { children: React.ReactNode }) {
+  if (!authService.hasValidSession()) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return authService.isDirector()
+    ? <>{children}</>
+    : <Navigate to="/dashboard" replace />;
 }
 
 function ScrollToTop() {

@@ -1,14 +1,16 @@
 import { useEffect, useState } from "react";
-import { Briefcase, CalendarDays, FileText, LayoutDashboard, Settings2, Users, UserCog, BarChart3, Umbrella } from "lucide-react";
+import { BarChart3, Briefcase, CalendarDays, Code2, FileText, LayoutDashboard, Package, Palette, Search, Settings2, UploadCloud, Users, UserCog, Umbrella } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
 
 import Logo from "./Logo";
+import { useGlobalSearch } from "../../contexts/useGlobalSearch";
 import { useAuth } from "../../hooks/useAuth";
 
 function Sidebar() {
   const [showHomeConfirm, setShowHomeConfirm] = useState(false);
   const navigate = useNavigate();
-  const { isManagerOrDirector } = useAuth();
+  const { isDirector, isManagerOrDirector } = useAuth();
+  const search = useGlobalSearch();
 
   useEffect(() => {
     document.body.classList.add("bg-slate-950");
@@ -28,6 +30,15 @@ function Sidebar() {
           { to: "/team", label: "Team", icon: UserCog },
           { to: "/leave", label: "Leave", icon: Umbrella },
           { to: "/reports", label: "Reports", icon: BarChart3 },
+          { to: "/reports/overview", label: "Analytics", icon: BarChart3 },
+          { to: "/inventory", label: "Inventory", icon: Package },
+        ]
+      : []),
+    ...(isDirector
+      ? [
+          { to: "/settings/api", label: "API", icon: Code2 },
+          { to: "/settings/branding", label: "Branding", icon: Palette },
+          { to: "/settings/import-export", label: "Import / Export", icon: UploadCloud },
         ]
       : []),
     { to: "/settings", label: "Settings", icon: Settings2 },
@@ -42,6 +53,17 @@ function Sidebar() {
     <>
       <aside className="fixed inset-y-0 left-0 z-40 flex w-72 flex-col border-r border-white/10 bg-slate-950 px-5 py-6 text-slate-100 shadow-2xl shadow-slate-950/40">
         <Logo tone="dark" onClick={() => setShowHomeConfirm(true)} className="mb-8" />
+
+        <button
+          type="button"
+          onClick={search.open}
+          className="mb-4 flex items-center gap-3 rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-left text-sm font-medium text-slate-300 transition hover:border-white/15 hover:bg-slate-800 hover:text-white"
+        >
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-slate-950 text-blue-300">
+            <Search className="h-5 w-5" />
+          </span>
+          <span>Search</span>
+        </button>
 
         <nav className="flex flex-col gap-2">
           {navItems.map(item => (

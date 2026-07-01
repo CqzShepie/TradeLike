@@ -15,10 +15,16 @@ using Serilog.Context;
 using Serilog.Events;
 using Serilog.Sinks.ApplicationInsights.TelemetryConverters;
 using Microsoft.ApplicationInsights.Extensibility;
+using TradeLike.Api;
 using TradeLike.Api.Configuration;
 using TradeLike.Api.Data;
 using TradeLike.Api.Observability;
 using TradeLike.Api.Api.RoutePlanner;
+using TradeLike.Api.Api.Payments;
+using TradeLike.Api.Branding;
+using TradeLike.Api.Companies;
+using TradeLike.Api.Elastic;
+using TradeLike.Api.PublicApi;
 using TradeLike.Api.Security;
 using TradeLike.Api.Services;
 
@@ -98,6 +104,14 @@ builder.Services.AddDbContext<TradeLikeDbContext>(options =>
 builder.Services.AddScoped<ICustomerService, CustomerService>();
 builder.Services.AddScoped<IJobService, JobService>();
 builder.Services.AddScoped<IQuoteService, QuoteService>();
+builder.Services.AddHttpClient<NotificationQueue>();
+builder.Services.AddHttpClient(nameof(ElasticSyncHostedService));
+builder.Services.AddHttpClient(nameof(SearchController));
+builder.Services.AddHttpClient(nameof(WebhookDispatcher));
+builder.Services.AddHttpClient(nameof(GoogleRoutePlanner));
+builder.Services.AddHttpClient(nameof(PaymentsController));
+builder.Services.AddHostedService<ElasticSyncHostedService>();
+builder.Services.AddHostedService<WebhookDispatcher>();
 var redisConnection = builder.Configuration["REDIS_CONN"];
 if (!string.IsNullOrWhiteSpace(redisConnection))
 {
@@ -260,6 +274,10 @@ app.UseHttpsRedirection();
 app.UseCors("AllowFrontend");
 
 app.UseRateLimiter();
+
+app.UseMiddleware<WhiteLabelBrandingMiddleware>();
+app.UseMiddleware<CompanyBranchFilterMiddleware>();
+app.UseMiddleware<PublicApiGatewayMiddleware>();
 
 app.UseAuthentication();
 app.Use(async (context, next) =>
