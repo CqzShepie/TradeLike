@@ -5,6 +5,7 @@ export type UserRole =
   | "CustomerManager"
   | "CustomerEmployee"
   | "Customer"
+  | "Staff"
   | "Director"
   | "Admin"
   | "Support"
@@ -181,7 +182,7 @@ export const authService = {
   },
 
   isManagerOrDirector(user = readStoredUser()) {
-    return user?.role === "CustomerManager" || user?.role === "CustomerDirector";
+    return user?.role === "CustomerManager" || user?.role === "CustomerDirector" || user?.role === "Customer" || user?.role === "Director";
   },
 
   hasPermission(permission: keyof AuthUser, user = readStoredUser()) {

@@ -54,27 +54,27 @@ function AppRouter() {
         <Route path="/accept-staff-invite" element={<AcceptStaffInvite />} />
         <Route path="/accept-company-staff-invite" element={<AcceptCompanyStaffInvite />} />
 
-        <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+        <Route path="/dashboard" element={<NavigationAccessRoute path="/dashboard"><Dashboard /></NavigationAccessRoute>} />
 
-        <Route path="/jobs" element={<ProtectedRoute><Jobs /></ProtectedRoute>} />
-        <Route path="/job-history" element={<ProtectedRoute><PreviousJobs /></ProtectedRoute>} />
-        <Route path="/jobs/:id" element={<ProtectedRoute><JobDetails /></ProtectedRoute>} />
+        <Route path="/jobs" element={<NavigationAccessRoute path="/jobs"><Jobs /></NavigationAccessRoute>} />
+        <Route path="/job-history" element={<NavigationAccessRoute path="/jobs"><PreviousJobs /></NavigationAccessRoute>} />
+        <Route path="/jobs/:id" element={<NavigationAccessRoute path="/jobs"><JobDetails /></NavigationAccessRoute>} />
 
-        <Route path="/customers" element={<ProtectedRoute><Customers /></ProtectedRoute>} />
-        <Route path="/customers/:id" element={<ProtectedRoute><CustomerDetails /></ProtectedRoute>} />
+        <Route path="/customers" element={<NavigationAccessRoute path="/customers"><Customers /></NavigationAccessRoute>} />
+        <Route path="/customers/:id" element={<NavigationAccessRoute path="/customers"><CustomerDetails /></NavigationAccessRoute>} />
 
-        <Route path="/calendar" element={<ProtectedRoute><CalendarPage /></ProtectedRoute>} />
+        <Route path="/calendar" element={<NavigationAccessRoute path="/calendar"><CalendarPage /></NavigationAccessRoute>} />
         <Route path="/team" element={<NavigationAccessRoute path="/team"><CustomerStaff /></NavigationAccessRoute>} />
         <Route path="/leave" element={<NavigationAccessRoute path="/team"><CustomerStaff /></NavigationAccessRoute>} />
         <Route path="/reports" element={<NavigationAccessRoute path="/reports"><Reports /></NavigationAccessRoute>} />
-        <Route path="/reports/overview" element={<NavigationAccessRoute path="/reports"><ReportsOverview /></NavigationAccessRoute>} />
+        <Route path="/reports/overview" element={<NavigationAccessRoute path="/reports/overview"><ReportsOverview /></NavigationAccessRoute>} />
         <Route path="/inventory" element={<NavigationAccessRoute path="/inventory"><Inventory /></NavigationAccessRoute>} />
         <Route path="/support" element={<SupportCenter />} />
 
-        <Route path="/quotes" element={<ProtectedRoute><Quotes /></ProtectedRoute>} />
-        <Route path="/quotes/:id" element={<ProtectedRoute><QuoteDetails /></ProtectedRoute>} />
-        <Route path="/invoices" element={<ProtectedRoute><Invoices /></ProtectedRoute>} />
-        <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+        <Route path="/quotes" element={<NavigationAccessRoute path="/quotes"><Quotes /></NavigationAccessRoute>} />
+        <Route path="/quotes/:id" element={<NavigationAccessRoute path="/quotes"><QuoteDetails /></NavigationAccessRoute>} />
+        <Route path="/invoices" element={<NavigationAccessRoute path="/invoices"><Invoices /></NavigationAccessRoute>} />
+        <Route path="/settings" element={<NavigationAccessRoute path="/settings"><Settings /></NavigationAccessRoute>} />
         <Route path="/settings/accessibility" element={<NavigationAccessRoute path="/settings/accessibility"><A11ySettings /></NavigationAccessRoute>} />
         <Route path="/settings/api" element={<NavigationAccessRoute path="/settings/api"><ApiDeveloperPage /></NavigationAccessRoute>} />
         <Route path="/settings/branding" element={<NavigationAccessRoute path="/settings/branding"><BrandingPage /></NavigationAccessRoute>} />

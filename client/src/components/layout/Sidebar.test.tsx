@@ -54,6 +54,14 @@ const directorUser: AuthUser = {
   canExportData: true,
 };
 
+const soloDirectorUser: AuthUser = {
+  ...directorUser,
+  id: 3,
+  email: "solo-director@example.com",
+  name: "Solo Director",
+  plan: "Solo",
+};
+
 describe("Sidebar", () => {
   beforeEach(() => {
     localStorage.clear();
@@ -77,7 +85,7 @@ describe("Sidebar", () => {
   });
 
   it("does not show API, Branding or Import Export as top-level sidebar items", () => {
-    localStorage.setItem("tradelike_user", JSON.stringify(directorUser));
+    localStorage.setItem("tradelike_user", JSON.stringify(soloDirectorUser));
 
     renderSidebarWithLocation();
 
