@@ -9,7 +9,7 @@ import { jobAssignmentsService } from "../../services/jobAssignmentsService";
 import type { JobAssignment } from "../../services/jobAssignmentsService";
 import type { Engineer } from "../../services/engineersService";
 import { getLeastLoadedEngineer } from "../../utils/engineerDispatch";
-import { moveJobToDay } from "../../utils/dispatchRules";
+import { moveJobToDay, toDateKey } from "../../utils/dispatchRules";
 import type { Job } from "../../types/job";
 
 export default function WeekCalendar() {
@@ -75,7 +75,8 @@ export default function WeekCalendar() {
     useEffect(() => { setOptimisticJobs([]); }, [currentWeek]);
 
     async function handleMoveJob(job: Job, newDate: Date) {
-        const confirmed = confirm(`Move ${job.jobTitle} to ${newDate.toLocaleDateString("en-GB")}?`);
+        if (toDateKey(job.scheduledDate) === toDateKey(newDate)) return;
+        const confirmed = confirm(`Move ${job.jobTitle} to ${newDate.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}?`);
         if (!confirmed) return;
         let updatedJob: Job = moveJobToDay(job, newDate);
         if (updatedJob.engineerId == null && engineers.length > 0) {
@@ -88,7 +89,16 @@ export default function WeekCalendar() {
             map.set(job.id, updatedJob);
             return Array.from(map.values());
         });
-        try { await jobsService.update(updatedJob); } catch { setOptimisticJobs([]); }
+        try {
+            const saved = await jobsService.update(updatedJob);
+            setOptimisticJobs(previousJobs => {
+                const map = new Map<number, Job>();
+                [...previousJobs, saved].forEach(existingJob => map.set(existingJob.id, existingJob));
+                return Array.from(map.values());
+            });
+        } catch {
+            setOptimisticJobs(previousJobs => previousJobs);
+        }
     }
 
     const weekLabel = useMemo(() => {
@@ -106,7 +116,25 @@ export default function WeekCalendar() {
     function handleCurrentWeek() { setCurrentWeek(startOfWeek(new Date())); }
     function handleNextWeek() { setCurrentWeek(previous => { const date = new Date(previous); date.setDate(date.getDate() + 7); return startOfWeek(date); }); }
 
-    return <div className="relative overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm"><WeekNavigation weekLabel={weekLabel} onPreviousWeek={handlePreviousWeek} onCurrentWeek={handleCurrentWeek} onNextWeek={handleNextWeek} /><div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-4 py-2"><div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Dispatch View</div><select className="rounded border border-gray-300 px-2 py-1 text-xs" value={selectedCalendar} onChange={event => setSelectedCalendar(event.target.value)}><option value="all">Merged: everyone</option><option value="unassigned">Unassigned jobs</option>{members.map(member => <option key={member.id} value={`staff:${member.id}`}>{member.firstName} {member.lastName}</option>)}{teams.map(team => <option key={team.id} value={`team:${team.id}`}>Team: {team.name}</option>)}</select></div><WeekGrid weekStart={currentWeek} jobs={jobs} engineers={engineers} onSelectJob={setSelectedJob} onMoveJob={handleMoveJob} />{selectedJob && <div className="absolute right-0 top-0 h-full w-80 border-l border-gray-200 bg-white p-4"><button type="button" onClick={() => setSelectedJob(null)} className="absolute right-3 top-3 rounded px-2 text-xl leading-none text-gray-500 hover:bg-gray-100" aria-label="Close job details">×</button><div className="pr-8 text-sm font-semibold">{selectedJob.jobTitle}</div><div className="mt-2 text-xs text-gray-600">{selectedJob.customer}</div><div className="mt-4 text-xs text-gray-500">{selectedJob.address}</div></div>}</div>;
+    return <div className="relative overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm"><WeekNavigation weekLabel={weekLabel} onPreviousWeek={handlePreviousWeek} onCurrentWeek={handleCurrentWeek} onNextWeek={handleNextWeek} /><div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-4 py-2"><div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Dispatch View</div><select className="rounded border border-gray-300 px-2 py-1 text-xs" value={selectedCalendar} onChange={event => setSelectedCalendar(event.target.value)}><option value="all">Merged: everyone</option><option value="unassigned">Unassigned jobs</option>{members.map(member => <option key={member.id} value={`staff:${member.id}`}>{member.firstName} {member.lastName}</option>)}{teams.map(team => <option key={team.id} value={`team:${team.id}`}>Team: {team.name}</option>)}</select></div><WeekGrid weekStart={currentWeek} jobs={jobs} engineers={engineers} staffMembers={members} teams={teams} onSelectJob={setSelectedJob} onMoveJob={handleMoveJob} />{selectedJob && (() => {
+  const selectedAssignment = assignmentMap.get(selectedJob.id);
+  const selectedTeam = teams.find(team => team.id === selectedAssignment?.assignedTeamId);
+  const leadEngineer = members.find(member => member.id === selectedAssignment?.leadStaffMemberId || member.id === selectedJob.engineerId);
+  const extraStaff = members.filter(member => selectedAssignment?.assignedStaffMemberIds.includes(member.id));
+  const detailRows = [
+    ["Customer Name", selectedJob.customer],
+    ["Customer #ID", String(selectedJob.customerId ?? selectedJob.sourceQuote?.customerId ?? "Not linked")],
+    ["Customer Phone Number", selectedJob.phone || "Not recorded"],
+    ["Customer Address", selectedJob.address || "Not recorded"],
+    ["Job Status", selectedJob.status === "InProgress" ? "In Progress" : selectedJob.status],
+    ["Job Urgency", selectedJob.priority],
+    ["Lead Engineer", leadEngineer ? `${leadEngineer.firstName} ${leadEngineer.lastName}` : "No lead engineer"],
+    ["Staff Assigned To Job", extraStaff.length ? extraStaff.map(member => `${member.firstName} ${member.lastName}`).join(", ") : "No extra staff"],
+    ["Team Assigned To Job", selectedTeam?.name ?? selectedJob.assignedTeamName ?? "No Team Recorded"],
+  ];
+
+  return <div className="absolute right-0 top-0 h-full w-96 overflow-y-auto border-l border-gray-200 bg-white p-4 shadow-xl"><button type="button" onClick={() => setSelectedJob(null)} className="absolute right-3 top-3 rounded px-2 text-xl leading-none text-gray-500 hover:bg-gray-100" aria-label="Close job details">×</button><p className="text-xs font-bold uppercase tracking-wide text-blue-600">Job Details</p><h2 className="mt-1 pr-8 text-lg font-bold text-slate-900">{selectedJob.jobTitle}</h2><div className="mt-5 space-y-3 text-sm">{detailRows.map(([label, value]) => <div key={label}><p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{label}</p><p className="mt-1 font-medium text-slate-900">{value}</p></div>)}</div></div>;
+})()}</div>;
 }
 
 function startOfWeek(date: Date): Date {
@@ -117,3 +145,6 @@ function startOfWeek(date: Date): Date {
     result.setHours(0, 0, 0, 0);
     return result;
 }
+
+
+
