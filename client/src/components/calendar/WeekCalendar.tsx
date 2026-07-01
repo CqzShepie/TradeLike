@@ -14,7 +14,7 @@ import { jobAssignmentsService } from "../../services/jobAssignmentsService";
 import type { JobAssignment } from "../../services/jobAssignmentsService";
 import type { Engineer } from "../../services/engineersService";
 import { useAuth } from "../../hooks/useAuth";
-import { planIncludesFeature, roleAllowsFeature } from "../../routes/planEntitlements";
+import { canUseStaffScheduling } from "../../routes/planEntitlements";
 import { getLeastLoadedEngineer } from "../../utils/engineerDispatch";
 import { moveJobToDay, toDateKey } from "../../utils/dispatchRules";
 import type { Job } from "../../types/job";
@@ -31,9 +31,7 @@ export default function WeekCalendar() {
     const [optimisticJobs, setOptimisticJobs] = useState<Job[]>([]);
     const { jobs: serverJobs } = useWeekJobs(currentWeek);
     const { user } = useAuth();
-    const canUseStaffScheduling =
-        planIncludesFeature(user?.plan, "staff-scheduling") &&
-        roleAllowsFeature(user?.role, "staff-scheduling");
+    const showStaffScheduling = canUseStaffScheduling(user);
 
     useEffect(() => {
         let cancelled = false;
@@ -54,10 +52,10 @@ export default function WeekCalendar() {
     }, []);
 
     useEffect(() => {
-        if (!canUseStaffScheduling && selectedCalendar !== "all") {
+        if (!showStaffScheduling && selectedCalendar !== "all") {
             setSelectedCalendar("all");
         }
-    }, [canUseStaffScheduling, selectedCalendar]);
+    }, [showStaffScheduling, selectedCalendar]);
 
     const engineers: Engineer[] = useMemo(() => members.map(member => ({ id: member.id, name: `${member.firstName} ${member.lastName}`, email: member.email, phone: member.phone })), [members]);
     const assignmentMap = useMemo(() => new Map(assignments.map(item => [item.jobId, item])), [assignments]);
@@ -74,7 +72,7 @@ export default function WeekCalendar() {
     }, [assignmentMap, serverJobs, optimisticJobs]);
 
     const jobs = useMemo(() => {
-        if (!canUseStaffScheduling || selectedCalendar === "all") return mergedJobs;
+        if (!showStaffScheduling || selectedCalendar === "all") return mergedJobs;
         if (selectedCalendar === "unassigned") return mergedJobs.filter(job => {
             const assignment = assignmentMap.get(job.id);
             return !assignment || (!assignment.assignedTeamId && !assignment.leadStaffMemberId && assignment.assignedStaffMemberIds.length === 0);
@@ -91,7 +89,7 @@ export default function WeekCalendar() {
             return mergedJobs.filter(job => assignmentMap.get(job.id)?.assignedTeamId === teamId);
         }
         return mergedJobs;
-    }, [assignmentMap, canUseStaffScheduling, mergedJobs, selectedCalendar]);
+    }, [assignmentMap, showStaffScheduling, mergedJobs, selectedCalendar]);
 
     useEffect(() => { setOptimisticJobs([]); }, [currentWeek]);
 
@@ -141,9 +139,9 @@ export default function WeekCalendar() {
     const selectedEngineerId = selectedCalendar.startsWith("staff:") ? Number(selectedCalendar.replace("staff:", "")) : null;
     const calendarOptions = [
         { value: "all", label: "Merged: everyone" },
-        ...(canUseStaffScheduling ? [{ value: "unassigned", label: "Unassigned jobs" }] : []),
-        ...(canUseStaffScheduling ? members.map(member => ({ value: `staff:${member.id}`, label: `${member.firstName} ${member.lastName}` })) : []),
-        ...(canUseStaffScheduling ? teams.map(team => ({ value: `team:${team.id}`, label: `Team: ${team.name}` })) : []),
+        ...(showStaffScheduling ? [{ value: "unassigned", label: "Unassigned jobs" }] : []),
+        ...(showStaffScheduling ? members.map(member => ({ value: `staff:${member.id}`, label: `${member.firstName} ${member.lastName}` })) : []),
+        ...(showStaffScheduling ? teams.map(team => ({ value: `team:${team.id}`, label: `Team: ${team.name}` })) : []),
     ];
 
     return (
@@ -157,12 +155,12 @@ export default function WeekCalendar() {
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-4 py-3">
                 <div>
                     <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Dispatch View</div>
-                    {!canUseStaffScheduling && (
+                    {!showStaffScheduling && (
                         <p className="mt-1 text-xs text-slate-500">Basic calendar is available on Solo. Team dispatch tools unlock on Team.</p>
                     )}
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                    {canUseStaffScheduling && (
+                    {showStaffScheduling && (
                         <button
                             type="button"
                             onClick={() => setShowRouteModal(true)}
@@ -171,7 +169,7 @@ export default function WeekCalendar() {
                             Optimise Route
                         </button>
                     )}
-                    {canUseStaffScheduling && (
+                    {showStaffScheduling && (
                         <SelectMenu
                             ariaLabel="Calendar dispatch filter"
                             value={selectedCalendar}
@@ -185,15 +183,15 @@ export default function WeekCalendar() {
             <WeekGrid
                 weekStart={currentWeek}
                 jobs={jobs}
-                engineers={canUseStaffScheduling ? engineers : []}
-                staffMembers={canUseStaffScheduling ? members : []}
-                teams={canUseStaffScheduling ? teams : []}
-                leaveRequests={canUseStaffScheduling ? leaveRequests : []}
-                showStaffDetails={canUseStaffScheduling}
+                engineers={showStaffScheduling ? engineers : []}
+                staffMembers={showStaffScheduling ? members : []}
+                teams={showStaffScheduling ? teams : []}
+                leaveRequests={showStaffScheduling ? leaveRequests : []}
+                showStaffDetails={showStaffScheduling}
                 onSelectJob={setSelectedJob}
                 onMoveJob={handleMoveJob}
             />
-            {canUseStaffScheduling && showRouteModal && (
+            {showStaffScheduling && showRouteModal && (
                 <RouteMapModal
                     date={currentWeek}
                     engineerId={selectedEngineerId}
@@ -212,7 +210,7 @@ export default function WeekCalendar() {
                     ["Customer Address", selectedJob.address || "Not recorded"],
                     ["Job Status", selectedJob.status === "InProgress" ? "In Progress" : selectedJob.status],
                     ["Job Urgency", selectedJob.priority],
-                    ...(canUseStaffScheduling ? [
+                    ...(showStaffScheduling ? [
                         ["Lead Engineer", leadEngineer ? `${leadEngineer.firstName} ${leadEngineer.lastName}` : "No lead engineer"],
                         ["Staff Assigned To Job", extraStaff.length ? extraStaff.map(member => `${member.firstName} ${member.lastName}`).join(", ") : "No extra staff"],
                         ["Team Assigned To Job", selectedTeam?.name ?? selectedJob.assignedTeamName ?? "No team recorded"],

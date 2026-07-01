@@ -24,6 +24,10 @@ vi.mock("../services/jobAssignmentsService", () => ({
 }));
 
 describe("Jobs", () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
   it("renders an empty state when no jobs are returned", () => {
     vi.mocked(useJobs).mockReturnValue({
       jobs: [],
@@ -101,6 +105,7 @@ describe("Jobs", () => {
   });
 
   it("uses Job needed wording while submitting the existing jobTitle field", () => {
+    setStoredUser("Solo", "CustomerDirector");
     const addJob = vi.fn();
     vi.mocked(useJobs).mockReturnValue({
       jobs: [],
@@ -132,6 +137,62 @@ describe("Jobs", () => {
     expect(addJob).toHaveBeenCalledWith(expect.objectContaining({
       jobTitle: "Boiler service",
     }));
+  });
+
+  it("hides staff and team controls for Solo users in the job workspace", () => {
+    setStoredUser("Solo", "CustomerDirector");
+    vi.mocked(useJobs).mockReturnValue({
+      jobs: [],
+      loading: false,
+      error: null,
+      reloadJobs: vi.fn(),
+      addJob: vi.fn(),
+      deleteJob: vi.fn(),
+      updateJob: vi.fn(),
+      editingJob: null,
+      startEdit: vi.fn(),
+      cancelEdit: vi.fn(),
+    });
+
+    render(
+      <MemoryRouter>
+        <Jobs />
+      </MemoryRouter>
+    );
+
+    fireEvent.click(screen.getAllByRole("button", { name: /add new job/i })[0]);
+
+    expect(screen.queryByText(/staff and team/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: /job team filter/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: /job engineer filter/i })).not.toBeInTheDocument();
+    expect(screen.queryByText("No team")).not.toBeInTheDocument();
+    expect(screen.queryByText("No lead engineer")).not.toBeInTheDocument();
+    expect(screen.queryByText("Extra staff")).not.toBeInTheDocument();
+  });
+
+  it("shows staff and team controls for Team managers", () => {
+    setStoredUser("Team", "CustomerManager");
+    vi.mocked(useJobs).mockReturnValue({
+      jobs: [],
+      loading: false,
+      error: null,
+      reloadJobs: vi.fn(),
+      addJob: vi.fn(),
+      deleteJob: vi.fn(),
+      updateJob: vi.fn(),
+      editingJob: null,
+      startEdit: vi.fn(),
+      cancelEdit: vi.fn(),
+    });
+
+    render(
+      <MemoryRouter>
+        <Jobs />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByRole("combobox", { name: /job team filter/i })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: /job engineer filter/i })).toBeInTheDocument();
   });
 
   it("renders job stat cards", () => {
@@ -172,3 +233,15 @@ describe("Jobs", () => {
     expect(screen.getAllByText("Completed").length).toBeGreaterThan(0);
   });
 });
+
+function setStoredUser(plan: string, role: string) {
+  localStorage.setItem("tradelike_user", JSON.stringify({
+    id: 1,
+    email: "owner@example.com",
+    name: "Trade Owner",
+    role,
+    plan,
+    accountStatus: "Active",
+    passwordResetRequired: false,
+  }));
+}

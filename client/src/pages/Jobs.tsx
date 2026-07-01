@@ -22,6 +22,8 @@ import type { CustomerStaffMember, CustomerTeam } from "../services/customerStaf
 import { isApiError } from "../services/apiClient";
 import { jobAssignmentsService } from "../services/jobAssignmentsService";
 import type { JobAssignment } from "../services/jobAssignmentsService";
+import { canUseStaffScheduling } from "../routes/planEntitlements";
+import { useAuth } from "../hooks/useAuth";
 import { useJobs } from "../hooks/useJobs";
 import AccessDenied from "./AccessDenied";
 import UpgradeRequired from "./UpgradeRequired";
@@ -50,11 +52,20 @@ function Jobs() {
   const [teams, setTeams] = useState<CustomerTeam[]>([]);
   const [assignments, setAssignments] = useState<JobAssignment[]>([]);
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const showStaffScheduling = canUseStaffScheduling(user);
 
   useEffect(() => {
     let cancelled = false;
 
     async function loadAssignmentData() {
+      if (!showStaffScheduling) {
+        setMembers([]);
+        setTeams([]);
+        setAssignments([]);
+        return;
+      }
+
       try {
         const [workspace, assignmentRows] = await Promise.all([
           customerStaffService.getWorkspace(),
@@ -82,7 +93,7 @@ function Jobs() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [showStaffScheduling]);
 
   const assignmentMap = useMemo(
     () => new Map(assignments.map(item => [item.jobId, item])),
@@ -93,9 +104,9 @@ function Jobs() {
     () =>
       jobs.filter(job => {
         const assignment = assignmentMap.get(job.id);
-        const assignedTeam = teams.find(team => team.id === assignment?.assignedTeamId);
-        const lead = members.find(member => member.id === assignment?.leadStaffMemberId);
-        const assignedStaff = members.filter(member => assignment?.assignedStaffMemberIds.includes(member.id));
+        const assignedTeam = showStaffScheduling ? teams.find(team => team.id === assignment?.assignedTeamId) : null;
+        const lead = showStaffScheduling ? members.find(member => member.id === assignment?.leadStaffMemberId) : null;
+        const assignedStaff = showStaffScheduling ? members.filter(member => assignment?.assignedStaffMemberIds.includes(member.id)) : [];
         const searchText = search.trim().toLowerCase();
         const searchableText = [
           `job ${job.id}`,
@@ -118,14 +129,14 @@ function Jobs() {
           (searchText === "" || searchableText.includes(searchText)) &&
           (statusFilter === "All" || job.status === statusFilter) &&
           (priorityFilter === "All" || job.priority === priorityFilter) &&
-          (teamFilter === "All" || assignment?.assignedTeamId === Number(teamFilter)) &&
-          (engineerFilter === "All" ||
+          (!showStaffScheduling || teamFilter === "All" || assignment?.assignedTeamId === Number(teamFilter)) &&
+          (!showStaffScheduling || engineerFilter === "All" ||
             assignment?.leadStaffMemberId === Number(engineerFilter) ||
             assignment?.assignedStaffMemberIds.includes(Number(engineerFilter)) ||
             job.engineerId === Number(engineerFilter))
         );
       }),
-    [assignmentMap, engineerFilter, jobs, members, priorityFilter, search, statusFilter, teamFilter, teams]
+    [assignmentMap, engineerFilter, jobs, members, priorityFilter, search, showStaffScheduling, statusFilter, teamFilter, teams]
   );
 
   const stats = [
@@ -219,7 +230,9 @@ function Jobs() {
                 <p className="text-sm font-semibold uppercase tracking-wide text-blue-300">Work queue</p>
                 <h2 className="mt-2 text-xl font-bold text-white">Job overview</h2>
                 <p className="mt-2 text-sm leading-6 text-slate-300">
-                  Filter by status, priority, team, engineer, customer, job number or linked quote.
+                  {showStaffScheduling
+                    ? "Filter by status, priority, team, engineer, customer, job number or linked quote."
+                    : "Filter by status, priority, customer, job number or linked quote."}
                 </p>
               </div>
               <p className="text-sm font-semibold text-slate-300">
@@ -227,11 +240,11 @@ function Jobs() {
               </p>
             </div>
 
-            <div className="mt-5 grid gap-3 md:grid-cols-[minmax(0,1fr)_170px_170px_170px_170px]">
+            <div className={showStaffScheduling ? "mt-5 grid gap-3 md:grid-cols-[minmax(0,1fr)_170px_170px_170px_170px]" : "mt-5 grid gap-3 md:grid-cols-[minmax(0,1fr)_170px_170px]"}>
               <TextInput
                 value={search}
                 onChange={event => setSearch(event.target.value)}
-                placeholder="Search jobs, client, job number, quote, team or engineer..."
+                placeholder={showStaffScheduling ? "Search jobs, client, job number, quote, team or engineer..." : "Search jobs, client, job number or quote..."}
                 className="border-white/10 bg-slate-950/60 text-white placeholder:text-slate-500"
               />
               <SelectMenu
@@ -258,24 +271,28 @@ function Jobs() {
                   { value: "Urgent", label: "Urgent" },
                 ]}
               />
-              <SelectMenu
-                ariaLabel="Job team filter"
-                value={teamFilter}
-                onChange={setTeamFilter}
-                options={[
-                  { value: "All", label: "All teams" },
-                  ...teams.map(team => ({ value: String(team.id), label: team.name })),
-                ]}
-              />
-              <SelectMenu
-                ariaLabel="Job engineer filter"
-                value={engineerFilter}
-                onChange={setEngineerFilter}
-                options={[
-                  { value: "All", label: "All engineers" },
-                  ...members.map(member => ({ value: String(member.id), label: getMemberName(member) })),
-                ]}
-              />
+              {showStaffScheduling && (
+                <>
+                  <SelectMenu
+                    ariaLabel="Job team filter"
+                    value={teamFilter}
+                    onChange={setTeamFilter}
+                    options={[
+                      { value: "All", label: "All teams" },
+                      ...teams.map(team => ({ value: String(team.id), label: team.name })),
+                    ]}
+                  />
+                  <SelectMenu
+                    ariaLabel="Job engineer filter"
+                    value={engineerFilter}
+                    onChange={setEngineerFilter}
+                    options={[
+                      { value: "All", label: "All engineers" },
+                      ...members.map(member => ({ value: String(member.id), label: getMemberName(member) })),
+                    ]}
+                  />
+                </>
+              )}
             </div>
 
             <div className="mt-6">
@@ -298,7 +315,7 @@ function Jobs() {
                           <th className="px-4 py-3">Job</th>
                           <th className="px-4 py-3">Customer</th>
                           <th className="px-4 py-3">Date & time</th>
-                          <th className="px-4 py-3">Engineer</th>
+                          {showStaffScheduling && <th className="px-4 py-3">Engineer</th>}
                           <th className="px-4 py-3">Status</th>
                           <th className="px-4 py-3">Priority</th>
                           <th className="px-4 py-3">Linked quote</th>
@@ -312,6 +329,7 @@ function Jobs() {
                             job={job}
                             assignment={assignmentMap.get(job.id)}
                             members={members}
+                            showStaffScheduling={showStaffScheduling}
                             onView={() => navigate(`/jobs/${job.id}`)}
                             onEdit={() => {
                               startEdit(job);
@@ -330,6 +348,7 @@ function Jobs() {
                         job={job}
                         assignment={assignmentMap.get(job.id)}
                         members={members}
+                        showStaffScheduling={showStaffScheduling}
                         onEdit={() => {
                           startEdit(job);
                           setShowForm(true);
@@ -351,12 +370,14 @@ function JobRow({
   job,
   assignment,
   members,
+  showStaffScheduling,
   onView,
   onEdit,
 }: {
   job: Job;
   assignment?: JobAssignment;
   members: CustomerStaffMember[];
+  showStaffScheduling: boolean;
   onView: () => void;
   onEdit: () => void;
 }) {
@@ -368,7 +389,7 @@ function JobRow({
       </td>
       <td className="px-4 py-4">{job.customer}</td>
       <td className="px-4 py-4">{formatDateTime(job.scheduledDate)}</td>
-      <td className="px-4 py-4">{getAssignmentLabel(job, assignment, members)}</td>
+      {showStaffScheduling && <td className="px-4 py-4">{getAssignmentLabel(job, assignment, members)}</td>}
       <td className="px-4 py-4"><StatusBadge status={job.status} /></td>
       <td className="px-4 py-4"><PriorityPill priority={job.priority} /></td>
       <td className="px-4 py-4">{job.quoteId ? <Link to={`/quotes/${job.quoteId}`} className="font-semibold text-blue-300 hover:text-blue-200">Quote #{job.quoteId}</Link> : <span className="text-slate-500">None</span>}</td>
@@ -386,11 +407,13 @@ function JobMobileCard({
   job,
   assignment,
   members,
+  showStaffScheduling,
   onEdit,
 }: {
   job: Job;
   assignment?: JobAssignment;
   members: CustomerStaffMember[];
+  showStaffScheduling: boolean;
   onEdit: () => void;
 }) {
   return (
@@ -405,7 +428,7 @@ function JobMobileCard({
       </div>
       <div className="mt-4 grid gap-3 text-sm text-slate-300 sm:grid-cols-2">
         <Info label="Date" value={formatDateTime(job.scheduledDate)} />
-        <Info label="Engineer" value={getAssignmentLabel(job, assignment, members)} />
+        {showStaffScheduling && <Info label="Engineer" value={getAssignmentLabel(job, assignment, members)} />}
         <Info label="Priority" value={job.priority} />
         <Info label="Quote" value={job.quoteId ? `Quote #${job.quoteId}` : "None"} />
       </div>

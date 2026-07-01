@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 
 import Customers from "./Customers";
@@ -32,8 +32,38 @@ describe("Customers", () => {
       </MemoryRouter>
     );
 
-    expect(screen.getByRole("button", { name: /add customer/i })).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: /add customer/i }).length).toBeGreaterThan(0);
     expect(screen.queryByText(/Live directory/i)).not.toBeInTheDocument();
     expect(screen.getByText(/Add your first customer/i)).toBeInTheDocument();
+  });
+
+  it("opens the add customer form from the empty state CTA", () => {
+    vi.mocked(useCustomers).mockReturnValue({
+      customers: [],
+      loading: false,
+      error: null,
+      reloadCustomers: vi.fn(),
+      editingCustomer: null,
+      addCustomer: vi.fn(),
+      deleteCustomer: vi.fn(),
+      updateCustomer: vi.fn(),
+      startEdit: vi.fn(),
+      cancelEdit: vi.fn(),
+    });
+
+    render(
+      <MemoryRouter>
+        <GlobalSearchProvider>
+          <Customers />
+        </GlobalSearchProvider>
+      </MemoryRouter>
+    );
+
+    const addCustomerButtons = screen.getAllByRole("button", { name: /add customer/i });
+    expect(addCustomerButtons).toHaveLength(2);
+
+    fireEvent.click(addCustomerButtons[1]);
+
+    expect(screen.getByRole("heading", { name: /add customer/i })).toBeInTheDocument();
   });
 });
