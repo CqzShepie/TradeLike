@@ -40,6 +40,20 @@ const employeeUser: AuthUser = {
   canViewSecurityLogs: false,
 };
 
+const directorUser: AuthUser = {
+  ...employeeUser,
+  id: 2,
+  email: "director@example.com",
+  name: "Director User",
+  role: "CustomerDirector",
+  plan: "Business",
+  canManageBilling: true,
+  canManageSecurity: true,
+  canManageStaff: true,
+  canViewStaff: true,
+  canExportData: true,
+};
+
 describe("Sidebar", () => {
   beforeEach(() => {
     localStorage.clear();
@@ -60,6 +74,16 @@ describe("Sidebar", () => {
     expect(screen.queryByText("Leave")).not.toBeInTheDocument();
     expect(screen.queryByText("Reports")).not.toBeInTheDocument();
     expect(screen.getByText("Dashboard")).toBeInTheDocument();
+  });
+
+  it("does not show API, Branding or Import Export as top-level sidebar items", () => {
+    localStorage.setItem("tradelike_user", JSON.stringify(directorUser));
+
+    renderSidebarWithLocation();
+
+    expect(screen.queryByRole("link", { name: /api/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /branding/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /import \/ export/i })).not.toBeInTheDocument();
   });
 
   it("navigates to jobs when Jobs is clicked", () => {
@@ -91,11 +115,19 @@ describe("Sidebar", () => {
 
     expect(screen.getByTestId("current-path")).toHaveTextContent("/settings");
   });
+
+  it("highlights Settings for settings subroutes", () => {
+    localStorage.setItem("tradelike_user", JSON.stringify(directorUser));
+
+    renderSidebarWithLocation("/settings/api");
+
+    expect(screen.getByRole("link", { name: /settings/i })).toHaveClass("bg-blue-500/15");
+  });
 });
 
-function renderSidebarWithLocation() {
+function renderSidebarWithLocation(initialPath = "/dashboard") {
   return render(
-    <MemoryRouter initialEntries={["/dashboard"]}>
+    <MemoryRouter initialEntries={[initialPath]}>
       <GlobalSearchProvider>
         <Sidebar />
         <LocationProbe />

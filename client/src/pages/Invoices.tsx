@@ -1,13 +1,31 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import Sidebar from "../components/layout/Sidebar";
+import { CreditCard, FileText, Plus, ReceiptText } from "lucide-react";
+
+import {
+  EmptyState,
+  ErrorState,
+  LoadingState,
+  PrimaryButton,
+  ProductPage,
+  ProductPageHeader,
+  ProductPanel,
+  ProductStat,
+  SecondaryButton,
+  SelectInput,
+  StatusBadge,
+  TextInput,
+} from "../components/ui";
 import { invoicesService } from "../services/invoicesService";
 import type { Invoice, InvoiceStatus } from "../services/invoicesService";
 import { paymentsService } from "../services/paymentsService";
 import { jobsService } from "../services/jobsService";
 import { quotesService } from "../services/quotesService";
+import { isApiError } from "../services/apiClient";
 import type { Job } from "../types/job";
 import type { Quote } from "../types/quote";
+import AccessDenied from "./AccessDenied";
+import UpgradeRequired from "./UpgradeRequired";
 
 const money = new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" });
 const statuses: InvoiceStatus[] = ["Draft", "Sent", "Paid", "Overdue", "Void"];
@@ -21,39 +39,64 @@ export default function Invoices() {
   const [selectedQuoteId, setSelectedQuoteId] = useState("");
   const [selectedJobId, setSelectedJobId] = useState("");
   const [message, setMessage] = useState("");
+  const [error, setError] = useState<Error | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function load() {
+    void load();
+  }, []);
+
+  async function load() {
+    try {
+      setLoading(true);
+      setError(null);
       const [jobRows, quoteRows] = await Promise.all([jobsService.getAll(), quotesService.getAll()]);
       setJobs(jobRows);
       setQuotes(quoteRows);
       setInvoices(invoicesService.getAll());
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error("Invoices could not be loaded."));
+      setInvoices(invoicesService.getAll());
+    } finally {
+      setLoading(false);
     }
-
-    load();
-  }, []);
+  }
 
   const filteredInvoices = useMemo(() => {
     const query = search.trim().toLowerCase();
+
     return invoices.filter(invoice => {
       const matchesStatus = statusFilter === "All" || invoice.status === statusFilter;
-      const matchesSearch = query === "" || [
-        invoice.invoiceNumber,
-        invoice.customerName,
-        invoice.title,
-        invoice.status,
-        invoice.quoteId ? `quote ${invoice.quoteId}` : "",
-        invoice.jobId ? `job ${invoice.jobId}` : "",
-      ].join(" ").toLowerCase().includes(query);
+      const matchesSearch =
+        query === "" ||
+        [
+          invoice.invoiceNumber,
+          invoice.customerName,
+          invoice.title,
+          invoice.status,
+          invoice.quoteId ? `quote ${invoice.quoteId}` : "",
+          invoice.jobId ? `job ${invoice.jobId}` : "",
+        ]
+          .join(" ")
+          .toLowerCase()
+          .includes(query);
+
       return matchesStatus && matchesSearch;
     });
   }, [invoices, search, statusFilter]);
 
-  const totals = useMemo(() => ({
-    total: invoices.reduce((sum, invoice) => sum + invoice.total, 0),
-    paid: invoices.filter(invoice => invoice.status === "Paid").reduce((sum, invoice) => sum + invoice.total, 0),
-    outstanding: invoices.filter(invoice => invoice.status !== "Paid" && invoice.status !== "Void").reduce((sum, invoice) => sum + invoice.total, 0),
-  }), [invoices]);
+  const totals = useMemo(
+    () => ({
+      draft: invoices.filter(invoice => invoice.status === "Draft").length,
+      sent: invoices.filter(invoice => invoice.status === "Sent").length,
+      paid: invoices.filter(invoice => invoice.status === "Paid").length,
+      overdue: invoices.filter(invoice => invoice.status === "Overdue").length,
+      outstanding: invoices
+        .filter(invoice => invoice.status !== "Paid" && invoice.status !== "Void")
+        .reduce((sum, invoice) => sum + invoice.total, 0),
+    }),
+    [invoices]
+  );
 
   function refresh() {
     setInvoices(invoicesService.getAll());
@@ -61,7 +104,11 @@ export default function Invoices() {
 
   function createFromQuote() {
     const quote = quotes.find(item => item.id === Number(selectedQuoteId));
-    if (!quote) return;
+
+    if (!quote) {
+      return;
+    }
+
     const invoice = invoicesService.createFromQuote(quote);
     refresh();
     setSelectedQuoteId("");
@@ -70,7 +117,11 @@ export default function Invoices() {
 
   function createFromJob() {
     const job = jobs.find(item => item.id === Number(selectedJobId));
-    if (!job) return;
+
+    if (!job) {
+      return;
+    }
+
     const invoice = invoicesService.createFromJob(job);
     refresh();
     setSelectedJobId("");
@@ -82,7 +133,10 @@ export default function Invoices() {
   }
 
   function deleteInvoice(id: number) {
-    if (!confirm("Delete this invoice?")) return;
+    if (!confirm("Delete this invoice?")) {
+      return;
+    }
+
     setInvoices(invoicesService.delete(id));
   }
 
@@ -95,80 +149,209 @@ export default function Invoices() {
     }
   }
 
+  if (isApiError(error) && error.status === 403) {
+    return <AccessDenied />;
+  }
+
+  if (isApiError(error) && error.status === 402) {
+    return <UpgradeRequired />;
+  }
+
   return (
-    <main className="flex min-h-screen bg-slate-50">
-      <Sidebar />
-      <section className="min-w-0 flex-1 p-10">
-        <div className="max-w-7xl">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">Invoices</p>
-              <h1 className="mt-1 text-3xl font-bold text-slate-900">Invoices</h1>
-              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-                Create invoices from quotes or jobs, track draft/sent/paid/overdue status, and keep customer billing connected to job and quote history.
-              </p>
-            </div>
-          </div>
+    <ProductPage>
+      <ProductPageHeader
+        eyebrow="Billing workspace"
+        title="Invoices"
+        description="Create invoices from quotes or jobs, track status, and keep customer billing linked to operational work."
+        actions={<PrimaryButton type="button" onClick={refresh}>Refresh invoices</PrimaryButton>}
+      />
 
-          {message && <div className="mt-6 rounded-xl border border-green-200 bg-green-50 p-4 text-sm font-semibold text-green-700">{message}</div>}
+      {message && (
+        <ProductPanel className="border-emerald-400/30 bg-emerald-500/10">
+          <p className="text-sm font-semibold text-emerald-100">{message}</p>
+        </ProductPanel>
+      )}
 
-          <div className="mt-8 grid gap-4 md:grid-cols-3">
-            <Stat label="Total invoiced" value={money.format(totals.total)} />
-            <Stat label="Paid" value={money.format(totals.paid)} />
-            <Stat label="Outstanding" value={money.format(totals.outstanding)} />
-          </div>
+      {loading && <LoadingState title="Loading invoices" description="Fetching jobs, quotes, and local invoice records." />}
 
-          <div className="mt-8 grid gap-6 xl:grid-cols-[400px_minmax(0,1fr)]">
+      {!loading && error && (
+        <ErrorState
+          title="Invoice source data could not be loaded"
+          description={error.message}
+          action={
+            <SecondaryButton type="button" onClick={() => void load()} className="border-white/10 bg-white/5 text-slate-100 hover:bg-white/10">
+              Try again
+            </SecondaryButton>
+          }
+        />
+      )}
+
+      {!loading && (
+        <>
+          <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+            <ProductStat label="Draft" value={totals.draft} helper="being prepared" icon={<FileText className="h-5 w-5" />} />
+            <ProductStat label="Sent" value={totals.sent} helper="awaiting payment" icon={<ReceiptText className="h-5 w-5" />} />
+            <ProductStat label="Paid" value={totals.paid} helper="settled invoices" icon={<CreditCard className="h-5 w-5" />} />
+            <ProductStat label="Overdue" value={totals.overdue} helper="needs attention" icon={<ReceiptText className="h-5 w-5" />} />
+            <ProductStat label="Outstanding value" value={money.format(totals.outstanding)} helper="unpaid total" icon={<CreditCard className="h-5 w-5" />} />
+          </section>
+
+          <div className="grid gap-6 xl:grid-cols-[380px_minmax(0,1fr)]">
             <section className="space-y-6">
-              <Panel title="Create from quote">
-                <div className="grid gap-3">
-                  <select value={selectedQuoteId} onChange={event => setSelectedQuoteId(event.target.value)} className="rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600">
-                    <option value="">Choose quote</option>
-                    {quotes.map(quote => <option key={quote.id} value={quote.id}>#{quote.id} {quote.customerName} · {quote.title} · {money.format(Number(quote.total ?? 0))}</option>)}
-                  </select>
-                  <button type="button" onClick={createFromQuote} disabled={!selectedQuoteId} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:bg-slate-300">Create invoice from quote</button>
-                </div>
-              </Panel>
+              <CreatePanel
+                title="Create from quote"
+                selectValue={selectedQuoteId}
+                onSelect={setSelectedQuoteId}
+                onCreate={createFromQuote}
+                disabled={!selectedQuoteId}
+                options={quotes.map(quote => ({
+                  id: quote.id,
+                  label: `#${quote.id} ${quote.customerName} - ${quote.title} - ${money.format(Number(quote.total ?? 0))}`,
+                }))}
+              />
 
-              <Panel title="Create from job">
-                <div className="grid gap-3">
-                  <select value={selectedJobId} onChange={event => setSelectedJobId(event.target.value)} className="rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600">
-                    <option value="">Choose job</option>
-                    {jobs.map(job => <option key={job.id} value={job.id}>#{job.id} {job.customer} · {job.jobTitle}</option>)}
-                  </select>
-                  <button type="button" onClick={createFromJob} disabled={!selectedJobId} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:bg-slate-300">Create invoice from job</button>
-                </div>
-              </Panel>
+              <CreatePanel
+                title="Create from job"
+                selectValue={selectedJobId}
+                onSelect={setSelectedJobId}
+                onCreate={createFromJob}
+                disabled={!selectedJobId}
+                options={jobs.map(job => ({
+                  id: job.id,
+                  label: `#${job.id} ${job.customer} - ${job.jobTitle}`,
+                }))}
+              />
             </section>
 
-            <Panel title="Invoice list">
-              <div className="grid gap-3 md:grid-cols-[1fr_180px]">
-                <input value={search} onChange={event => setSearch(event.target.value)} placeholder="Search invoice, customer, job, quote..." className="rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600" />
-                <select value={statusFilter} onChange={event => setStatusFilter(event.target.value as InvoiceStatus | "All")} className="rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600"><option value="All">All statuses</option>{statuses.map(status => <option key={status} value={status}>{status}</option>)}</select>
+            <ProductPanel>
+              <div className="flex flex-col gap-5 border-b border-white/10 pb-5 lg:flex-row lg:items-end lg:justify-between">
+                <div>
+                  <p className="text-sm font-semibold uppercase tracking-wide text-blue-300">Receivables</p>
+                  <h2 className="mt-2 text-xl font-bold text-white">Invoice list</h2>
+                  <p className="mt-2 text-sm leading-6 text-slate-300">
+                    Local invoice records are ready to be connected to fuller invoice backend storage.
+                  </p>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-[1fr_170px] lg:w-[520px]">
+                  <TextInput
+                    value={search}
+                    onChange={event => setSearch(event.target.value)}
+                    placeholder="Search invoice, customer, job, quote..."
+                    className="border-white/10 bg-slate-950/60 text-white placeholder:text-slate-500"
+                  />
+                  <SelectInput value={statusFilter} onChange={event => setStatusFilter(event.target.value as InvoiceStatus | "All")} className="border-white/10 bg-slate-950/60 text-white">
+                    <option value="All">All statuses</option>
+                    {statuses.map(status => <option key={status} value={status}>{status}</option>)}
+                  </SelectInput>
+                </div>
               </div>
 
-              <div className="mt-4 max-h-[680px] divide-y divide-slate-200 overflow-y-auto pr-2">
-                {filteredInvoices.map(invoice => <article key={invoice.id} className="grid gap-3 py-4 lg:grid-cols-[minmax(0,1fr)_140px_140px_90px_90px]"><div className="min-w-0"><p className="font-bold text-slate-900">{invoice.invoiceNumber} · {invoice.title}</p><p className="mt-1 text-sm text-slate-600">{invoice.customerName} · Due {formatDate(invoice.dueDate)}</p><div className="mt-2 flex flex-wrap gap-2 text-xs font-semibold text-blue-700">{invoice.jobId && <Link to={`/jobs/${invoice.jobId}`}>Job #{invoice.jobId}</Link>}{invoice.quoteId && <Link to={`/quotes/${invoice.quoteId}`}>Quote #{invoice.quoteId}</Link>}</div></div><select value={invoice.status} onChange={event => updateStatus(invoice.id, event.target.value as InvoiceStatus)} className="h-fit rounded-lg border border-slate-300 px-3 py-2 text-sm">{statuses.map(status => <option key={status} value={status}>{status}</option>)}</select><p className="h-fit rounded-lg bg-slate-100 px-3 py-2 text-sm font-bold text-slate-900">{money.format(invoice.total)}</p><button type="button" onClick={() => payNow(invoice)} className="h-fit rounded-lg border border-blue-200 px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-50">Pay Now</button><button type="button" onClick={() => deleteInvoice(invoice.id)} className="h-fit rounded-lg border border-red-200 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50">Delete</button></article>)}
-                {filteredInvoices.length === 0 && <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-6 text-sm text-slate-500">No invoices yet.</p>}
+              <div className="mt-6">
+                {filteredInvoices.length === 0 ? (
+                  <EmptyState
+                    title="No invoices yet"
+                    description="Create an invoice from an accepted quote or completed job when you are ready to bill."
+                  />
+                ) : (
+                  <div className="space-y-3">
+                    {filteredInvoices.map(invoice => (
+                      <InvoiceRow
+                        key={invoice.id}
+                        invoice={invoice}
+                        onStatusChange={status => updateStatus(invoice.id, status)}
+                        onPayNow={() => void payNow(invoice)}
+                        onDelete={() => deleteInvoice(invoice.id)}
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
-            </Panel>
+            </ProductPanel>
           </div>
-        </div>
-      </section>
-    </main>
+        </>
+      )}
+    </ProductPage>
   );
 }
 
-function Panel({ title, children }: { title: string; children: React.ReactNode }) {
-  return <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"><h2 className="text-lg font-bold text-slate-900">{title}</h2><div className="mt-4">{children}</div></section>;
+function CreatePanel({
+  title,
+  selectValue,
+  onSelect,
+  onCreate,
+  disabled,
+  options,
+}: {
+  title: string;
+  selectValue: string;
+  onSelect: (value: string) => void;
+  onCreate: () => void;
+  disabled: boolean;
+  options: Array<{ id: number; label: string }>;
+}) {
+  return (
+    <ProductPanel>
+      <div className="flex items-center gap-2">
+        <Plus className="h-5 w-5 text-blue-300" />
+        <h2 className="text-lg font-bold text-white">{title}</h2>
+      </div>
+      <div className="mt-4 grid gap-3">
+        <SelectInput value={selectValue} onChange={event => onSelect(event.target.value)} className="border-white/10 bg-slate-950/60 text-white">
+          <option value="">Choose source</option>
+          {options.map(option => <option key={option.id} value={option.id}>{option.label}</option>)}
+        </SelectInput>
+        <PrimaryButton type="button" onClick={onCreate} disabled={disabled} fullWidth>
+          Create invoice
+        </PrimaryButton>
+      </div>
+    </ProductPanel>
+  );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
-  return <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"><p className="text-xs font-semibold uppercase text-slate-500">{label}</p><p className="mt-2 text-2xl font-bold text-slate-900">{value}</p></div>;
+function InvoiceRow({
+  invoice,
+  onStatusChange,
+  onPayNow,
+  onDelete,
+}: {
+  invoice: Invoice;
+  onStatusChange: (status: InvoiceStatus) => void;
+  onPayNow: () => void;
+  onDelete: () => void;
+}) {
+  return (
+    <article className="rounded-2xl border border-white/10 bg-slate-950/50 p-4">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_150px_130px_180px] lg:items-start">
+        <div className="min-w-0">
+          <p className="font-bold text-white">{invoice.invoiceNumber} - {invoice.title}</p>
+          <p className="mt-1 text-sm text-slate-400">{invoice.customerName} - Due {formatDate(invoice.dueDate)}</p>
+          <div className="mt-2 flex flex-wrap gap-2 text-xs font-semibold text-blue-300">
+            {invoice.jobId && <Link to={`/jobs/${invoice.jobId}`}>Job #{invoice.jobId}</Link>}
+            {invoice.quoteId && <Link to={`/quotes/${invoice.quoteId}`}>Quote #{invoice.quoteId}</Link>}
+          </div>
+        </div>
+        <SelectInput value={invoice.status} onChange={event => onStatusChange(event.target.value as InvoiceStatus)} className="border-white/10 bg-slate-900 text-white">
+          {statuses.map(status => <option key={status} value={status}>{status}</option>)}
+        </SelectInput>
+        <div>
+          <StatusBadge status={invoice.status} />
+          <p className="mt-2 text-lg font-bold text-white">{money.format(invoice.total)}</p>
+        </div>
+        <div className="flex flex-wrap gap-2 lg:justify-end">
+          <button type="button" onClick={onPayNow} className="rounded-lg border border-blue-400/30 px-3 py-2 text-xs font-semibold text-blue-200 hover:bg-blue-500/10">Pay Now</button>
+          <button type="button" onClick={onDelete} className="rounded-lg border border-red-400/30 px-3 py-2 text-xs font-semibold text-red-200 hover:bg-red-500/10">Delete</button>
+        </div>
+      </div>
+    </article>
+  );
 }
 
 function formatDate(value: string) {
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Not set";
+
+  if (Number.isNaN(date.getTime())) {
+    return "Not set";
+  }
+
   return date.toLocaleDateString("en-GB");
 }

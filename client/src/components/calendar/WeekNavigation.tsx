@@ -12,9 +12,9 @@ export default function WeekNavigation({
     onNextWeek,
 }: WeekNavigationProps) {
     return (
-        <div className="flex items-center justify-between border-b border-gray-200 p-4">
+        <div className="flex flex-col gap-3 border-b border-white/10 p-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-                <h2 className="text-lg font-semibold text-gray-900">
+                <h2 className="text-lg font-semibold text-white">
                     {weekLabel}
                 </h2>
             </div>
@@ -23,7 +23,7 @@ export default function WeekNavigation({
                 <button
                     type="button"
                     onClick={onPreviousWeek}
-                    className="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium hover:bg-gray-50"
+                    className="rounded-lg border border-white/10 px-3 py-2 text-sm font-semibold text-slate-100 hover:bg-white/10"
                 >
                     Previous
                 </button>
@@ -31,7 +31,7 @@ export default function WeekNavigation({
                 <button
                     type="button"
                     onClick={onCurrentWeek}
-                    className="rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                    className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-500"
                 >
                     Today
                 </button>
@@ -39,7 +39,7 @@ export default function WeekNavigation({
                 <button
                     type="button"
                     onClick={onNextWeek}
-                    className="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium hover:bg-gray-50"
+                    className="rounded-lg border border-white/10 px-3 py-2 text-sm font-semibold text-slate-100 hover:bg-white/10"
                 >
                     Next
                 </button>

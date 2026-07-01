@@ -1,26 +1,30 @@
-import Sidebar from "../components/layout/Sidebar";
+import { CalendarDays, Route } from "lucide-react";
+
 import WeekCalendar from "../components/calendar/WeekCalendar";
+import {
+  ProductPage,
+  ProductPageHeader,
+  ProductPanel,
+  ProductStat,
+} from "../components/ui";
 
 export default function CalendarPage() {
-    return (
-        <main className="flex min-h-screen bg-slate-50">
-            <Sidebar />
+  return (
+    <ProductPage maxWidth="full">
+      <ProductPageHeader
+        eyebrow="Dispatch board"
+        title="Calendar"
+        description="Plan the working week, move jobs between days, and view team availability in one responsive schedule."
+      />
 
-            <section className="flex-1 p-10">
-                <div className="mb-6 flex items-start justify-between gap-4">
-                    <div>
-                        <h1 className="text-3xl font-bold text-gray-900">
-                            Weekly Planner
-                        </h1>
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <ProductStat label="Week view" value="7 days" helper="Monday to Sunday planning" icon={<CalendarDays className="h-5 w-5" />} />
+        <ProductStat label="Route tools" value="Ready" helper="available from the dispatch board" icon={<Route className="h-5 w-5" />} />
+      </section>
 
-                        <p className="mt-1 text-sm text-gray-600">
-                            View and manage scheduled jobs for the week.
-                        </p>
-                    </div>
-                </div>
-
-                <WeekCalendar />
-            </section>
-        </main>
-    );
+      <ProductPanel className="overflow-hidden p-0">
+        <WeekCalendar />
+      </ProductPanel>
+    </ProductPage>
+  );
 }

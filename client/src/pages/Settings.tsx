@@ -1,351 +1,106 @@
-﻿import { useEffect, useState } from "react";
-import type { FormEvent } from "react";
-import { useLocation } from "react-router-dom";
-import Sidebar from "../components/layout/Sidebar";
-import PlanLimitsPanel from "../components/settings/PlanLimitsPanel";
-import Currency from "../components/ui/Currency";
+import { Link } from "react-router-dom";
+import PageLayout from "../components/ui/PageLayout";
 import { useAuth } from "../hooks/useAuth";
-import { billingService } from "../services/billingService";
-import type { BillingSubscription } from "../services/billingService";
-import { businessSettingsService } from "../services/businessSettingsService";
-import { staffSettingsService } from "../services/staffSettingsService";
-import type { StaffCategory, StaffRolePreset, StaffSettings } from "../services/staffSettingsService";
-import { usersService } from "../services/usersService";
-import type { CustomerUser } from "../services/usersService";
-import type { UpdateBusinessSettingsRequest } from "../types/businessSettings";
-import { formatPhone, formatSortCode } from "../utils/inputFormatters";
+import {
+  getSettingsNavigation,
+  settingsSectionLabels,
+} from "../routes/navigationConfig";
+import type { NavigationGroup, NavigationItem } from "../routes/navigationConfig";
 
-type SettingsTab = "business" | "documents" | "payments" | "email" | "staff" | "security" | "billing" | "exports";
-type StaffSettingsTab = "categories" | "roles" | "permissions";
-
-const tabs: Array<{ id: SettingsTab; label: string; description: string }> = [
-  { id: "business", label: "Business", description: "Profile, logo, contact details" },
-  { id: "documents", label: "Documents & VAT", description: "VAT and document defaults" },
-  { id: "payments", label: "Payments", description: "Bank details and payment terms" },
-  { id: "email", label: "Email", description: "Email footer and templates" },
-  { id: "staff", label: "Staff", description: "Categories, roles and permissions" },
-  { id: "security", label: "Security", description: "Login, 2FA and audit safety" },
-  { id: "billing", label: "Billing", description: "Plans and limits" },
-  { id: "exports", label: "Exports", description: "Reports and data downloads" },
+const sectionOrder: Array<Exclude<NavigationGroup, "main">> = [
+  "general",
+  "team-access",
+  "billing-plan",
+  "branding-documents",
+  "data",
+  "integrations",
+  "developer",
+  "automation",
 ];
-
-const staffSettingsTabs: Array<{ id: StaffSettingsTab; label: string; description: string }> = [
-  { id: "categories", label: "Categories", description: "Trade business staff groups" },
-  { id: "roles", label: "Role presets", description: "Default permission templates" },
-  { id: "permissions", label: "Permission groups", description: "What each area controls" },
-];
-
-const permissionDescriptions: Record<string, string> = {
-  "Full access": "Allows the role to use every staff setting, role preset, customer record, job, quote, invoice, payment, report, and business setting.",
-  "Customer records": "View and update customer contact details, customer account information, and customer history.",
-  "Add/View Customer Notes": "View and add customer notes for support, job follow-ups, engineer handovers, and internal updates.",
-  "Manage Customer Notes": "Delete customer notes and manage note history where staff permissions allow it.",
-  "Jobs and scheduling": "Manage jobs, appointments, calendars, engineer allocation, site visits, and daily work schedules.",
-  "Quotes and invoices": "Create, edit, send, and manage customer quotes, invoices, and related document details.",
-  "Payments": "View and manage payment details, payment terms, paid/unpaid status, and finance-related customer information.",
-  "Offers and promotions": "Manage customer offers, trade promotions, seasonal discounts, and marketing incentives.",
-  "Staff password resets": "Reset staff login access when a team member is locked out or needs help signing in.",
-  "Email customers": "Send customer emails, updates, reminders, confirmations, and template-based messages.",
-  "Staff management": "Create, edit, suspend, or remove staff accounts and maintain team details.",
-  "Staff invites": "Invite new staff members and resend pending staff invitations.",
-  "Business settings": "Manage business profile, document defaults, email footer, payment details, and operational settings.",
-  "Activity log": "View important staff and account activity for accountability, admin checks, and troubleshooting.",
-  "Reports and exports": "Export customer, job, payment, quote, invoice, and activity data for business records.",
-};
-
-const blankSettings: UpdateBusinessSettingsRequest = {
-  businessName: "TradeLike",
-  legalName: "",
-  logoUrl: "",
-  addressLine1: "",
-  addressLine2: "",
-  town: "",
-  county: "",
-  postcode: "",
-  country: "United Kingdom",
-  phone: "",
-  email: "",
-  website: "",
-  vatNumber: "",
-  defaultVatRate: 20,
-  quotePrefix: "Q",
-  invoicePrefix: "INV",
-  paymentTerms: "Payment due within 14 days.",
-  bankName: "",
-  bankAccountName: "",
-  bankSortCode: "",
-  bankAccountNumber: "",
-  emailFooter: "Thank you for choosing TradeLike.",
-};
-
-const blankStaffSettings: StaffSettings = { categories: [], rolePresets: [], permissionGroups: [] };
 
 export default function Settings() {
-  const location = useLocation();
-  const [activeTab, setActiveTab] = useState<SettingsTab>(() => location.pathname === "/settings/billing" ? "billing" : "business");
-  const [activeStaffSettingsTab, setActiveStaffSettingsTab] = useState<StaffSettingsTab>("categories");
-  const [form, setForm] = useState<UpdateBusinessSettingsRequest>(blankSettings);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
-  const [staffSettings, setStaffSettings] = useState<StaffSettings>(blankStaffSettings);
-  const [staffLoading, setStaffLoading] = useState(true);
-  const [staffSaving, setStaffSaving] = useState(false);
-  const [staffError, setStaffError] = useState("");
-  const [staffMessage, setStaffMessage] = useState("");
+  const { user } = useAuth();
+  const items = getSettingsNavigation(user);
 
-  useEffect(() => {
-    loadSettings();
-    loadStaffSettings();
-
-  }, []);
-
-  async function loadSettings() {
-    try {
-      setLoading(true);
-      setError("");
-      const settings = await businessSettingsService.getSettings();
-      setForm({
-        businessName: settings.businessName,
-        legalName: settings.legalName ?? "",
-        logoUrl: settings.logoUrl ?? "",
-        addressLine1: settings.addressLine1 ?? "",
-        addressLine2: settings.addressLine2 ?? "",
-        town: settings.town ?? "",
-        county: settings.county ?? "",
-        postcode: settings.postcode ?? "",
-        country: settings.country ?? "United Kingdom",
-        phone: settings.phone ?? "",
-        email: settings.email ?? "",
-        website: settings.website ?? "",
-        vatNumber: settings.vatNumber ?? "",
-        defaultVatRate: settings.defaultVatRate,
-        quotePrefix: settings.quotePrefix,
-        invoicePrefix: settings.invoicePrefix,
-        paymentTerms: settings.paymentTerms ?? "",
-        bankName: settings.bankName ?? "",
-        bankAccountName: settings.bankAccountName ?? "",
-        bankSortCode: settings.bankSortCode ?? "",
-        bankAccountNumber: settings.bankAccountNumber ?? "",
-        emailFooter: settings.emailFooter ?? "",
-      });
-    } catch (err) {
-      setError(getErrorMessage(err, "Unable to load business settings."));
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function loadStaffSettings() {
-    try {
-      setStaffLoading(true);
-      setStaffError("");
-      setStaffSettings(await staffSettingsService.getSettings());
-    } catch (err) {
-      setStaffError(getErrorMessage(err, "Unable to load staff settings."));
-    } finally {
-      setStaffLoading(false);
-    }
-  }
-
-  async function handleSubmit(event: FormEvent) {
-    event.preventDefault();
-    if (form.businessName.trim() === "") { setError("Business name is required."); setMessage(""); return; }
-            try {
-      setSaving(true);
-      setError("");
-      setMessage("");
-      const saved = await businessSettingsService.updateSettings(form);
-      setForm({
-        businessName: saved.businessName,
-        legalName: saved.legalName ?? "",
-        logoUrl: saved.logoUrl ?? "",
-        addressLine1: saved.addressLine1 ?? "",
-        addressLine2: saved.addressLine2 ?? "",
-        town: saved.town ?? "",
-        county: saved.county ?? "",
-        postcode: saved.postcode ?? "",
-        country: saved.country ?? "United Kingdom",
-        phone: saved.phone ?? "",
-        email: saved.email ?? "",
-        website: saved.website ?? "",
-        vatNumber: saved.vatNumber ?? "",
-        defaultVatRate: saved.defaultVatRate,
-        quotePrefix: saved.quotePrefix,
-        invoicePrefix: saved.invoicePrefix,
-        paymentTerms: saved.paymentTerms ?? "",
-        bankName: saved.bankName ?? "",
-        bankAccountName: saved.bankAccountName ?? "",
-        bankSortCode: saved.bankSortCode ?? "",
-        bankAccountNumber: saved.bankAccountNumber ?? "",
-        emailFooter: saved.emailFooter ?? "",
-      });
-      setMessage("Settings saved.");
-    } catch (err) {
-      setError(getErrorMessage(err, "Unable to save settings."));
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function createStaffCategory(name: string, description: string) {
-    try { setStaffSaving(true); setStaffError(""); setStaffMessage(""); setStaffSettings(await staffSettingsService.createCategory({ name, description })); setStaffMessage("Staff category saved."); }
-    catch (err) { setStaffError(getErrorMessage(err, "Unable to save staff category.")); throw err; }
-    finally { setStaffSaving(false); }
-  }
-
-  async function deleteStaffCategory(category: StaffCategory) {
-    if (!window.confirm(`Delete ${category.name}? This will also remove any role presets in this category.`)) return;
-    try { setStaffSaving(true); setStaffError(""); setStaffMessage(""); setStaffSettings(await staffSettingsService.deleteCategory(category.id)); setStaffMessage("Staff category deleted."); }
-    catch (err) { setStaffError(getErrorMessage(err, "Unable to delete staff category.")); }
-    finally { setStaffSaving(false); }
-  }
-
-  async function createStaffRolePreset(name: string, categoryId: number, permissions: string[]) {
-    try { setStaffSaving(true); setStaffError(""); setStaffMessage(""); setStaffSettings(await staffSettingsService.createRolePreset({ name, categoryId, permissions })); setStaffMessage("Role preset saved."); }
-    catch (err) { setStaffError(getErrorMessage(err, "Unable to save role preset.")); throw err; }
-    finally { setStaffSaving(false); }
-  }
-
-  async function deleteStaffRolePreset(rolePreset: StaffRolePreset) {
-    if (!window.confirm(`Delete the ${rolePreset.name} role preset?`)) return;
-    try { setStaffSaving(true); setStaffError(""); setStaffMessage(""); setStaffSettings(await staffSettingsService.deleteRolePreset(rolePreset.id)); setStaffMessage("Role preset deleted."); }
-    catch (err) { setStaffError(getErrorMessage(err, "Unable to delete role preset.")); }
-    finally { setStaffSaving(false); }
-  }
   return (
-    <main className="flex min-h-screen bg-slate-50">
-      <Sidebar />
-      <section className="min-w-0 flex-1 overflow-x-hidden p-10">
-        <div className="w-full max-w-6xl">
-          <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">Settings</p>
-          <h1 className="mt-1 text-3xl font-bold text-slate-900">TradeLike Settings</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">Manage business details, document defaults, staff settings, security, billing, terminology, and exports from one place.</p>
+    <PageLayout className="bg-slate-950 text-white" contentClassName="px-6 py-8 lg:p-10">
+      <div className="mx-auto max-w-7xl">
+        <header className="rounded-3xl border border-white/10 bg-slate-900/80 p-8 shadow-2xl shadow-slate-950/30">
+          <p className="text-sm font-semibold uppercase tracking-wide text-blue-300">Settings</p>
+          <h1 className="mt-2 text-4xl font-bold tracking-tight text-white">Control centre</h1>
+          <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-300">
+            Manage the operational, billing, data and developer settings your role can access.
+          </p>
+        </header>
 
-          <div className="mt-8 grid min-w-0 gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
-            <aside className="h-fit rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-              {tabs.map(tab => <button key={tab.id} type="button" onClick={() => setActiveTab(tab.id)} className={`w-full rounded-lg px-4 py-3 text-left transition ${activeTab === tab.id ? "bg-blue-600 text-white" : "text-slate-700 hover:bg-slate-100"}`}><span className="block text-sm font-semibold">{tab.label}</span><span className={`mt-1 block text-xs ${activeTab === tab.id ? "text-blue-100" : "text-slate-500"}`}>{tab.description}</span></button>)}
-            </aside>
+        <div className="mt-8 space-y-8">
+          {sectionOrder.map(group => {
+            const groupItems = items.filter(item => item.group === group);
+            if (groupItems.length === 0) {
+              return null;
+            }
 
-            <div className="min-w-0">
-              {loading && activeTab !== "staff" ? <p className="text-slate-500">Loading settings...</p> : (
-                <form onSubmit={handleSubmit} className="space-y-6">
-                  {error && activeTab !== "staff" && <Alert tone="error" onClose={() => setError("")}>{error}</Alert>}
-                  {message && activeTab !== "staff" && <Alert tone="success" onClose={() => setMessage("")}>{message}</Alert>}
-
-                  {activeTab === "business" && <><SettingsPanel title="Business Profile"><div className="grid gap-4 md:grid-cols-2"><Field label="Business Name"><Input value={form.businessName} onChange={value => setField("businessName", value)} /></Field><Field label="Full Legal Name"><Input value={form.legalName ?? ""} onChange={value => setField("legalName", value)} /></Field><Field label="Logo URL"><Input value={form.logoUrl ?? ""} onChange={value => setField("logoUrl", value)} /></Field><Field label="Company VAT Number"><Input value={form.vatNumber ?? ""} onChange={value => setField("vatNumber", value)} /></Field></div></SettingsPanel><SettingsPanel title="Contact and Address"><div className="grid gap-4 md:grid-cols-2"><Field label="Email"><Input value={form.email ?? ""} onChange={value => setField("email", value)} /></Field><Field label="Phone"><Input value={form.phone ?? ""} onChange={value => setField("phone", formatPhone(value))} /></Field><Field label="Website"><Input value={form.website ?? ""} onChange={value => setField("website", value)} /></Field><Field label="Country"><Input value={form.country ?? ""} onChange={value => setField("country", value)} /></Field><Field label="Address line 1"><Input value={form.addressLine1 ?? ""} onChange={value => setField("addressLine1", value)} /></Field><Field label="Address line 2"><Input value={form.addressLine2 ?? ""} onChange={value => setField("addressLine2", value)} /></Field><Field label="Town / City"><Input value={form.town ?? ""} onChange={value => setField("town", value)} /></Field><Field label="County"><Input value={form.county ?? ""} onChange={value => setField("county", value)} /></Field><Field label="Postcode"><Input value={form.postcode ?? ""} onChange={value => setField("postcode", value)} /></Field></div></SettingsPanel></>}
-                  {activeTab === "documents" && <SettingsPanel title="Documents & VAT"><div className="grid gap-4 md:grid-cols-2"><Field label="Default VAT rate (%)"><Input value={String(form.defaultVatRate)} type="number" min="0" max="100" step="1" onChange={value => setField("defaultVatRate", Number(value || 0))} /></Field><Field label="Document prefix"><Input value={form.quotePrefix} onChange={value => setForm(previous => ({ ...previous, quotePrefix: value, invoicePrefix: value }))} /></Field></div><div className="mt-4"><Field label="Payment terms"><Textarea value={form.paymentTerms ?? ""} onChange={value => setField("paymentTerms", value)} rows={4} /></Field></div></SettingsPanel>}
-                  {activeTab === "payments" && <SettingsPanel title="Payment Details"><div className="grid gap-4 md:grid-cols-2"><Field label="Bank Name"><Input value={form.bankName ?? ""} onChange={value => setField("bankName", value)} /></Field><Field label="Account Name"><Input value={form.bankAccountName ?? ""} onChange={value => setField("bankAccountName", value)} /></Field><Field label="Sort Code"><Input value={form.bankSortCode ?? ""} onChange={value => setField("bankSortCode", formatSortCode(value))} /></Field><Field label="Account Number"><Input value={form.bankAccountNumber ?? ""} onChange={value => setField("bankAccountNumber", value)} /></Field></div></SettingsPanel>}
-                  {activeTab === "email" && <EmailSettingsPanel footer={form.emailFooter ?? ""} onFooterChange={value => setField("emailFooter", value)} />}
-                  {activeTab === "staff" && <StaffSettingsPanel activeTab={activeStaffSettingsTab} setActiveTab={setActiveStaffSettingsTab} settings={staffSettings} loading={staffLoading} saving={staffSaving} error={staffError} message={staffMessage} onClearError={() => setStaffError("")} onClearMessage={() => setStaffMessage("")} onCreateCategory={createStaffCategory} onDeleteCategory={deleteStaffCategory} onCreateRolePreset={createStaffRolePreset} onDeleteRolePreset={deleteStaffRolePreset} />}
-                  {activeTab === "security" && <SecuritySettingsPanel />}
-                  {activeTab === "billing" && <BillingSettingsPanel />}
-                  {activeTab === "exports" && <ExportSettingsPanel />}
-
-                  {["business", "documents", "payments", "email"].includes(activeTab) && <button type="submit" disabled={saving} className="rounded-lg bg-blue-600 px-5 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-400">{saving ? "Saving..." : "Save Settings"}</button>}
-                </form>
-              )}
-            </div>
-          </div>
+            return (
+              <section key={group}>
+                <div className="mb-4 flex items-center justify-between gap-4">
+                  <div>
+                    <h2 className="text-xl font-bold text-white">{settingsSectionLabels[group]}</h2>
+                    <p className="mt-1 text-sm text-slate-400">{sectionDescription(group)}</p>
+                  </div>
+                </div>
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                  {groupItems.map(item => <SettingsCard key={item.id} item={item} />)}
+                </div>
+              </section>
+            );
+          })}
         </div>
-      </section>
-    </main>
+      </div>
+    </PageLayout>
   );
+}
 
-  function setField<Key extends keyof UpdateBusinessSettingsRequest>(key: Key, value: UpdateBusinessSettingsRequest[Key]) {
-    setForm(previous => ({ ...previous, [key]: value }));
-    setError("");
-    setMessage("");
+function SettingsCard({ item }: { item: NavigationItem }) {
+  const Icon = item.icon;
+
+  return (
+    <Link
+      to={item.path}
+      className="group rounded-2xl border border-white/10 bg-slate-900/80 p-5 text-left shadow-lg shadow-slate-950/20 transition hover:border-blue-400/40 hover:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+    >
+      <div className="flex items-start justify-between gap-4">
+        <span className="flex h-12 w-12 items-center justify-center rounded-2xl border border-blue-400/20 bg-blue-500/15 text-blue-300">
+          <Icon className="h-6 w-6" />
+        </span>
+        {item.badge && (
+          <span className="rounded-full border border-blue-400/30 bg-blue-500/15 px-3 py-1 text-xs font-bold text-blue-200">
+            {item.badge}
+          </span>
+        )}
+      </div>
+      <h3 className="mt-5 text-lg font-bold text-white group-hover:text-blue-100">{item.label}</h3>
+      <p className="mt-2 text-sm leading-6 text-slate-400">{item.description}</p>
+    </Link>
+  );
+}
+
+function sectionDescription(group: Exclude<NavigationGroup, "main">) {
+  switch (group) {
+    case "general":
+      return "Core business and personal workspace settings.";
+    case "team-access":
+      return "Users, roles, permissions and staff operating defaults.";
+    case "billing-plan":
+      return "Plan, usage and subscription controls.";
+    case "branding-documents":
+      return "Brand, PDF and document presentation settings.";
+    case "data":
+      return "Import, export and retention tools.";
+    case "integrations":
+      return "Connected services and notifications.";
+    case "developer":
+      return "API, webhook and technical access.";
+    case "automation":
+      return "Workflow rules and premium automation.";
   }
 }
-
-function EmailSettingsPanel({ footer, onFooterChange }: { footer: string; onFooterChange: (value: string) => void }) {
-  return <><SettingsPanel title="Email footer"><Field label="Default email footer"><Textarea value={footer} onChange={onFooterChange} rows={6} /></Field></SettingsPanel><SettingsPanel title="Email sending defaults"><div className="grid gap-3 md:grid-cols-2"><SettingCard title="Quote emails" body="Quote cards open a pre-filled customer email draft." /><SettingCard title="Invoice emails" body="Invoice cards are prepared for the same quick-send flow." /><SettingCard title="Sent history" body="Customer email history is reserved under Customer 360 â†’ Emails sent." /><SettingCard title="Next backend step" body="Send + log emails through the API when production email is connected." /></div></SettingsPanel></>;
-}
-
-function BillingSettingsPanel() {
-  const { isDirector } = useAuth();
-  const [subscription, setSubscription] = useState<BillingSubscription | null>(null);
-  const [users, setUsers] = useState<CustomerUser[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    let cancelled = false;
-
-    Promise.all([billingService.getSubscription(), usersService.getUsers()])
-      .then(([subscriptionRow, userRows]) => {
-        if (cancelled) return;
-        setSubscription(subscriptionRow);
-        setUsers(userRows);
-      })
-      .catch(err => {
-        if (cancelled) return;
-        setError(getErrorMessage(err, "Unable to load billing details."));
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-
-    return () => { cancelled = true; };
-  }, []);
-
-  async function updateRole(user: CustomerUser, role: "CustomerManager" | "CustomerEmployee") {
-    try {
-      setError("");
-      const updated = await usersService.updateRole(user.id, role);
-      setUsers(previous => previous.map(item => item.id === user.id ? updated : item));
-    } catch (err) {
-      setError(getErrorMessage(err, "Unable to update user role."));
-    }
-  }
-
-  return <div className="space-y-6"><PlanLimitsPanel />{error && <Alert tone="error" onClose={() => setError("")}>{error}</Alert>}{loading ? <SettingsPanel title="Billing"><p className="text-sm text-slate-500">Loading billing...</p></SettingsPanel> : <SettingsPanel title="Current plan"><div className="grid gap-4 md:grid-cols-3"><SettingCard title="Plan" body={subscription?.planName ?? "Not set"} /><SettingCard title="Monthly price" body={subscription ? <><Currency valuePence={subscription.monthlyPricePence} currency="GBP" />/month</> : "Not set"} /><SettingCard title="Included users" body={subscription?.maxIncludedUsers == null ? "Unlimited" : String(subscription.maxIncludedUsers)} /><SettingCard title="Seats purchased" body={String(subscription?.seatsPurchased ?? 0)} /><SettingCard title="Status" body={subscription?.status ?? "Not set"} /><SettingCard title="Next invoice" body={subscription ? formatDate(subscription.nextInvoiceDateUtc) : "Not set"} /></div></SettingsPanel>}<SettingsPanel title="Users"><div className="overflow-hidden rounded-lg border border-slate-200">{users.length === 0 ? <p className="p-4 text-sm text-slate-500">No users found.</p> : users.map(user => <div key={user.id} className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 p-4 last:border-b-0"><div><p className="font-semibold text-slate-900">{user.name || user.email}</p><p className="text-sm text-slate-500">{user.email}</p><p className="mt-1 text-xs font-semibold text-blue-700">{formatCustomerRole(user.role)} · {user.status}</p></div>{isDirector && user.role !== "CustomerDirector" && <div className="flex gap-2">{user.role !== "CustomerManager" && <button type="button" onClick={() => updateRole(user, "CustomerManager")} className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700">Promote</button>}{user.role !== "CustomerEmployee" && <button type="button" onClick={() => updateRole(user, "CustomerEmployee")} className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">Demote</button>}</div>}</div>)}</div></SettingsPanel></div>;
-}
-
-
-function SecuritySettingsPanel() {
-  return <div className="space-y-6"><SettingsPanel title="Security settings"><div className="grid gap-3 md:grid-cols-2"><SettingCard title="Password resets" body="Company directors can request staff password resets from Staff & Teams." /><SettingCard title="Two-factor authentication" body="Prepared as a future staff/company setting. Not forced yet." /><SettingCard title="Session safety" body="JWT/session expiry remains controlled by API configuration." /><SettingCard title="Audit history" body="Customer activity now records staff name, email, action, details and date where available." /></div></SettingsPanel><SettingsPanel title="Recommended future security"><div className="grid gap-3 md:grid-cols-2"><SettingCard title="Require 2FA for directors" body="Best for owners, directors and office managers." /><SettingCard title="Sensitive action confirmation" body="Use confirmations for deletes, staff changes, billing updates and exports." /></div></SettingsPanel></div>;
-}
-
-function ExportSettingsPanel() {
-  return <div className="space-y-6"><SettingsPanel title="Export settings"><div className="grid gap-3 md:grid-cols-2"><SettingCard title="Customers / Clients" body="Export customer records, notes and contact history when reports are connected." /><SettingCard title="Jobs" body="Export scheduled, current and previous jobs with engineer/team filters." /><SettingCard title="Invoices and payments" body="Export invoice totals, paid/outstanding status and billing records." /><SettingCard title="Audit logs" body="Export customer audit history for accountability and admin checks." /></div></SettingsPanel><SettingsPanel title="Export permissions"><p className="text-sm text-slate-600">Exports should stay permission-only. Business and Enterprise plans should get the strongest reporting and export options.</p></SettingsPanel></div>;
-}
-
-function SettingsPanel({ title, children }: { title: string; children: React.ReactNode }) {
-  return <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"><h2 className="text-lg font-bold text-slate-900">{title}</h2><div className="mt-5">{children}</div></section>;
-}
-
-function StaffSettingsPanel({ activeTab, setActiveTab, settings, loading, saving, error, message, onClearError, onClearMessage, onCreateCategory, onDeleteCategory, onCreateRolePreset, onDeleteRolePreset }: { activeTab: StaffSettingsTab; setActiveTab: (tab: StaffSettingsTab) => void; settings: StaffSettings; loading: boolean; saving: boolean; error: string; message: string; onClearError: () => void; onClearMessage: () => void; onCreateCategory: (name: string, description: string) => Promise<void>; onDeleteCategory: (category: StaffCategory) => Promise<void>; onCreateRolePreset: (name: string, categoryId: number, permissions: string[]) => Promise<void>; onDeleteRolePreset: (rolePreset: StaffRolePreset) => Promise<void>; }) {
-  const [categoryName, setCategoryName] = useState("");
-  const [categoryDescription, setCategoryDescription] = useState("");
-  const [roleName, setRoleName] = useState("");
-  const [roleCategoryId, setRoleCategoryId] = useState("");
-  const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
-
-  async function addCategory() { if (categoryName.trim() === "") return; try { await onCreateCategory(categoryName, categoryDescription); setCategoryName(""); setCategoryDescription(""); } catch { } }
-  function togglePermission(permission: string) { setSelectedPermissions(previous => previous.includes(permission) ? previous.filter(item => item !== permission) : [...previous, permission]); }
-  async function addRolePreset() { const categoryId = Number(roleCategoryId || settings.categories[0]?.id || 0); if (roleName.trim() === "" || categoryId === 0 || selectedPermissions.length === 0) return; try { await onCreateRolePreset(roleName, categoryId, selectedPermissions); setRoleName(""); setSelectedPermissions([]); } catch { } }
-
-  return <SettingsPanel title="Staff settings"><p className="text-sm text-slate-600">Customer-company staff categories, role presets and permissions live here. These stay separate from the ShepieStudio internal staff portal.</p>{error && <Alert tone="error" onClose={onClearError}>{error}</Alert>}{message && <Alert tone="success" onClose={onClearMessage}>{message}</Alert>}<div className="mt-5 grid gap-3 md:grid-cols-3">{staffSettingsTabs.map(tab => <button key={tab.id} type="button" onClick={() => setActiveTab(tab.id)} className={`rounded-lg border p-4 text-left transition ${activeTab === tab.id ? "border-blue-600 bg-blue-600 text-white" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`}><span className="block text-sm font-bold">{tab.label}</span><span className={`mt-1 block text-xs ${activeTab === tab.id ? "text-blue-100" : "text-slate-500"}`}>{tab.description}</span></button>)}</div>{loading ? <p className="mt-6 text-sm text-slate-500">Loading staff settings...</p> : <>{activeTab === "categories" && <div className="mt-6 space-y-5"><div className="grid gap-3 md:grid-cols-2">{settings.categories.map(category => <div key={category.id} className="rounded-lg border border-slate-200 bg-slate-50 p-4"><div className="flex items-start justify-between gap-4"><div><p className="font-semibold text-slate-900">{category.name}</p><p className="mt-1 text-sm text-slate-600">{category.description}</p></div><button type="button" disabled={saving} onClick={() => onDeleteCategory(category)} className="rounded-lg border border-red-200 px-3 py-1 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50">Delete</button></div></div>)}</div><div className="rounded-lg border border-slate-200 p-4"><h3 className="font-semibold text-slate-900">Create staff category</h3><div className="mt-4 grid gap-4 md:grid-cols-2"><Field label="Category name"><Input value={categoryName} onChange={setCategoryName} /></Field><Field label="Description"><Input value={categoryDescription} onChange={setCategoryDescription} /></Field></div><button type="button" disabled={saving} onClick={addCategory} className="mt-4 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300">{saving ? "Saving..." : "Add category"}</button></div></div>}{activeTab === "roles" && <div className="mt-6 space-y-5"><div className="rounded-lg border border-slate-200 p-4"><h3 className="font-semibold text-slate-900">Create role preset</h3><div className="mt-4 grid gap-4 md:grid-cols-2"><Field label="Role name"><Input value={roleName} onChange={setRoleName} /></Field><label className="block"><span className="mb-2 block text-sm font-medium text-slate-700">Staff category</span><select value={roleCategoryId || String(settings.categories[0]?.id ?? "")} onChange={event => setRoleCategoryId(event.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600">{settings.categories.map(category => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label></div><div className="mt-4"><p className="mb-2 text-sm font-medium text-slate-700">Default permissions</p><div className="flex flex-wrap gap-2">{settings.permissionGroups.map(permission => <button key={permission} type="button" onClick={() => togglePermission(permission)} className={`rounded-full border px-3 py-1 text-xs font-semibold ${selectedPermissions.includes(permission) ? "border-blue-600 bg-blue-600 text-white" : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"}`}>{permission}</button>)}</div></div><button type="button" disabled={saving || settings.categories.length === 0} onClick={addRolePreset} className="mt-4 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300">{saving ? "Saving..." : "Add role preset"}</button></div><div className="grid gap-3">{settings.rolePresets.map(role => <div key={role.id} className="rounded-lg border border-slate-200 bg-slate-50 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-semibold text-slate-900">{role.name}</p><p className="text-sm text-slate-600">{role.categoryName}</p></div><button type="button" disabled={saving} onClick={() => onDeleteRolePreset(role)} className="rounded-lg border border-red-200 px-3 py-1 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50">Delete</button></div><div className="mt-3 flex flex-wrap gap-2">{role.permissions.map(permission => <span key={permission} className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-700 ring-1 ring-slate-200">{permission}</span>)}</div></div>)}</div></div>}{activeTab === "permissions" && <div className="mt-6 grid gap-3 md:grid-cols-2">{settings.permissionGroups.map(permission => <div key={permission} className="rounded-lg border border-slate-200 bg-slate-50 p-4"><p className="font-semibold text-slate-900">{permission}</p><p className="mt-1 text-sm text-slate-600">{permissionDescriptions[permission] ?? "Custom permission group for role presets."}</p></div>)}</div>}</>}</SettingsPanel>;
-}
-
-function SettingCard({ title, body }: { title: string; body: React.ReactNode }) {
-  return <div className="rounded-lg border border-slate-200 bg-slate-50 p-4"><p className="font-semibold text-slate-900">{title}</p><p className="mt-1 text-sm text-slate-600">{body}</p></div>;
-}
-
-function Alert({ tone, children, onClose }: { tone: "error" | "success"; children: React.ReactNode; onClose?: () => void }) {
-  return <div className={`mt-4 flex max-h-40 items-start justify-between gap-4 overflow-y-auto break-words rounded-xl border p-4 text-sm font-medium ${tone === "error" ? "border-red-200 bg-red-50 text-red-700" : "border-green-200 bg-green-50 text-green-700"}`}><span>{children}</span>{onClose && <button type="button" onClick={onClose} className="rounded px-2 text-lg leading-none hover:bg-white/70">Ã—</button>}</div>;
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) { return <label className="block"><span className="mb-2 block text-sm font-medium text-slate-700">{label}</span>{children}</label>; }
-function Input({ value, onChange, type = "text", min, max, step }: { value: string; onChange: (value: string) => void; type?: string; min?: string; max?: string; step?: string }) { return <input value={value} type={type} min={min} max={max} step={step} onChange={event => onChange(event.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600" />; }
-function Textarea({ value, onChange, rows }: { value: string; onChange: (value: string) => void; rows: number }) { return <textarea value={value} rows={rows} onChange={event => onChange(event.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600" />; }
-function getErrorMessage(error: unknown, fallback: string) { return error instanceof Error && error.message.trim() !== "" ? error.message : fallback; }
-function formatDate(value: string) { const date = new Date(value); return Number.isNaN(date.getTime()) ? "Not set" : date.toLocaleDateString("en-GB"); }
-function formatCustomerRole(role: string) { return role.replace("Customer", ""); }
-
-
-
-

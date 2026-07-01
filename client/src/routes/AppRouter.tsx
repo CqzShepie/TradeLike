@@ -28,7 +28,15 @@ import BrandingPage from "../pages/branding/BrandingPage";
 import ImportExportPage from "../pages/import/ImportExportPage";
 import Inventory from "../pages/inventory/Inventory";
 import SupportCenter from "../pages/SupportCenter";
+import AccessDenied from "../pages/AccessDenied";
+import NotFound from "../pages/NotFound";
+import UpgradeRequired from "../pages/UpgradeRequired";
+import SettingsSectionPage from "../pages/settings/SettingsSectionPage";
 import { authService } from "../services/authService";
+import {
+  findNavigationItemByPath,
+  getNavigationAccess,
+} from "./navigationConfig";
 import ProtectedRoute from "./ProtectedRoute";
 import StaffRoute from "./StaffRoute";
 
@@ -56,22 +64,41 @@ function AppRouter() {
         <Route path="/customers/:id" element={<ProtectedRoute><CustomerDetails /></ProtectedRoute>} />
 
         <Route path="/calendar" element={<ProtectedRoute><CalendarPage /></ProtectedRoute>} />
-        <Route path="/team" element={<ProtectedRoute><CustomerStaff /></ProtectedRoute>} />
-        <Route path="/leave" element={<ProtectedRoute><CustomerStaff /></ProtectedRoute>} />
-        <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
-        <Route path="/reports/overview" element={<ManagerRoute><ReportsOverview /></ManagerRoute>} />
-        <Route path="/inventory" element={<ManagerRoute><Inventory /></ManagerRoute>} />
+        <Route path="/team" element={<NavigationAccessRoute path="/team"><CustomerStaff /></NavigationAccessRoute>} />
+        <Route path="/leave" element={<NavigationAccessRoute path="/team"><CustomerStaff /></NavigationAccessRoute>} />
+        <Route path="/reports" element={<NavigationAccessRoute path="/reports"><Reports /></NavigationAccessRoute>} />
+        <Route path="/reports/overview" element={<NavigationAccessRoute path="/reports"><ReportsOverview /></NavigationAccessRoute>} />
+        <Route path="/inventory" element={<NavigationAccessRoute path="/inventory"><Inventory /></NavigationAccessRoute>} />
         <Route path="/support" element={<SupportCenter />} />
 
         <Route path="/quotes" element={<ProtectedRoute><Quotes /></ProtectedRoute>} />
         <Route path="/quotes/:id" element={<ProtectedRoute><QuoteDetails /></ProtectedRoute>} />
         <Route path="/invoices" element={<ProtectedRoute><Invoices /></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-        <Route path="/settings/billing" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-        <Route path="/settings/accessibility" element={<ProtectedRoute><A11ySettings /></ProtectedRoute>} />
-        <Route path="/settings/api" element={<DirectorRoute><ApiDeveloperPage /></DirectorRoute>} />
-        <Route path="/settings/branding" element={<DirectorRoute><BrandingPage /></DirectorRoute>} />
-        <Route path="/settings/import-export" element={<DirectorRoute><ImportExportPage /></DirectorRoute>} />
+        <Route path="/settings/accessibility" element={<NavigationAccessRoute path="/settings/accessibility"><A11ySettings /></NavigationAccessRoute>} />
+        <Route path="/settings/api" element={<NavigationAccessRoute path="/settings/api"><ApiDeveloperPage /></NavigationAccessRoute>} />
+        <Route path="/settings/branding" element={<NavigationAccessRoute path="/settings/branding"><BrandingPage /></NavigationAccessRoute>} />
+        <Route path="/settings/import-export" element={<NavigationAccessRoute path="/settings/import-export"><ImportExportPage /></NavigationAccessRoute>} />
+        <Route path="/settings/billing" element={<SettingsRoute path="/settings/billing" />} />
+        <Route path="/settings/billing/usage" element={<SettingsRoute path="/settings/billing/usage" />} />
+        <Route path="/settings/profile" element={<SettingsRoute path="/settings/profile" />} />
+        <Route path="/settings/business" element={<SettingsRoute path="/settings/business" />} />
+        <Route path="/settings/company" element={<SettingsRoute path="/settings/company" />} />
+        <Route path="/settings/users" element={<SettingsRoute path="/settings/users" />} />
+        <Route path="/settings/permissions" element={<SettingsRoute path="/settings/permissions" />} />
+        <Route path="/settings/staff" element={<SettingsRoute path="/settings/staff" />} />
+        <Route path="/settings/plan-limits" element={<SettingsRoute path="/settings/plan-limits" />} />
+        <Route path="/settings/templates" element={<SettingsRoute path="/settings/templates" />} />
+        <Route path="/settings/documents" element={<SettingsRoute path="/settings/documents" />} />
+        <Route path="/settings/full-data-export" element={<SettingsRoute path="/settings/full-data-export" />} />
+        <Route path="/settings/integrations" element={<SettingsRoute path="/settings/integrations" />} />
+        <Route path="/settings/accounting" element={<SettingsRoute path="/settings/accounting" />} />
+        <Route path="/settings/notifications" element={<SettingsRoute path="/settings/notifications" />} />
+        <Route path="/settings/webhooks" element={<SettingsRoute path="/settings/webhooks" />} />
+        <Route path="/settings/developer" element={<SettingsRoute path="/settings/developer" />} />
+        <Route path="/settings/automations" element={<SettingsRoute path="/settings/automations" />} />
+        <Route path="/access-denied" element={<ProtectedRoute><AccessDenied /></ProtectedRoute>} />
+        <Route path="/upgrade-required" element={<ProtectedRoute><UpgradeRequired /></ProtectedRoute>} />
 
         <Route
           path="/admin"
@@ -82,30 +109,43 @@ function AppRouter() {
           }
         />
 
-        <Route path="*" element={<NotFoundPage />} />
+        <Route path="*" element={<NotFound />} />
       </Routes>
     </>
   );
 }
 
-function ManagerRoute({ children }: { children: React.ReactNode }) {
+function NavigationAccessRoute({ path, children }: { path: string; children: React.ReactNode }) {
   if (!authService.hasValidSession()) {
     return <Navigate to="/login" replace />;
   }
 
-  return authService.isManagerOrDirector()
-    ? <>{children}</>
-    : <Navigate to="/dashboard" replace />;
+  const item = findNavigationItemByPath(path);
+  const access = item ? getNavigationAccess(item, authService.getUser()) : "allowed";
+
+  if (access === "denied") {
+    return <AccessDenied />;
+  }
+
+  if (access === "upgrade") {
+    return <UpgradeRequired />;
+  }
+
+  return <>{children}</>;
 }
 
-function DirectorRoute({ children }: { children: React.ReactNode }) {
-  if (!authService.hasValidSession()) {
-    return <Navigate to="/login" replace />;
+function SettingsRoute({ path }: { path: string }) {
+  const item = findNavigationItemByPath(path);
+
+  if (!item) {
+    return <NotFound />;
   }
 
-  return authService.isDirector()
-    ? <>{children}</>
-    : <Navigate to="/dashboard" replace />;
+  return (
+    <NavigationAccessRoute path={path}>
+      <SettingsSectionPage item={item} />
+    </NavigationAccessRoute>
+  );
 }
 
 function ScrollToTop() {
@@ -116,17 +156,6 @@ function ScrollToTop() {
   }, [pathname]);
 
   return null;
-}
-
-function NotFoundPage() {
-  return (
-    <main className="min-h-screen bg-slate-50 pl-64">
-      <section className="p-10">
-        <h1 className="text-3xl font-bold text-gray-900">Page not found</h1>
-        <p className="mt-2 text-sm text-gray-600">The page you requested does not exist.</p>
-      </section>
-    </main>
-  );
 }
 
 export default AppRouter;

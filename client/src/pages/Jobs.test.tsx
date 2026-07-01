@@ -1,0 +1,87 @@
+import { render, screen } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
+import Jobs from "./Jobs";
+import { useJobs } from "../hooks/useJobs";
+
+vi.mock("../components/layout/Sidebar", () => ({
+  default: () => <aside>Sidebar</aside>,
+}));
+
+vi.mock("../hooks/useJobs", () => ({
+  useJobs: vi.fn(),
+}));
+
+vi.mock("../services/customerStaffService", () => ({
+  customerStaffService: {
+    getWorkspace: vi.fn().mockResolvedValue({ members: [], teams: [] }),
+  },
+}));
+
+vi.mock("../services/jobAssignmentsService", () => ({
+  jobAssignmentsService: {
+    getAll: vi.fn().mockResolvedValue([]),
+  },
+}));
+
+describe("Jobs", () => {
+  it("renders an empty state when no jobs are returned", () => {
+    vi.mocked(useJobs).mockReturnValue({
+      jobs: [],
+      loading: false,
+      error: null,
+      reloadJobs: vi.fn(),
+      addJob: vi.fn(),
+      deleteJob: vi.fn(),
+      updateJob: vi.fn(),
+      editingJob: null,
+      startEdit: vi.fn(),
+      cancelEdit: vi.fn(),
+    });
+
+    render(
+      <MemoryRouter>
+        <Jobs />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByText("No jobs found.")).toBeInTheDocument();
+  });
+
+  it("renders job stat cards", () => {
+    vi.mocked(useJobs).mockReturnValue({
+      jobs: [
+        {
+          id: 1,
+          customer: "Sarah Johnson",
+          phone: "07981 125031",
+          jobTitle: "Boiler service",
+          address: "1 Trade Street",
+          scheduledDate: new Date(Date.now() + 86400000).toISOString(),
+          status: "Scheduled",
+          priority: "Normal",
+        },
+      ],
+      loading: false,
+      error: null,
+      reloadJobs: vi.fn(),
+      addJob: vi.fn(),
+      deleteJob: vi.fn(),
+      updateJob: vi.fn(),
+      editingJob: null,
+      startEdit: vi.fn(),
+      cancelEdit: vi.fn(),
+    });
+
+    render(
+      <MemoryRouter>
+        <Jobs />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByText("Total jobs")).toBeInTheDocument();
+    expect(screen.getAllByText("Scheduled").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("In progress").length).toBeGreaterThan(0);
+    expect(screen.getByText("Pending")).toBeInTheDocument();
+    expect(screen.getAllByText("Completed").length).toBeGreaterThan(0);
+  });
+});

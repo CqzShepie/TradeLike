@@ -19,13 +19,13 @@ export default function FormField({
 }: FormFieldProps) {
   return (
     <label className="block" htmlFor={htmlFor}>
-      <span className="mb-1.5 block text-sm font-semibold text-slate-700">
+      <span className="mb-1.5 block text-sm font-semibold text-slate-300">
         {label}
         {required && <span className="ml-1 text-red-600">required</span>}
       </span>
       {children}
       {helperText && !error && (
-        <span className="mt-1.5 block text-xs leading-5 text-slate-500">{helperText}</span>
+        <span className="mt-1.5 block text-xs leading-5 text-slate-400">{helperText}</span>
       )}
       {error && (
         <span className="mt-1.5 block text-xs font-semibold leading-5 text-red-600">

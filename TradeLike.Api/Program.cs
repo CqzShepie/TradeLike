@@ -191,23 +191,70 @@ builder.Services
 
 builder.Services.AddAuthorization(options =>
 {
-    options.AddPolicy("RequireEmployeeRole", policy =>
-        policy.RequireRole(CustomerRoles.Employee, CustomerRoles.Manager, CustomerRoles.Director, "Customer"));
-
-    options.AddPolicy("RequireManagerRole", policy =>
-        policy.RequireRole(CustomerRoles.Manager, CustomerRoles.Director, "Customer"));
-
-    options.AddPolicy("RequireDirectorRole", policy =>
-        policy.RequireRole(CustomerRoles.Director));
-
-    options.AddPolicy("RequireStaffRole", policy =>
-        policy.RequireRole("Staff", "Director"));
-
-    options.AddPolicy("RequireAdminRole", policy =>
-        policy.RequireRole("Director"));
+    /*
+     * Backwards-compatible role policies.
+     *
+     * New customer-side roles:
+     * - CustomerEmployee
+     * - CustomerManager
+     * - CustomerDirector
+     *
+     * Legacy roles still accepted so existing local/prod users do not get locked out:
+     * - Customer
+     * - Director
+     * - Staff
+     */
 
     options.AddPolicy("RequireCustomerRole", policy =>
-        policy.RequireRole(CustomerRoles.Employee, CustomerRoles.Manager, CustomerRoles.Director, "Customer"));
+        policy.RequireRole(
+            "Customer",
+            "CustomerEmployee",
+            "CustomerManager",
+            "CustomerDirector",
+            "Director"
+        ));
+
+    options.AddPolicy("RequireEmployeeRole", policy =>
+        policy.RequireRole(
+            "Customer",
+            "CustomerEmployee",
+            "CustomerManager",
+            "CustomerDirector",
+            "Director"
+        ));
+
+    options.AddPolicy("RequireManagerRole", policy =>
+        policy.RequireRole(
+            "CustomerManager",
+            "CustomerDirector",
+            "Director"
+        ));
+
+    options.AddPolicy("RequireLeaderRole", policy =>
+        policy.RequireRole(
+            "CustomerManager",
+            "CustomerDirector",
+            "Director"
+        ));
+
+    options.AddPolicy("RequireDirectorRole", policy =>
+        policy.RequireRole(
+            "CustomerDirector",
+            "Director"
+        ));
+
+    options.AddPolicy("RequireAdminRole", policy =>
+        policy.RequireRole(
+            "CustomerDirector",
+            "Director"
+        ));
+
+    options.AddPolicy("RequireStaffRole", policy =>
+        policy.RequireRole(
+            "Staff",
+            "Director",
+            "CustomerDirector"
+        ));
 });
 
 builder.Services.AddRateLimiter(options =>

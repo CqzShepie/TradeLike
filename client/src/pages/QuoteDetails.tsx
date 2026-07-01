@@ -310,11 +310,11 @@ export default function QuoteDetails() {
   const hasUnsavedStatusChange = quote && form && quote.status !== form.status;
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-slate-950 text-slate-100">
       <Sidebar />
 
       <main className="md:pl-64">
-        <section className="mx-auto max-w-7xl px-6 py-8">
+        <section className="mx-auto max-w-7xl px-6 py-8 [&_.bg-blue-50]:!bg-blue-500/10 [&_.bg-green-50]:!bg-green-500/10 [&_.bg-red-50]:!bg-red-950/30 [&_.bg-slate-50]:!bg-slate-950/50 [&_.bg-white]:!bg-slate-900/80 [&_.border-blue-200]:!border-blue-400/30 [&_.border-green-200]:!border-green-400/30 [&_.border-red-200]:!border-red-400/30 [&_.border-slate-200]:!border-white/10 [&_.border-slate-300]:!border-white/10 [&_.divide-slate-200>*]:!border-white/10 [&_.text-blue-700]:!text-blue-200 [&_.text-green-700]:!text-green-200 [&_.text-red-700]:!text-red-200 [&_.text-slate-400]:!text-slate-500 [&_.text-slate-500]:!text-slate-400 [&_.text-slate-600]:!text-slate-300 [&_.text-slate-700]:!text-slate-200 [&_.text-slate-800]:!text-slate-100 [&_.text-slate-900]:!text-white [&_input]:!bg-slate-950/60 [&_input]:!text-white [&_select]:!bg-slate-950/60 [&_select]:!text-white [&_textarea]:!bg-slate-950/60 [&_textarea]:!text-white">
           <Link
             to="/quotes"
             className="text-sm font-medium text-blue-700 hover:text-blue-900"

@@ -9,23 +9,28 @@ import { customerAuditService } from "../services/customerAuditService";
 export function useJobs() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
   const [editingJob, setEditingJob] = useState<Job | null>(null);
 
-  useEffect(() => {
-    async function loadJobs() {
-      try {
-        const data = await jobsService.getAll();
-        setJobs(data);
-      } catch (err) {
-        console.error(err);
-        toast.error("Failed to load jobs.");
-        setJobs([]);
-      } finally {
-        setLoading(false);
-      }
+  async function reloadJobs() {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await jobsService.getAll();
+      setJobs(data);
+    } catch (err) {
+      const nextError = err instanceof Error ? err : new Error("Failed to load jobs.");
+      console.error(nextError);
+      toast.error("Failed to load jobs.");
+      setError(nextError);
+      setJobs([]);
+    } finally {
+      setLoading(false);
     }
+  }
 
-    loadJobs();
+  useEffect(() => {
+    void reloadJobs();
   }, []);
 
   async function addJob(newJob: NewJob) {
@@ -78,6 +83,8 @@ export function useJobs() {
   return {
     jobs,
     loading,
+    error,
+    reloadJobs,
     addJob,
     deleteJob,
     updateJob,

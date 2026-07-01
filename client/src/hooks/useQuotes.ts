@@ -7,17 +7,17 @@ export function useQuotes() {
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [editingQuote, setEditingQuote] = useState<Quote | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<Error | null>(null);
 
   async function loadQuotes() {
     try {
       setLoading(true);
-      setError("");
+      setError(null);
 
       const data = await quotesService.getAll();
       setQuotes(data);
     } catch (err) {
-      setError(getErrorMessage(err, "Unable to load quotes."));
+      setError(err instanceof Error ? err : new Error("Unable to load quotes."));
     } finally {
       setLoading(false);
     }
@@ -72,10 +72,4 @@ export function useQuotes() {
     cancelEdit,
     reloadQuotes: loadQuotes,
   };
-}
-
-function getErrorMessage(error: unknown, fallback: string) {
-  return error instanceof Error && error.message.trim() !== ""
-    ? error.message
-    : fallback;
 }
