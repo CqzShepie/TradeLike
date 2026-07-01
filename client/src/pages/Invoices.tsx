@@ -37,6 +37,7 @@ export default function Invoices() {
   const [statusFilter, setStatusFilter] = useState<InvoiceStatus | "All">("All");
   const [selectedQuoteId, setSelectedQuoteId] = useState("");
   const [selectedJobId, setSelectedJobId] = useState("");
+  const [selectedInvoiceId, setSelectedInvoiceId] = useState<number | null>(null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState<Error | null>(null);
   const [loading, setLoading] = useState(true);
@@ -97,6 +98,11 @@ export default function Invoices() {
     [invoices]
   );
 
+  const selectedInvoice = useMemo(
+    () => invoices.find(invoice => invoice.id === selectedInvoiceId) ?? null,
+    [invoices, selectedInvoiceId]
+  );
+
   function refresh() {
     setInvoices(invoicesService.getAll());
   }
@@ -131,12 +137,26 @@ export default function Invoices() {
     setInvoices(invoicesService.updateStatus(id, status));
   }
 
-  function deleteInvoice(id: number) {
-    if (!confirm("Delete this invoice?")) {
+  function handleInvoiceDestructiveAction(invoice: Invoice) {
+    const isDraft = invoice.status === "Draft";
+    const confirmation = isDraft
+      ? "Delete this draft invoice?"
+      : "Void this invoice? It will remain in your records.";
+
+    if (!confirm(confirmation)) {
       return;
     }
 
-    setInvoices(invoicesService.delete(id));
+    if (isDraft) {
+      setInvoices(invoicesService.delete(invoice.id));
+      setSelectedInvoiceId(null);
+      setMessage(`${invoice.invoiceNumber} deleted.`);
+      return;
+    }
+
+    setInvoices(invoicesService.updateStatus(invoice.id, "Void"));
+    setSelectedInvoiceId(null);
+    setMessage(`${invoice.invoiceNumber} voided.`);
   }
 
   function sendInvoice(invoice: Invoice) {
@@ -251,6 +271,14 @@ export default function Invoices() {
                 </div>
               </div>
 
+              {selectedInvoice && (
+                <InvoiceDetailPanel
+                  invoice={selectedInvoice}
+                  onClose={() => setSelectedInvoiceId(null)}
+                  onDestructiveAction={() => handleInvoiceDestructiveAction(selectedInvoice)}
+                />
+              )}
+
               <div className="mt-6">
                 {filteredInvoices.length === 0 ? (
                   <EmptyState
@@ -264,9 +292,9 @@ export default function Invoices() {
                         key={invoice.id}
                         invoice={invoice}
                         onStatusChange={status => updateStatus(invoice.id, status)}
+                        onViewEdit={() => setSelectedInvoiceId(invoice.id)}
                         onSendInvoice={() => sendInvoice(invoice)}
                         onMarkAsPaid={() => markAsPaid(invoice)}
-                        onDelete={() => deleteInvoice(invoice.id)}
                       />
                     ))}
                   </div>
@@ -322,15 +350,15 @@ function CreatePanel({
 function InvoiceRow({
   invoice,
   onStatusChange,
+  onViewEdit,
   onSendInvoice,
   onMarkAsPaid,
-  onDelete,
 }: {
   invoice: Invoice;
   onStatusChange: (status: InvoiceStatus) => void;
+  onViewEdit: () => void;
   onSendInvoice: () => void;
   onMarkAsPaid: () => void;
-  onDelete: () => void;
 }) {
   return (
     <article className="rounded-2xl border border-white/10 bg-slate-950/50 p-4">
@@ -354,20 +382,62 @@ function InvoiceRow({
           <p className="mt-2 text-lg font-bold text-white">{money.format(invoice.total)}</p>
         </div>
         <div className="flex flex-wrap gap-2 lg:justify-end">
+          <button type="button" onClick={onViewEdit} className="rounded-lg border border-white/10 px-3 py-2 text-xs font-semibold text-slate-100 hover:bg-white/10">
+            View/Edit
+          </button>
           <button type="button" onClick={onSendInvoice} className="inline-flex items-center gap-1.5 rounded-lg border border-blue-400/30 px-3 py-2 text-xs font-semibold text-blue-200 hover:bg-blue-500/10">
             <Send className="h-3.5 w-3.5" />
             Send invoice
           </button>
-          <button type="button" disabled title="Payment links not configured" className="rounded-lg border border-white/5 bg-slate-900/70 px-3 py-2 text-xs font-semibold text-slate-500">
-            Copy payment link
-          </button>
           <button type="button" onClick={onMarkAsPaid} disabled={invoice.status === "Paid"} className="rounded-lg border border-emerald-400/30 px-3 py-2 text-xs font-semibold text-emerald-200 hover:bg-emerald-500/10 disabled:cursor-not-allowed disabled:border-white/5 disabled:bg-slate-900/70 disabled:text-slate-500">
             {invoice.status === "Paid" ? "Payment recorded" : "Record payment"}
           </button>
-          <button type="button" onClick={onDelete} className="rounded-lg border border-red-400/30 px-3 py-2 text-xs font-semibold text-red-200 hover:bg-red-500/10">Delete</button>
         </div>
       </div>
     </article>
+  );
+}
+
+function InvoiceDetailPanel({
+  invoice,
+  onClose,
+  onDestructiveAction,
+}: {
+  invoice: Invoice;
+  onClose: () => void;
+  onDestructiveAction: () => void;
+}) {
+  const isDraft = invoice.status === "Draft";
+  const actionLabel = isDraft ? "Delete draft invoice" : "Void invoice";
+
+  return (
+    <section className="mt-6 rounded-2xl border border-white/10 bg-slate-950/50 p-5">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-sm font-semibold uppercase tracking-wide text-blue-300">Invoice detail</p>
+          <h3 className="mt-2 text-xl font-bold text-white">{invoice.invoiceNumber} - {invoice.title}</h3>
+          <p className="mt-2 text-sm text-slate-300">
+            {invoice.customerName} - Due {formatDate(invoice.dueDate)} - {money.format(invoice.total)}
+          </p>
+        </div>
+        <button type="button" onClick={onClose} className="rounded-lg border border-white/10 px-3 py-2 text-xs font-semibold text-slate-100 hover:bg-white/10">
+          Close
+        </button>
+      </div>
+
+      <div className="mt-5 rounded-xl border border-red-400/30 bg-red-950/30 p-4">
+        <p className="text-xs font-semibold uppercase tracking-wide text-red-200">Danger zone</p>
+        <h4 className="mt-2 text-lg font-bold text-white">{actionLabel}</h4>
+        <p className="mt-2 text-sm leading-6 text-red-100/80">
+          {isDraft
+            ? "Draft invoices can be deleted if they were created in error."
+            : "Issued, sent, or paid invoices are voided so the record remains visible."}
+        </p>
+        <button type="button" onClick={onDestructiveAction} className="mt-4 rounded-lg border border-red-300/40 px-4 py-2 text-sm font-semibold text-red-100 hover:bg-red-500/10">
+          {actionLabel}
+        </button>
+      </div>
+    </section>
   );
 }
 

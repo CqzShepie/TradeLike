@@ -2,7 +2,6 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { FileText, Mail, Plus, PoundSterling } from "lucide-react";
 
-import Modal from "../components/ui/Modal";
 import NewQuoteForm from "../components/quotes/NewQuoteForm";
 import {
   EmptyState,
@@ -33,7 +32,6 @@ function Quotes() {
     loading,
     error,
     addQuote,
-    deleteQuote,
     updateQuote,
     startEdit,
     editingQuote,
@@ -43,8 +41,6 @@ function Quotes() {
 
   const [statusFilter, setStatusFilter] = useState<QuoteStatusFilter>("All");
   const [showForm, setShowForm] = useState(false);
-  const [quoteToDelete, setQuoteToDelete] = useState<Quote | null>(null);
-  const [deleteError, setDeleteError] = useState("");
 
   const filteredQuotes = useMemo(
     () => quotes.filter(quote => statusFilter === "All" || quote.status === statusFilter),
@@ -200,10 +196,6 @@ function Quotes() {
                               startEdit(quote);
                               setShowForm(true);
                             }}
-                            onDelete={() => {
-                              setDeleteError("");
-                              setQuoteToDelete(quote);
-                            }}
                           />
                         ))}
                       </tbody>
@@ -219,10 +211,6 @@ function Quotes() {
                           startEdit(quote);
                           setShowForm(true);
                         }}
-                        onDelete={() => {
-                          setDeleteError("");
-                          setQuoteToDelete(quote);
-                        }}
                       />
                     ))}
                   </div>
@@ -233,46 +221,6 @@ function Quotes() {
         </>
       )}
 
-      {quoteToDelete && (
-        <Modal title="Delete quote" onClose={() => setQuoteToDelete(null)}>
-          <div className="space-y-4">
-            {deleteError && (
-              <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                {deleteError}
-              </div>
-            )}
-
-            <p className="text-sm text-slate-600">
-              Are you sure you want to delete <span className="font-semibold text-slate-900">{quoteToDelete.title}</span>?
-            </p>
-
-            <div className="flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => setQuoteToDelete(null)}
-                className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-              >
-                Cancel
-              </button>
-
-              <button
-                type="button"
-                onClick={async () => {
-                  try {
-                    await deleteQuote(quoteToDelete.id);
-                    setQuoteToDelete(null);
-                  } catch (err) {
-                    setDeleteError(err instanceof Error ? err.message : "Unable to delete quote.");
-                  }
-                }}
-                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
-              >
-                Delete
-              </button>
-            </div>
-          </div>
-        </Modal>
-      )}
     </ProductPage>
   );
 }
@@ -280,11 +228,9 @@ function Quotes() {
 function QuoteRow({
   quote,
   onEdit,
-  onDelete,
 }: {
   quote: Quote;
   onEdit: () => void;
-  onDelete: () => void;
 }) {
   return (
     <tr className="align-top text-slate-200 transition hover:bg-white/[0.03]">
@@ -301,7 +247,9 @@ function QuoteRow({
           <Link to={`/quotes/${quote.id}`} className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-slate-100 hover:bg-white/10">View</Link>
           <button type="button" onClick={() => emailQuote(quote)} className="rounded-lg border border-blue-400/30 px-3 py-1.5 text-xs font-semibold text-blue-200 hover:bg-blue-500/10">Send</button>
           <button type="button" onClick={onEdit} className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-slate-100 hover:bg-white/10">Edit</button>
-          <button type="button" onClick={onDelete} className="rounded-lg border border-red-400/30 px-3 py-1.5 text-xs font-semibold text-red-200 hover:bg-red-500/10">Delete</button>
+          {quote.status === "Accepted" && (
+            <Link to={`/quotes/${quote.id}`} className="rounded-lg border border-green-400/30 px-3 py-1.5 text-xs font-semibold text-green-200 hover:bg-green-500/10">Convert</Link>
+          )}
         </div>
       </td>
     </tr>
@@ -311,11 +259,9 @@ function QuoteRow({
 function QuoteMobileCard({
   quote,
   onEdit,
-  onDelete,
 }: {
   quote: Quote;
   onEdit: () => void;
-  onDelete: () => void;
 }) {
   return (
     <article className="rounded-2xl border border-white/10 bg-slate-950/50 p-5">
@@ -338,7 +284,9 @@ function QuoteMobileCard({
           <span className="inline-flex items-center gap-2"><Mail className="h-3.5 w-3.5" /> Send</span>
         </button>
         <button type="button" onClick={onEdit} className="rounded-lg border border-white/10 px-3 py-2 text-xs font-semibold text-slate-100 hover:bg-white/10">Edit</button>
-        <button type="button" onClick={onDelete} className="rounded-lg border border-red-400/30 px-3 py-2 text-xs font-semibold text-red-200 hover:bg-red-500/10">Delete</button>
+        {quote.status === "Accepted" && (
+          <Link to={`/quotes/${quote.id}`} className="rounded-lg border border-green-400/30 px-3 py-2 text-xs font-semibold text-green-200 hover:bg-green-500/10">Convert</Link>
+        )}
       </div>
     </article>
   );

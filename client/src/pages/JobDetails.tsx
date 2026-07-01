@@ -1,4 +1,4 @@
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 
@@ -18,12 +18,14 @@ const priorities: JobPriority[] = ["Low", "Normal", "High", "Urgent"];
 
 export default function JobDetails() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [job, setJob] = useState<Job | null>(null);
   const [form, setForm] = useState<Job | null>(null);
   const [editing, setEditing] = useState(false);
   const [newNote, setNewNote] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [deleting, setDeleting] = useState(false);
   const { user } = useAuth();
   const showStaffScheduling = canUseStaffScheduling(user);
 
@@ -88,6 +90,32 @@ export default function JobDetails() {
   async function removeNote(index: number) {
     await saveNotes(notes.filter((_, itemIndex) => itemIndex !== index));
     setMessage("Note removed.");
+  }
+
+  async function deleteJob() {
+    if (!job) {
+      return;
+    }
+
+    const confirmation = job.status === "Completed"
+      ? "Completed job records should normally be kept. Delete anyway?"
+      : "Are you sure you want to delete this job?";
+
+    if (!window.confirm(confirmation)) {
+      return;
+    }
+
+    try {
+      setDeleting(true);
+      setError("");
+      await jobsService.delete(job.id);
+      setMessage("Job deleted.");
+      navigate("/jobs");
+    } catch (err) {
+      setError(err instanceof Error && err.message.trim() !== "" ? err.message : "Unable to delete job.");
+    } finally {
+      setDeleting(false);
+    }
   }
 
   return (
@@ -172,6 +200,21 @@ export default function JobDetails() {
                 setForm(updated);
               }}
             />
+            <div className="rounded-xl border border-red-400/30 bg-red-950/30 p-5">
+              <p className="text-xs font-semibold uppercase tracking-wide text-red-200">Danger zone</p>
+              <h2 className="mt-2 text-lg font-bold text-white">Delete job</h2>
+              <p className="mt-2 text-sm leading-6 text-red-100/80">
+                Remove this job only if it was created in error. Completed job records should normally be kept.
+              </p>
+              <button
+                type="button"
+                onClick={deleteJob}
+                disabled={deleting}
+                className="mt-4 rounded-lg border border-red-300/40 px-4 py-2 text-sm font-semibold text-red-100 hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {deleting ? "Deleting..." : "Delete job"}
+              </button>
+            </div>
           </aside>
         </div>
       )}

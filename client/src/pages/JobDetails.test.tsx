@@ -14,6 +14,7 @@ vi.mock("../services/jobsService", () => ({
   jobsService: {
     getById: vi.fn(),
     update: vi.fn(),
+    delete: vi.fn(),
     linkQuote: vi.fn(),
     unlinkQuote: vi.fn(),
   },
@@ -28,6 +29,7 @@ vi.mock("../services/quotesService", () => ({
 describe("JobDetails notes", () => {
   beforeEach(() => {
     vi.mocked(quotesService.getAll).mockResolvedValue([]);
+    vi.mocked(jobsService.delete).mockReset();
     vi.mocked(jobsService.linkQuote).mockReset();
     vi.mocked(jobsService.unlinkQuote).mockReset();
   });
@@ -141,12 +143,45 @@ describe("JobDetails linked quote", () => {
   });
 });
 
+describe("JobDetails delete", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("renders Delete job and navigates back to jobs after deleting", async () => {
+    vi.mocked(jobsService.getById).mockResolvedValue(buildJob());
+    vi.mocked(jobsService.delete).mockResolvedValue(undefined);
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+
+    renderJobDetails();
+
+    fireEvent.click(await screen.findByRole("button", { name: /delete job/i }));
+
+    await waitFor(() => expect(jobsService.delete).toHaveBeenCalledWith(42));
+    expect(window.confirm).toHaveBeenCalledWith("Are you sure you want to delete this job?");
+    expect(await screen.findByText("Jobs index")).toBeInTheDocument();
+  });
+
+  it("shows an error when delete fails", async () => {
+    vi.mocked(jobsService.getById).mockResolvedValue(buildJob());
+    vi.mocked(jobsService.delete).mockRejectedValue(new Error("Unable to delete job."));
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+
+    renderJobDetails();
+
+    fireEvent.click(await screen.findByRole("button", { name: /delete job/i }));
+
+    expect(await screen.findByText("Unable to delete job.")).toBeInTheDocument();
+  });
+});
+
 function renderJobDetails() {
   return render(
     <MemoryRouter initialEntries={["/jobs/42"]}>
       <GlobalSearchProvider>
         <Routes>
           <Route path="/jobs/:id" element={<JobDetails />} />
+          <Route path="/jobs" element={<div>Jobs index</div>} />
         </Routes>
       </GlobalSearchProvider>
     </MemoryRouter>
