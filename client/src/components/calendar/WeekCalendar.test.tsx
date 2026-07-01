@@ -71,6 +71,8 @@ describe("WeekCalendar plan controls", () => {
     render(<WeekCalendar />);
 
     expect(screen.queryByRole("button", { name: /optimise route/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: /calendar dispatch filter/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Merged: everyone/i)).not.toBeInTheDocument();
     expect(screen.getByText(/Team dispatch tools unlock on Team/i)).toBeInTheDocument();
   });
 

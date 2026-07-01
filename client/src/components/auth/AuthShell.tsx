@@ -52,8 +52,8 @@ export default function AuthShell({
           </p>
         </section>
 
-        <section className="flex items-center justify-center bg-slate-50 px-6 py-10 text-slate-950 shadow-2xl shadow-slate-950/40 sm:px-10 lg:rounded-l-[2rem]">
-          <Card padding="lg" className="w-full max-w-md shadow-xl shadow-slate-200/80">
+        <section className="flex items-center justify-center border-l border-white/10 bg-slate-900/70 px-6 py-10 text-white shadow-2xl shadow-slate-950/40 sm:px-10 lg:rounded-l-[2rem]">
+          <Card tone="dark" padding="lg" className="w-full max-w-md border-white/10 bg-slate-950/70 shadow-xl shadow-slate-950/60">
             {children}
           </Card>
         </section>

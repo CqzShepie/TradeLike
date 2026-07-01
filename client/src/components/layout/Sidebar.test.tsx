@@ -90,9 +90,11 @@ describe("Sidebar", () => {
     renderSidebarWithLocation();
 
     expect(screen.queryByRole("link", { name: /inventory/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /^team$/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /api/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /branding/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /import \/ export/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /reports/i })).toBeInTheDocument();
   });
 
   it("navigates to jobs when Jobs is clicked", () => {

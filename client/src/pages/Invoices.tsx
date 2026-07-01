@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { CreditCard, FileText, Plus, ReceiptText } from "lucide-react";
+import { CreditCard, FileText, Plus, ReceiptText, Send } from "lucide-react";
 
 import {
   EmptyState,
@@ -18,7 +18,6 @@ import {
 } from "../components/ui";
 import { invoicesService } from "../services/invoicesService";
 import type { Invoice, InvoiceStatus } from "../services/invoicesService";
-import { paymentsService } from "../services/paymentsService";
 import { jobsService } from "../services/jobsService";
 import { quotesService } from "../services/quotesService";
 import { isApiError } from "../services/apiClient";
@@ -140,13 +139,14 @@ export default function Invoices() {
     setInvoices(invoicesService.delete(id));
   }
 
-  async function payNow(invoice: Invoice) {
-    try {
-      const result = await paymentsService.checkout(invoice.id, "stripe");
-      window.location.href = result.checkoutUrl;
-    } catch {
-      setMessage("Could not start checkout for this invoice.");
-    }
+  function sendInvoice(invoice: Invoice) {
+    updateStatus(invoice.id, "Sent");
+    setMessage(`${invoice.invoiceNumber} marked as sent. Payment links are not configured yet.`);
+  }
+
+  function markAsPaid(invoice: Invoice) {
+    updateStatus(invoice.id, "Paid");
+    setMessage(`${invoice.invoiceNumber} recorded as paid.`);
   }
 
   if (isApiError(error) && error.status === 403) {
@@ -264,7 +264,8 @@ export default function Invoices() {
                         key={invoice.id}
                         invoice={invoice}
                         onStatusChange={status => updateStatus(invoice.id, status)}
-                        onPayNow={() => void payNow(invoice)}
+                        onSendInvoice={() => sendInvoice(invoice)}
+                        onMarkAsPaid={() => markAsPaid(invoice)}
                         onDelete={() => deleteInvoice(invoice.id)}
                       />
                     ))}
@@ -321,12 +322,14 @@ function CreatePanel({
 function InvoiceRow({
   invoice,
   onStatusChange,
-  onPayNow,
+  onSendInvoice,
+  onMarkAsPaid,
   onDelete,
 }: {
   invoice: Invoice;
   onStatusChange: (status: InvoiceStatus) => void;
-  onPayNow: () => void;
+  onSendInvoice: () => void;
+  onMarkAsPaid: () => void;
   onDelete: () => void;
 }) {
   return (
@@ -351,7 +354,16 @@ function InvoiceRow({
           <p className="mt-2 text-lg font-bold text-white">{money.format(invoice.total)}</p>
         </div>
         <div className="flex flex-wrap gap-2 lg:justify-end">
-          <button type="button" onClick={onPayNow} className="rounded-lg border border-blue-400/30 px-3 py-2 text-xs font-semibold text-blue-200 hover:bg-blue-500/10">Pay Now</button>
+          <button type="button" onClick={onSendInvoice} className="inline-flex items-center gap-1.5 rounded-lg border border-blue-400/30 px-3 py-2 text-xs font-semibold text-blue-200 hover:bg-blue-500/10">
+            <Send className="h-3.5 w-3.5" />
+            Send invoice
+          </button>
+          <button type="button" disabled title="Payment links not configured" className="rounded-lg border border-white/5 bg-slate-900/70 px-3 py-2 text-xs font-semibold text-slate-500">
+            Copy payment link
+          </button>
+          <button type="button" onClick={onMarkAsPaid} disabled={invoice.status === "Paid"} className="rounded-lg border border-emerald-400/30 px-3 py-2 text-xs font-semibold text-emerald-200 hover:bg-emerald-500/10 disabled:cursor-not-allowed disabled:border-white/5 disabled:bg-slate-900/70 disabled:text-slate-500">
+            {invoice.status === "Paid" ? "Payment recorded" : "Record payment"}
+          </button>
           <button type="button" onClick={onDelete} className="rounded-lg border border-red-400/30 px-3 py-2 text-xs font-semibold text-red-200 hover:bg-red-500/10">Delete</button>
         </div>
       </div>

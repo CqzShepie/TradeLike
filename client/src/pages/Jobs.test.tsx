@@ -100,6 +100,40 @@ describe("Jobs", () => {
     expect(previousJobs).toHaveClass("bg-white/5");
   });
 
+  it("uses Job needed wording while submitting the existing jobTitle field", () => {
+    const addJob = vi.fn();
+    vi.mocked(useJobs).mockReturnValue({
+      jobs: [],
+      loading: false,
+      error: null,
+      reloadJobs: vi.fn(),
+      addJob,
+      deleteJob: vi.fn(),
+      updateJob: vi.fn(),
+      editingJob: null,
+      startEdit: vi.fn(),
+      cancelEdit: vi.fn(),
+    });
+
+    render(
+      <MemoryRouter>
+        <Jobs />
+      </MemoryRouter>
+    );
+
+    fireEvent.click(screen.getAllByRole("button", { name: /add new job/i })[0]);
+    fireEvent.change(screen.getByLabelText("Customer"), { target: { value: "Sarah Johnson" } });
+    fireEvent.change(screen.getByLabelText("Phone"), { target: { value: "07981 125031" } });
+    fireEvent.change(screen.getByLabelText("Job needed"), { target: { value: "Boiler service" } });
+    fireEvent.change(screen.getByLabelText("Scheduled Date"), { target: { value: "2026-07-02T09:00" } });
+    fireEvent.change(screen.getByLabelText("Address"), { target: { value: "1 Trade Street" } });
+    fireEvent.click(screen.getByRole("button", { name: /save job/i }));
+
+    expect(addJob).toHaveBeenCalledWith(expect.objectContaining({
+      jobTitle: "Boiler service",
+    }));
+  });
+
   it("renders job stat cards", () => {
     vi.mocked(useJobs).mockReturnValue({
       jobs: [

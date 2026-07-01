@@ -9,25 +9,25 @@ export function createStoredNote(author: string, body: string) {
 }
 
 export function parseStoredNote(note: string) {
-  const stored = /^\[note:(.*?):(.*?)\]\s*(.*)$/.exec(note);
+  const stored = /^\[note:(.+):([^\]]*)\]\s*(.*)$/.exec(note);
   if (stored) {
     return {
-      author: stored[2] || "Unknown employee",
+      author: stored[2] || "Team member not recorded",
       dateLabel: formatLongDate(stored[1]),
       body: stored[3] || "",
     };
   }
 
-  const legacy = /^(.*?)\s+—\s+(.*)$/.exec(note);
+  const legacy = /^(.*?)\s+(?:—|-)\s+(.*)$/.exec(note);
   if (legacy) {
     return {
-      author: "Unknown employee",
+      author: "Team member not recorded",
       dateLabel: formatLongDate(parseLegacyDate(legacy[1])),
       body: legacy[2] || "",
     };
   }
 
-  return { author: "Unknown employee", dateLabel: "Date not recorded", body: note };
+  return { author: "Team member not recorded", dateLabel: "", body: note };
 }
 
 function parseLegacyDate(value: string) {

@@ -81,13 +81,13 @@ function Signup() {
       highlights={["14-day trial", "No card needed", "Cancel anytime"]}
     >
       <div>
-        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-600">
+        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-300">
           TradeLike trial
         </p>
-        <h2 className="mt-3 text-3xl font-bold tracking-tight text-slate-950">
+        <h2 className="mt-3 text-3xl font-bold tracking-tight text-white">
           Create your account
         </h2>
-        <p className="mt-2 text-sm leading-6 text-slate-600">
+        <p className="mt-2 text-sm leading-6 text-slate-300">
           Start a 14-day free trial built for UK trade businesses.
         </p>
       </div>
@@ -160,11 +160,11 @@ function Signup() {
         </PrimaryButton>
       </form>
 
-      <p className="mt-6 text-center text-sm text-slate-600">
+      <p className="mt-6 text-center text-sm text-slate-300">
         Already have an account?{" "}
         <Link
           to="/login"
-          className="font-semibold text-blue-600 hover:text-blue-700 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+          className="font-semibold text-blue-300 hover:text-blue-200 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
         >
           Sign in
         </Link>

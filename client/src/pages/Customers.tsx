@@ -1,10 +1,9 @@
 import { useMemo, useState } from "react";
-import { Mail, NotebookText, Phone, Plus, Users } from "lucide-react";
+import { CreditCard, ListFilter, Plus, Search, Users } from "lucide-react";
 
 import CustomerList from "../components/customers/CustomerList";
 import NewCustomerForm from "../components/customers/NewCustomerForm";
 import {
-  Badge,
   Card,
   ErrorState,
   FormField,
@@ -64,25 +63,25 @@ function Customers() {
         icon: <Users className="h-5 w-5" />,
       },
       {
-        title: "Has email",
-        value: customers.filter(customer => customer.email.trim() !== "").length,
-        description: "contacts with email saved",
-        icon: <Mail className="h-5 w-5" />,
+        title: "Visible records",
+        value: filteredCustomers.length,
+        description: "shown in the current list",
+        icon: <ListFilter className="h-5 w-5" />,
       },
       {
-        title: "Has phone",
-        value: customers.filter(customer => customer.phone.trim() !== "").length,
-        description: "contacts with phone saved",
-        icon: <Phone className="h-5 w-5" />,
+        title: "Matching search",
+        value: search.trim() ? filteredCustomers.length : customers.length,
+        description: search.trim() ? "matching your search" : "all records",
+        icon: <Search className="h-5 w-5" />,
       },
       {
-        title: "Has notes",
-        value: customers.filter(customer => customer.notes?.trim()).length,
-        description: "records with helpful notes",
-        icon: <NotebookText className="h-5 w-5" />,
+        title: "Outstanding balances",
+        value: "Not tracked",
+        description: "available once invoices are linked",
+        icon: <CreditCard className="h-5 w-5" />,
       },
     ],
-    [customers]
+    [customers.length, filteredCustomers.length, search]
   );
 
   const showCustomerForm = showForm || Boolean(editingCustomer);
@@ -124,41 +123,6 @@ function Customers() {
             </span>
           </PrimaryButton>
         </header>
-
-        <Card tone="dark" padding="lg" className="border-slate-800">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-            <div className="flex items-start gap-4">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-500/15 text-blue-300">
-                <Users className="h-7 w-7" />
-              </div>
-
-              <div className="max-w-2xl">
-                <Badge tone="slate">Live directory</Badge>
-                <h2 className="mt-4 text-2xl font-bold tracking-tight text-white sm:text-3xl">
-                  Keep contact details, notes and history in one polished workspace.
-                </h2>
-                <p className="mt-3 text-sm leading-6 text-slate-300">
-                  Search quickly, open customer records, and keep the day moving without losing important context.
-                </p>
-              </div>
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-2 lg:max-w-md">
-              <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                  Visible records
-                </p>
-                <p className="mt-2 text-2xl font-bold text-white">{customers.length}</p>
-              </div>
-              <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                  Matching search
-                </p>
-                <p className="mt-2 text-2xl font-bold text-white">{filteredCustomers.length}</p>
-              </div>
-            </div>
-          </div>
-        </Card>
 
         {loading && (
           <LoadingState
@@ -230,6 +194,8 @@ function Customers() {
                       startEdit(customer);
                       setShowForm(true);
                     }}
+                    emptyTitle={customers.length === 0 ? "Add your first customer" : "No customers found"}
+                    emptyDescription={customers.length === 0 ? "Create a customer record to start building your directory." : "Try widening your search or add a new customer record."}
                   />
                 </div>
               </Card>

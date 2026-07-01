@@ -18,6 +18,7 @@ interface WeekGridProps {
     onSelectJob: (job: Job) => void;
     onMoveJob: (job: Job, newDate: Date) => void;
     leaveRequests?: StaffLeaveRequest[];
+    showStaffDetails?: boolean;
 }
 
 export default function WeekGrid({
@@ -28,7 +29,8 @@ export default function WeekGrid({
     teams = [],
     onSelectJob,
     onMoveJob,
-    leaveRequests = []
+    leaveRequests = [],
+    showStaffDetails = true
 }: WeekGridProps) {
     const days = Array.from({ length: 7 }, (_, index) => {
         const date = new Date(weekStart);
@@ -55,6 +57,7 @@ export default function WeekGrid({
                         onSelectJob={onSelectJob}
                         onMoveJob={onMoveJob}
                         leaveRequests={leaveRequests}
+                        showStaffDetails={showStaffDetails}
                         allJobs={jobs}
                         weekDays={days}
                         intensity={intensity}
