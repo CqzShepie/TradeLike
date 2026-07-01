@@ -12,6 +12,8 @@ import type { StaffLeaveRequest } from "../../services/staffLeaveService";
 import { jobAssignmentsService } from "../../services/jobAssignmentsService";
 import type { JobAssignment } from "../../services/jobAssignmentsService";
 import type { Engineer } from "../../services/engineersService";
+import { useAuth } from "../../hooks/useAuth";
+import { planIncludesFeature, roleAllowsFeature } from "../../routes/planEntitlements";
 import { getLeastLoadedEngineer } from "../../utils/engineerDispatch";
 import { moveJobToDay, toDateKey } from "../../utils/dispatchRules";
 import type { Job } from "../../types/job";
@@ -27,6 +29,10 @@ export default function WeekCalendar() {
     const [showRouteModal, setShowRouteModal] = useState(false);
     const [optimisticJobs, setOptimisticJobs] = useState<Job[]>([]);
     const { jobs: serverJobs } = useWeekJobs(currentWeek);
+    const { user } = useAuth();
+    const canUseStaffScheduling =
+        planIncludesFeature(user?.plan, "staff-scheduling") &&
+        roleAllowsFeature(user?.role, "staff-scheduling");
 
     useEffect(() => {
         let cancelled = false;
@@ -46,6 +52,12 @@ export default function WeekCalendar() {
         return () => { cancelled = true; };
     }, []);
 
+    useEffect(() => {
+        if (!canUseStaffScheduling && selectedCalendar !== "all") {
+            setSelectedCalendar("all");
+        }
+    }, [canUseStaffScheduling, selectedCalendar]);
+
     const engineers: Engineer[] = useMemo(() => members.map(member => ({ id: member.id, name: `${member.firstName} ${member.lastName}`, email: member.email, phone: member.phone })), [members]);
     const assignmentMap = useMemo(() => new Map(assignments.map(item => [item.jobId, item])), [assignments]);
 
@@ -61,7 +73,7 @@ export default function WeekCalendar() {
     }, [assignmentMap, serverJobs, optimisticJobs]);
 
     const jobs = useMemo(() => {
-        if (selectedCalendar === "all") return mergedJobs;
+        if (!canUseStaffScheduling || selectedCalendar === "all") return mergedJobs;
         if (selectedCalendar === "unassigned") return mergedJobs.filter(job => {
             const assignment = assignmentMap.get(job.id);
             return !assignment || (!assignment.assignedTeamId && !assignment.leadStaffMemberId && assignment.assignedStaffMemberIds.length === 0);
@@ -78,7 +90,7 @@ export default function WeekCalendar() {
             return mergedJobs.filter(job => assignmentMap.get(job.id)?.assignedTeamId === teamId);
         }
         return mergedJobs;
-    }, [assignmentMap, mergedJobs, selectedCalendar]);
+    }, [assignmentMap, canUseStaffScheduling, mergedJobs, selectedCalendar]);
 
     useEffect(() => { setOptimisticJobs([]); }, [currentWeek]);
 
@@ -127,25 +139,111 @@ export default function WeekCalendar() {
 
     const selectedEngineerId = selectedCalendar.startsWith("staff:") ? Number(selectedCalendar.replace("staff:", "")) : null;
 
-    return <div className="relative overflow-x-auto rounded-2xl border border-white/10 bg-slate-900/80 shadow-2xl shadow-slate-950/20"><WeekNavigation weekLabel={weekLabel} onPreviousWeek={handlePreviousWeek} onCurrentWeek={handleCurrentWeek} onNextWeek={handleNextWeek} /><div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-4 py-3"><div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Dispatch View</div><div className="flex flex-wrap items-center gap-2"><button type="button" onClick={() => setShowRouteModal(true)} className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-500">Optimise Route</button><select className="rounded-lg border border-white/10 bg-slate-950/70 px-3 py-2 text-xs font-semibold text-slate-100 outline-none focus:ring-2 focus:ring-blue-500" value={selectedCalendar} onChange={event => setSelectedCalendar(event.target.value)}><option value="all">Merged: everyone</option><option value="unassigned">Unassigned jobs</option>{members.map(member => <option key={member.id} value={`staff:${member.id}`}>{member.firstName} {member.lastName}</option>)}{teams.map(team => <option key={team.id} value={`team:${team.id}`}>Team: {team.name}</option>)}</select></div></div><WeekGrid weekStart={currentWeek} jobs={jobs} engineers={engineers} staffMembers={members} teams={teams} leaveRequests={leaveRequests} onSelectJob={setSelectedJob} onMoveJob={handleMoveJob} />{showRouteModal && <RouteMapModal date={currentWeek} engineerId={selectedEngineerId} onClose={() => setShowRouteModal(false)} />}{selectedJob && (() => {
-  const selectedAssignment = assignmentMap.get(selectedJob.id);
-  const selectedTeam = teams.find(team => team.id === selectedAssignment?.assignedTeamId);
-  const leadEngineer = members.find(member => member.id === selectedAssignment?.leadStaffMemberId || member.id === selectedJob.engineerId);
-  const extraStaff = members.filter(member => selectedAssignment?.assignedStaffMemberIds.includes(member.id));
-  const detailRows = [
-    ["Customer Name", selectedJob.customer],
-    ["Customer #ID", String(selectedJob.customerId ?? selectedJob.sourceQuote?.customerId ?? "Not linked")],
-    ["Customer Phone Number", selectedJob.phone || "Not recorded"],
-    ["Customer Address", selectedJob.address || "Not recorded"],
-    ["Job Status", selectedJob.status === "InProgress" ? "In Progress" : selectedJob.status],
-    ["Job Urgency", selectedJob.priority],
-    ["Lead Engineer", leadEngineer ? `${leadEngineer.firstName} ${leadEngineer.lastName}` : "No lead engineer"],
-    ["Staff Assigned To Job", extraStaff.length ? extraStaff.map(member => `${member.firstName} ${member.lastName}`).join(", ") : "No extra staff"],
-    ["Team Assigned To Job", selectedTeam?.name ?? selectedJob.assignedTeamName ?? "No Team Recorded"],
-  ];
+    return (
+        <div className="relative overflow-x-auto rounded-2xl border border-white/10 bg-slate-900/80 shadow-2xl shadow-slate-950/20">
+            <WeekNavigation
+                weekLabel={weekLabel}
+                onPreviousWeek={handlePreviousWeek}
+                onCurrentWeek={handleCurrentWeek}
+                onNextWeek={handleNextWeek}
+            />
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-4 py-3">
+                <div>
+                    <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Dispatch View</div>
+                    {!canUseStaffScheduling && (
+                        <p className="mt-1 text-xs text-slate-500">Basic calendar is available on Solo. Team dispatch tools unlock on Team.</p>
+                    )}
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                    {canUseStaffScheduling && (
+                        <button
+                            type="button"
+                            onClick={() => setShowRouteModal(true)}
+                            className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-500"
+                        >
+                            Optimise Route
+                        </button>
+                    )}
+                    <select
+                        className="rounded-lg border border-white/10 bg-slate-950/70 px-3 py-2 text-xs font-semibold text-slate-100 outline-none focus:ring-2 focus:ring-blue-500"
+                        value={selectedCalendar}
+                        onChange={event => setSelectedCalendar(event.target.value)}
+                        disabled={!canUseStaffScheduling}
+                    >
+                        <option value="all">Merged: everyone</option>
+                        {canUseStaffScheduling && <option value="unassigned">Unassigned jobs</option>}
+                        {canUseStaffScheduling && members.map(member => (
+                            <option key={member.id} value={`staff:${member.id}`}>
+                                {member.firstName} {member.lastName}
+                            </option>
+                        ))}
+                        {canUseStaffScheduling && teams.map(team => (
+                            <option key={team.id} value={`team:${team.id}`}>
+                                Team: {team.name}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+            </div>
+            <WeekGrid
+                weekStart={currentWeek}
+                jobs={jobs}
+                engineers={engineers}
+                staffMembers={members}
+                teams={teams}
+                leaveRequests={leaveRequests}
+                onSelectJob={setSelectedJob}
+                onMoveJob={handleMoveJob}
+            />
+            {canUseStaffScheduling && showRouteModal && (
+                <RouteMapModal
+                    date={currentWeek}
+                    engineerId={selectedEngineerId}
+                    onClose={() => setShowRouteModal(false)}
+                />
+            )}
+            {selectedJob && (() => {
+                const selectedAssignment = assignmentMap.get(selectedJob.id);
+                const selectedTeam = teams.find(team => team.id === selectedAssignment?.assignedTeamId);
+                const leadEngineer = members.find(member => member.id === selectedAssignment?.leadStaffMemberId || member.id === selectedJob.engineerId);
+                const extraStaff = members.filter(member => selectedAssignment?.assignedStaffMemberIds.includes(member.id));
+                const detailRows = [
+                    ["Customer Name", selectedJob.customer],
+                    ["Customer #ID", String(selectedJob.customerId ?? selectedJob.sourceQuote?.customerId ?? "Not linked")],
+                    ["Customer Phone Number", selectedJob.phone || "Not recorded"],
+                    ["Customer Address", selectedJob.address || "Not recorded"],
+                    ["Job Status", selectedJob.status === "InProgress" ? "In Progress" : selectedJob.status],
+                    ["Job Urgency", selectedJob.priority],
+                    ["Lead Engineer", leadEngineer ? `${leadEngineer.firstName} ${leadEngineer.lastName}` : "No lead engineer"],
+                    ["Staff Assigned To Job", extraStaff.length ? extraStaff.map(member => `${member.firstName} ${member.lastName}`).join(", ") : "No extra staff"],
+                    ["Team Assigned To Job", selectedTeam?.name ?? selectedJob.assignedTeamName ?? "No Team Recorded"],
+                ];
 
-  return <div className="absolute right-0 top-0 h-full w-96 overflow-y-auto border-l border-white/10 bg-slate-950 p-4 shadow-2xl shadow-slate-950/40"><button type="button" onClick={() => setSelectedJob(null)} className="absolute right-3 top-3 rounded px-2 text-xl leading-none text-slate-400 hover:bg-white/10" aria-label="Close job details">x</button><p className="text-xs font-bold uppercase tracking-wide text-blue-300">Job Details</p><h2 className="mt-1 pr-8 text-lg font-bold text-white">{selectedJob.jobTitle}</h2><div className="mt-5 space-y-3 text-sm">{detailRows.map(([label, value]) => <div key={label}><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</p><p className="mt-1 font-medium text-slate-100">{value}</p></div>)}</div></div>;
-})()}</div>;
+                return (
+                    <div className="absolute right-0 top-0 h-full w-96 overflow-y-auto border-l border-white/10 bg-slate-950 p-4 shadow-2xl shadow-slate-950/40">
+                        <button
+                            type="button"
+                            onClick={() => setSelectedJob(null)}
+                            className="absolute right-3 top-3 rounded px-2 text-xl leading-none text-slate-400 hover:bg-white/10"
+                            aria-label="Close job details"
+                        >
+                            x
+                        </button>
+                        <p className="text-xs font-bold uppercase tracking-wide text-blue-300">Job Details</p>
+                        <h2 className="mt-1 pr-8 text-lg font-bold text-white">{selectedJob.jobTitle}</h2>
+                        <div className="mt-5 space-y-3 text-sm">
+                            {detailRows.map(([label, value]) => (
+                                <div key={label}>
+                                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</p>
+                                    <p className="mt-1 font-medium text-slate-100">{value}</p>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                );
+            })()}
+        </div>
+    );
 }
 
 function startOfWeek(date: Date): Date {

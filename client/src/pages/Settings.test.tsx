@@ -53,6 +53,14 @@ const directorUser: AuthUser = {
   canExportData: true,
 };
 
+const soloDirectorUser: AuthUser = {
+  ...directorUser,
+  id: 3,
+  email: "solo-director@example.com",
+  name: "Solo Director",
+  plan: "Solo",
+};
+
 describe("Settings", () => {
   beforeEach(() => {
     localStorage.clear();
@@ -77,9 +85,25 @@ describe("Settings", () => {
     renderSettings();
 
     expect(screen.getByText("API & Webhooks")).toBeInTheDocument();
+    expect(screen.getByText("Webhooks")).toBeInTheDocument();
     expect(screen.getByText("Billing")).toBeInTheDocument();
     expect(screen.getByText("Branding")).toBeInTheDocument();
     expect(screen.getByText("Import / Export")).toBeInTheDocument();
+  });
+
+  it("shows only Solo-allowed director settings on Solo", () => {
+    localStorage.setItem("tradelike_user", JSON.stringify(soloDirectorUser));
+
+    renderSettings();
+
+    expect(screen.getByText("Business Profile")).toBeInTheDocument();
+    expect(screen.getByText("Company Details")).toBeInTheDocument();
+    expect(screen.getByText("Accessibility")).toBeInTheDocument();
+    expect(screen.getByText("Notifications")).toBeInTheDocument();
+    expect(screen.getByText("Billing")).toBeInTheDocument();
+    expect(screen.queryByText("API & Webhooks")).not.toBeInTheDocument();
+    expect(screen.queryByText("Branding")).not.toBeInTheDocument();
+    expect(screen.queryByText("Import / Export")).not.toBeInTheDocument();
   });
 });
 
