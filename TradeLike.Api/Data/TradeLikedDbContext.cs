@@ -34,6 +34,10 @@ public class TradeLikeDbContext : DbContext
 
     public DbSet<CustomerStaffSecurityRequest> CustomerStaffSecurityRequests => Set<CustomerStaffSecurityRequest>();
 
+    public DbSet<JobAssignment> JobAssignments => Set<JobAssignment>();
+
+    public DbSet<JobAssignmentStaff> JobAssignmentStaff => Set<JobAssignmentStaff>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -232,8 +236,6 @@ public class TradeLikeDbContext : DbContext
             entity.Property(j => j.Notes)
                 .HasMaxLength(4000);
 
-            entity.Property(j => j.AssignedStaffMemberIds);
-
             entity.Property(j => j.CalendarColour)
                 .HasMaxLength(40);
 
@@ -422,6 +424,45 @@ public class TradeLikeDbContext : DbContext
             entity.Property(request => request.Status)
                 .IsRequired()
                 .HasMaxLength(80);
+        });
+
+        modelBuilder.Entity<JobAssignment>(entity =>
+        {
+            entity.HasIndex(assignment => new
+                {
+                    assignment.TenantId,
+                    assignment.JobId
+                })
+                .IsUnique();
+
+            entity.HasOne(assignment => assignment.Job)
+                .WithMany()
+                .HasForeignKey(assignment => assignment.JobId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(assignment => assignment.LeadStaffMember)
+                .WithMany()
+                .HasForeignKey(assignment => assignment.LeadStaffMemberId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<JobAssignmentStaff>(entity =>
+        {
+            entity.HasKey(staff => new
+            {
+                staff.JobAssignmentId,
+                staff.StaffMemberId
+            });
+
+            entity.HasOne(staff => staff.JobAssignment)
+                .WithMany(assignment => assignment.StaffMembers)
+                .HasForeignKey(staff => staff.JobAssignmentId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(staff => staff.StaffMember)
+                .WithMany()
+                .HasForeignKey(staff => staff.StaffMemberId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

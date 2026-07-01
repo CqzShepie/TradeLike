@@ -57,9 +57,6 @@ public class Job
     public int? LeadStaffMemberId { get; set; }
 
     [JsonIgnore]
-    public string? AssignedStaffMemberIds { get; set; }
-
-    [JsonIgnore]
     public DateTime? ScheduledEndDate { get; set; }
 
     [JsonIgnore]

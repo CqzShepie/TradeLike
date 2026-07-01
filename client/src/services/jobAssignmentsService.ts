@@ -17,22 +17,35 @@ export type UpdateJobAssignmentRequest = {
   calendarColour?: string | null;
 };
 
+function normalizeAssignment(row: JobAssignment): JobAssignment {
+  return {
+    ...row,
+    assignedStaffMemberIds: Array.isArray(row.assignedStaffMemberIds)
+      ? row.assignedStaffMemberIds
+      : [],
+  };
+}
+
 export const jobAssignmentsService = {
   async getAll() {
-    return (await apiClient.get("/job-assignments")) as JobAssignment[];
+    const rows = (await apiClient.get("/job-assignments")) as JobAssignment[];
+    return rows.map(normalizeAssignment);
   },
 
   async getPrevious() {
-    return (await apiClient.get("/job-assignments/previous")) as JobAssignment[];
+    const rows = (await apiClient.get("/job-assignments/previous")) as JobAssignment[];
+    return rows.map(normalizeAssignment);
   },
 
   async update(jobId: number, request: UpdateJobAssignmentRequest) {
-    return (await apiClient.put(`/job-assignments/${jobId}`, {
+    const rows = (await apiClient.put(`/job-assignments/${jobId}`, {
       assignedTeamId: request.assignedTeamId ?? null,
       leadStaffMemberId: request.leadStaffMemberId ?? null,
       assignedStaffMemberIds: request.assignedStaffMemberIds,
       scheduledEndDate: request.scheduledEndDate ?? null,
       calendarColour: request.calendarColour ?? null,
     })) as JobAssignment[];
+
+    return rows.map(normalizeAssignment);
   },
 };
