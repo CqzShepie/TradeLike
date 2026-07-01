@@ -26,6 +26,14 @@ public class TradeLikeDbContext : DbContext
 
     public DbSet<Engineer> Engineers => Set<Engineer>();
 
+    public DbSet<CustomerStaffTeam> CustomerStaffTeams => Set<CustomerStaffTeam>();
+
+    public DbSet<CustomerStaffMember> CustomerStaffMembers => Set<CustomerStaffMember>();
+
+    public DbSet<CustomerStaffMemberTeam> CustomerStaffMemberTeams => Set<CustomerStaffMemberTeam>();
+
+    public DbSet<CustomerStaffSecurityRequest> CustomerStaffSecurityRequests => Set<CustomerStaffSecurityRequest>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -87,7 +95,7 @@ public class TradeLikeDbContext : DbContext
             entity.Property(user => user.SubscriptionPlan)
                 .IsRequired()
                 .HasMaxLength(40)
-                .HasDefaultValue("Solo");
+                .HasDefaultValue("Trial");
 
             entity.Property(user => user.BillingStatus)
                 .IsRequired()
@@ -144,6 +152,8 @@ public class TradeLikeDbContext : DbContext
 
         modelBuilder.Entity<AdminAuditLog>(entity =>
         {
+            entity.HasIndex(log => log.TenantId);
+
             entity.Property(log => log.ActorEmail)
                 .IsRequired()
                 .HasMaxLength(255);
@@ -222,6 +232,11 @@ public class TradeLikeDbContext : DbContext
             entity.Property(j => j.Notes)
                 .HasMaxLength(4000);
 
+            entity.Property(j => j.AssignedStaffMemberIds);
+
+            entity.Property(j => j.CalendarColour)
+                .HasMaxLength(40);
+
             entity.HasOne(j => j.Quote)
                 .WithMany()
                 .HasForeignKey(j => j.QuoteId)
@@ -237,6 +252,21 @@ public class TradeLikeDbContext : DbContext
         {
             entity.HasIndex(q => q.TenantId);
 
+            entity.Property(q => q.Amount)
+                .HasPrecision(18, 2);
+
+            entity.Property(q => q.Subtotal)
+                .HasPrecision(18, 2);
+
+            entity.Property(q => q.VatTotal)
+                .HasPrecision(18, 2);
+
+            entity.Property(q => q.DiscountTotal)
+                .HasPrecision(18, 2);
+
+            entity.Property(q => q.Total)
+                .HasPrecision(18, 2);
+
             entity.Property(q => q.CustomerName)
                 .IsRequired()
                 .HasMaxLength(150);
@@ -244,6 +274,15 @@ public class TradeLikeDbContext : DbContext
             entity.Property(q => q.Title)
                 .IsRequired()
                 .HasMaxLength(200);
+
+            entity.Property(q => q.DiscountType)
+                .IsRequired()
+                .HasMaxLength(20)
+                .HasDefaultValue("Amount");
+
+            entity.Property(q => q.DiscountValue)
+                .HasPrecision(18, 2)
+                .HasDefaultValue(0m);
         });
 
         modelBuilder.Entity<Customer>(entity =>
@@ -259,6 +298,130 @@ public class TradeLikeDbContext : DbContext
         modelBuilder.Entity<QuoteLineItem>(entity =>
         {
             entity.HasIndex(item => item.TenantId);
+
+            entity.Property(item => item.Quantity)
+                .HasPrecision(18, 2);
+
+            entity.Property(item => item.UnitPrice)
+                .HasPrecision(18, 2);
+
+            entity.Property(item => item.VatRate)
+                .HasPrecision(18, 2);
+
+            entity.Property(item => item.LineTotal)
+                .HasPrecision(18, 2);
+        });
+
+        modelBuilder.Entity<CustomerStaffTeam>(entity =>
+        {
+            entity.HasIndex(team => team.CompanyUserId);
+
+            entity.Property(team => team.Name)
+                .IsRequired()
+                .HasMaxLength(120);
+
+            entity.Property(team => team.Description)
+                .IsRequired()
+                .HasMaxLength(500);
+
+            entity.Property(team => team.Colour)
+                .IsRequired()
+                .HasMaxLength(40);
+
+            entity.Property(team => team.DefaultJobType)
+                .IsRequired()
+                .HasMaxLength(120);
+
+            entity.Property(team => team.ServiceArea)
+                .IsRequired()
+                .HasMaxLength(250);
+
+            entity.Property(team => team.WorkingHours)
+                .IsRequired()
+                .HasMaxLength(250);
+        });
+
+        modelBuilder.Entity<CustomerStaffMember>(entity =>
+        {
+            entity.HasIndex(member => member.CompanyUserId);
+
+            entity.HasIndex(member => new { member.CompanyUserId, member.Email })
+                .IsUnique();
+
+            entity.HasIndex(member => member.InviteToken);
+
+            entity.Property(member => member.FirstName)
+                .IsRequired()
+                .HasMaxLength(100);
+
+            entity.Property(member => member.LastName)
+                .IsRequired()
+                .HasMaxLength(100);
+
+            entity.Property(member => member.Email)
+                .IsRequired()
+                .HasMaxLength(256);
+
+            entity.Property(member => member.Phone)
+                .IsRequired()
+                .HasMaxLength(80);
+
+            entity.Property(member => member.RoleName)
+                .IsRequired()
+                .HasMaxLength(120);
+
+            entity.Property(member => member.Status)
+                .IsRequired()
+                .HasMaxLength(40);
+
+            entity.Property(member => member.PermissionPresetName)
+                .IsRequired()
+                .HasMaxLength(120);
+
+            entity.Property(member => member.Skills)
+                .IsRequired()
+                .HasMaxLength(500);
+
+            entity.Property(member => member.ServiceArea)
+                .IsRequired()
+                .HasMaxLength(250);
+
+            entity.Property(member => member.WorkingHours)
+                .IsRequired()
+                .HasMaxLength(250);
+
+            entity.Property(member => member.CalendarColour)
+                .IsRequired()
+                .HasMaxLength(40);
+
+            entity.Property(member => member.InviteToken)
+                .HasMaxLength(120);
+        });
+
+        modelBuilder.Entity<CustomerStaffMemberTeam>(entity =>
+        {
+            entity.HasKey(memberTeam => new
+            {
+                memberTeam.StaffMemberId,
+                memberTeam.TeamId
+            });
+
+            entity.HasIndex(memberTeam => memberTeam.TeamId);
+        });
+
+        modelBuilder.Entity<CustomerStaffSecurityRequest>(entity =>
+        {
+            entity.HasIndex(request => request.CompanyUserId);
+
+            entity.HasIndex(request => request.StaffMemberId);
+
+            entity.Property(request => request.RequestType)
+                .IsRequired()
+                .HasMaxLength(80);
+
+            entity.Property(request => request.Status)
+                .IsRequired()
+                .HasMaxLength(80);
         });
     }
 }

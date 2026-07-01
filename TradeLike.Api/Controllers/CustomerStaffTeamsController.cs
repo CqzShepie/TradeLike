@@ -23,7 +23,6 @@ public sealed class CustomerStaffTeamsController : ControllerBase
     [HttpPut("{id:int}")]
     public async Task<IActionResult> UpdateTeam(int id, CreateCustomerTeamRequest request)
     {
-        await EnsureSchemaAsync();
         var companyUserId = GetCompanyUserId();
         var entitlements = PlanEntitlements.ForPlan(await LoadPlanAsync(companyUserId));
 
@@ -57,29 +56,6 @@ public sealed class CustomerStaffTeamsController : ControllerBase
             ("@UpdatedAt", DateTime.UtcNow));
 
         return NoContent();
-    }
-
-    private async Task EnsureSchemaAsync()
-    {
-        await ExecuteNonQueryAsync(
-            """
-            IF OBJECT_ID(N'[dbo].[CustomerStaffTeams]', N'U') IS NULL
-            BEGIN
-                CREATE TABLE [dbo].[CustomerStaffTeams] (
-                    [Id] int IDENTITY(1,1) NOT NULL CONSTRAINT [PK_CustomerStaffTeams] PRIMARY KEY,
-                    [CompanyUserId] int NOT NULL,
-                    [Name] nvarchar(120) NOT NULL,
-                    [Description] nvarchar(500) NOT NULL,
-                    [Colour] nvarchar(40) NOT NULL,
-                    [TeamLeadStaffId] int NULL,
-                    [DefaultJobType] nvarchar(120) NOT NULL,
-                    [ServiceArea] nvarchar(250) NOT NULL,
-                    [WorkingHours] nvarchar(250) NOT NULL,
-                    [CreatedAt] datetime2 NOT NULL,
-                    [UpdatedAt] datetime2 NULL
-                );
-            END;
-            """);
     }
 
     private async Task<string> LoadPlanAsync(int companyUserId)

@@ -98,8 +98,6 @@ public class StaffSettingsController : ControllerBase
     public async Task<ActionResult<StaffSettingsResponse>> CreateCategory(
         [FromBody] CreateStaffCategoryRequest request)
     {
-        await EnsureSchemaAsync();
-
         var name = CleanRequired(request.Name, "Category name", 120);
         var description = CleanOptional(request.Description, 500) ?? "Custom staff category";
         var normalizedName = Normalize(name);
@@ -127,8 +125,6 @@ public class StaffSettingsController : ControllerBase
     [HttpDelete("categories/{id:int}")]
     public async Task<ActionResult<StaffSettingsResponse>> DeleteCategory(int id)
     {
-        await EnsureSchemaAsync();
-
         var affected = await ExecuteNonQueryAsync(
             "DELETE FROM StaffCategories WHERE Id = @Id",
             ("@Id", id));
@@ -145,8 +141,6 @@ public class StaffSettingsController : ControllerBase
     public async Task<ActionResult<StaffSettingsResponse>> CreateRolePreset(
         [FromBody] CreateStaffRolePresetRequest request)
     {
-        await EnsureSchemaAsync();
-
         var name = CleanRequired(request.Name, "Role preset name", 120);
         var normalizedName = Normalize(name);
         var permissions = CleanPermissions(request.Permissions);
@@ -196,8 +190,6 @@ public class StaffSettingsController : ControllerBase
     [HttpDelete("role-presets/{id:int}")]
     public async Task<ActionResult<StaffSettingsResponse>> DeleteRolePreset(int id)
     {
-        await EnsureSchemaAsync();
-
         var affected = await ExecuteNonQueryAsync(
             "DELETE FROM StaffRolePresets WHERE Id = @Id",
             ("@Id", id));
@@ -212,8 +204,6 @@ public class StaffSettingsController : ControllerBase
 
     private async Task EnsureSeedDataAsync()
     {
-        await EnsureSchemaAsync();
-
         if (await ExecuteScalarIntAsync("SELECT COUNT(1) FROM StaffCategories") == 0)
         {
             foreach (var category in DefaultCategories)
@@ -270,67 +260,6 @@ public class StaffSettingsController : ControllerBase
                     ("@PermissionName", permission));
             }
         }
-    }
-
-    private async Task EnsureSchemaAsync()
-    {
-        await ExecuteNonQueryAsync(
-            """
-            IF OBJECT_ID(N'[dbo].[StaffCategories]', N'U') IS NULL
-            BEGIN
-                CREATE TABLE [dbo].[StaffCategories] (
-                    [Id] int IDENTITY(1,1) NOT NULL CONSTRAINT [PK_StaffCategories] PRIMARY KEY,
-                    [Name] nvarchar(120) NOT NULL,
-                    [Description] nvarchar(500) NOT NULL,
-                    [NormalizedName] nvarchar(120) NOT NULL,
-                    [CreatedAt] datetime2 NOT NULL,
-                    [UpdatedAt] datetime2 NULL
-                );
-            END;
-
-            IF OBJECT_ID(N'[dbo].[StaffRolePresets]', N'U') IS NULL
-            BEGIN
-                CREATE TABLE [dbo].[StaffRolePresets] (
-                    [Id] int IDENTITY(1,1) NOT NULL CONSTRAINT [PK_StaffRolePresets] PRIMARY KEY,
-                    [Name] nvarchar(120) NOT NULL,
-                    [NormalizedName] nvarchar(120) NOT NULL,
-                    [CategoryId] int NOT NULL,
-                    [CreatedAt] datetime2 NOT NULL,
-                    [UpdatedAt] datetime2 NULL,
-                    CONSTRAINT [FK_StaffRolePresets_StaffCategories_CategoryId] FOREIGN KEY ([CategoryId]) REFERENCES [dbo].[StaffCategories] ([Id]) ON DELETE CASCADE
-                );
-            END;
-
-            IF OBJECT_ID(N'[dbo].[StaffRolePresetPermissions]', N'U') IS NULL
-            BEGIN
-                CREATE TABLE [dbo].[StaffRolePresetPermissions] (
-                    [Id] int IDENTITY(1,1) NOT NULL CONSTRAINT [PK_StaffRolePresetPermissions] PRIMARY KEY,
-                    [RolePresetId] int NOT NULL,
-                    [PermissionName] nvarchar(120) NOT NULL,
-                    CONSTRAINT [FK_StaffRolePresetPermissions_StaffRolePresets_RolePresetId] FOREIGN KEY ([RolePresetId]) REFERENCES [dbo].[StaffRolePresets] ([Id]) ON DELETE CASCADE
-                );
-            END;
-
-            IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_StaffCategories_NormalizedName' AND object_id = OBJECT_ID(N'[dbo].[StaffCategories]'))
-            BEGIN
-                CREATE UNIQUE INDEX [IX_StaffCategories_NormalizedName] ON [dbo].[StaffCategories] ([NormalizedName]);
-            END;
-
-            IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_StaffRolePresets_CategoryId' AND object_id = OBJECT_ID(N'[dbo].[StaffRolePresets]'))
-            BEGIN
-                CREATE INDEX [IX_StaffRolePresets_CategoryId] ON [dbo].[StaffRolePresets] ([CategoryId]);
-            END;
-
-            IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_StaffRolePresets_NormalizedName' AND object_id = OBJECT_ID(N'[dbo].[StaffRolePresets]'))
-            BEGIN
-                CREATE UNIQUE INDEX [IX_StaffRolePresets_NormalizedName] ON [dbo].[StaffRolePresets] ([NormalizedName]);
-            END;
-
-            IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_StaffRolePresetPermissions_RolePresetId_PermissionName' AND object_id = OBJECT_ID(N'[dbo].[StaffRolePresetPermissions]'))
-            BEGIN
-                CREATE UNIQUE INDEX [IX_StaffRolePresetPermissions_RolePresetId_PermissionName] ON [dbo].[StaffRolePresetPermissions] ([RolePresetId], [PermissionName]);
-            END;
-            """);
     }
 
     private async Task<StaffSettingsResponse> LoadSettingsAsync()

@@ -25,7 +25,6 @@ public sealed class JobAssignmentsController : ControllerBase
     {
         var tenantId = TenantHelpers.GetTenantId(HttpContext);
 
-        await EnsureSchemaAsync();
         return Ok(await LoadAssignmentsAsync(false, tenantId));
     }
 
@@ -34,7 +33,6 @@ public sealed class JobAssignmentsController : ControllerBase
     {
         var tenantId = TenantHelpers.GetTenantId(HttpContext);
 
-        await EnsureSchemaAsync();
         return Ok(await LoadAssignmentsAsync(true, tenantId));
     }
 
@@ -43,7 +41,6 @@ public sealed class JobAssignmentsController : ControllerBase
     {
         var tenantId = TenantHelpers.GetTenantId(HttpContext);
 
-        await EnsureSchemaAsync();
         var staffIds = (request.AssignedStaffMemberIds ?? []).Where(id => id > 0).Distinct().ToList();
 
         var updatedRows = await ExecuteNonQueryAsync(
@@ -115,37 +112,6 @@ public sealed class JobAssignmentsController : ControllerBase
         }
 
         return rows;
-    }
-
-    private async Task EnsureSchemaAsync()
-    {
-        await ExecuteNonQueryAsync(
-            """
-            IF COL_LENGTH('Jobs', 'AssignedTeamId') IS NULL
-            BEGIN
-                ALTER TABLE Jobs ADD AssignedTeamId int NULL;
-            END;
-
-            IF COL_LENGTH('Jobs', 'LeadStaffMemberId') IS NULL
-            BEGIN
-                ALTER TABLE Jobs ADD LeadStaffMemberId int NULL;
-            END;
-
-            IF COL_LENGTH('Jobs', 'AssignedStaffMemberIds') IS NULL
-            BEGIN
-                ALTER TABLE Jobs ADD AssignedStaffMemberIds nvarchar(max) NULL;
-            END;
-
-            IF COL_LENGTH('Jobs', 'ScheduledEndDate') IS NULL
-            BEGIN
-                ALTER TABLE Jobs ADD ScheduledEndDate datetime2 NULL;
-            END;
-
-            IF COL_LENGTH('Jobs', 'CalendarColour') IS NULL
-            BEGIN
-                ALTER TABLE Jobs ADD CalendarColour nvarchar(40) NULL;
-            END;
-            """);
     }
 
     private async Task<int> ExecuteNonQueryAsync(string commandText, params (string Name, object? Value)[] parameters)

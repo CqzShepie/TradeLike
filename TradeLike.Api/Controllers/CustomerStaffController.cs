@@ -23,14 +23,12 @@ public sealed class CustomerStaffController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<CustomerStaffWorkspaceResponse>> GetWorkspace()
     {
-        await EnsureSchemaAsync();
         return Ok(await LoadWorkspaceAsync());
     }
 
     [HttpPost("teams")]
     public async Task<ActionResult<CustomerStaffWorkspaceResponse>> CreateTeam(CreateCustomerTeamRequest request)
     {
-        await EnsureSchemaAsync();
         var companyUserId = GetCompanyUserId();
         var entitlements = await GetPlanEntitlementsAsync(companyUserId);
 
@@ -67,7 +65,6 @@ public sealed class CustomerStaffController : ControllerBase
     [HttpDelete("teams/{id:int}")]
     public async Task<ActionResult<CustomerStaffWorkspaceResponse>> DeleteTeam(int id)
     {
-        await EnsureSchemaAsync();
         var companyUserId = GetCompanyUserId();
 
         await ExecuteNonQueryAsync(
@@ -91,7 +88,6 @@ public sealed class CustomerStaffController : ControllerBase
     [HttpPost("members")]
     public async Task<ActionResult<CreateCustomerStaffMemberResponse>> CreateMember(CreateCustomerStaffMemberRequest request)
     {
-        await EnsureSchemaAsync();
         var companyUserId = GetCompanyUserId();
         var entitlements = await GetPlanEntitlementsAsync(companyUserId);
         var currentUserCount = await CountBillableMembersAsync(companyUserId);
@@ -155,7 +151,6 @@ public sealed class CustomerStaffController : ControllerBase
     [HttpPut("members/{id:int}")]
     public async Task<ActionResult<CustomerStaffWorkspaceResponse>> UpdateMember(int id, UpdateCustomerStaffMemberRequest request)
     {
-        await EnsureSchemaAsync();
         var companyUserId = GetCompanyUserId();
         var entitlements = await GetPlanEntitlementsAsync(companyUserId);
 
@@ -214,7 +209,6 @@ public sealed class CustomerStaffController : ControllerBase
     [HttpPost("members/{id:int}/reset-password")]
     public async Task<ActionResult<CustomerStaffWorkspaceResponse>> RequestPasswordReset(int id)
     {
-        await EnsureSchemaAsync();
         var companyUserId = GetCompanyUserId();
         var now = DateTime.UtcNow;
 
@@ -441,77 +435,6 @@ public sealed class CustomerStaffController : ControllerBase
     {
         var id = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
         return int.TryParse(id, out var parsed) ? parsed : 0;
-    }
-
-    private async Task EnsureSchemaAsync()
-    {
-        await ExecuteNonQueryAsync(
-            """
-            IF OBJECT_ID(N'[dbo].[CustomerStaffTeams]', N'U') IS NULL
-            BEGIN
-                CREATE TABLE [dbo].[CustomerStaffTeams] (
-                    [Id] int IDENTITY(1,1) NOT NULL CONSTRAINT [PK_CustomerStaffTeams] PRIMARY KEY,
-                    [CompanyUserId] int NOT NULL,
-                    [Name] nvarchar(120) NOT NULL,
-                    [Description] nvarchar(500) NOT NULL,
-                    [Colour] nvarchar(40) NOT NULL,
-                    [TeamLeadStaffId] int NULL,
-                    [DefaultJobType] nvarchar(120) NOT NULL,
-                    [ServiceArea] nvarchar(250) NOT NULL,
-                    [WorkingHours] nvarchar(250) NOT NULL,
-                    [CreatedAt] datetime2 NOT NULL,
-                    [UpdatedAt] datetime2 NULL
-                );
-            END;
-
-            IF OBJECT_ID(N'[dbo].[CustomerStaffMembers]', N'U') IS NULL
-            BEGIN
-                CREATE TABLE [dbo].[CustomerStaffMembers] (
-                    [Id] int IDENTITY(1,1) NOT NULL CONSTRAINT [PK_CustomerStaffMembers] PRIMARY KEY,
-                    [CompanyUserId] int NOT NULL,
-                    [FirstName] nvarchar(100) NOT NULL,
-                    [LastName] nvarchar(100) NOT NULL,
-                    [Email] nvarchar(256) NOT NULL,
-                    [Phone] nvarchar(80) NOT NULL,
-                    [RoleName] nvarchar(120) NOT NULL,
-                    [Status] nvarchar(40) NOT NULL,
-                    [PermissionPresetName] nvarchar(120) NOT NULL,
-                    [Skills] nvarchar(500) NOT NULL,
-                    [ServiceArea] nvarchar(250) NOT NULL,
-                    [WorkingHours] nvarchar(250) NOT NULL,
-                    [CalendarColour] nvarchar(40) NOT NULL,
-                    [IsTwoFactorRequired] bit NOT NULL,
-                    [LastLoginAt] datetime2 NULL,
-                    [InviteToken] nvarchar(120) NULL,
-                    [InviteSentAt] datetime2 NULL,
-                    [InviteAcceptedAt] datetime2 NULL,
-                    [ResetPasswordRequestedAt] datetime2 NULL,
-                    [CreatedAt] datetime2 NOT NULL,
-                    [UpdatedAt] datetime2 NULL
-                );
-            END;
-
-            IF OBJECT_ID(N'[dbo].[CustomerStaffMemberTeams]', N'U') IS NULL
-            BEGIN
-                CREATE TABLE [dbo].[CustomerStaffMemberTeams] (
-                    [StaffMemberId] int NOT NULL,
-                    [TeamId] int NOT NULL,
-                    CONSTRAINT [PK_CustomerStaffMemberTeams] PRIMARY KEY ([StaffMemberId], [TeamId])
-                );
-            END;
-
-            IF OBJECT_ID(N'[dbo].[CustomerStaffSecurityRequests]', N'U') IS NULL
-            BEGIN
-                CREATE TABLE [dbo].[CustomerStaffSecurityRequests] (
-                    [Id] int IDENTITY(1,1) NOT NULL CONSTRAINT [PK_CustomerStaffSecurityRequests] PRIMARY KEY,
-                    [CompanyUserId] int NOT NULL,
-                    [StaffMemberId] int NOT NULL,
-                    [RequestType] nvarchar(80) NOT NULL,
-                    [Status] nvarchar(80) NOT NULL,
-                    [CreatedAt] datetime2 NOT NULL
-                );
-            END;
-            """);
     }
 
     private async Task<int> ExecuteNonQueryAsync(string commandText, params (string Name, object? Value)[] parameters)

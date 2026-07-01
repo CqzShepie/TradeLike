@@ -6,6 +6,8 @@ public class AdminAuditLog
 {
     public int Id { get; set; }
 
+    public int TenantId { get; set; }
+
     public int ActorUserId { get; set; }
 
     [Required]

@@ -50,6 +50,21 @@ public class Job
     [JsonIgnore]
     public Engineer? Engineer { get; set; }
 
+    [JsonIgnore]
+    public int? AssignedTeamId { get; set; }
+
+    [JsonIgnore]
+    public int? LeadStaffMemberId { get; set; }
+
+    [JsonIgnore]
+    public string? AssignedStaffMemberIds { get; set; }
+
+    [JsonIgnore]
+    public DateTime? ScheduledEndDate { get; set; }
+
+    [JsonIgnore]
+    public string? CalendarColour { get; set; }
+
     public void Validate()
     {
         if (ScheduledDate.Year < 2024 || ScheduledDate.Year > 2099)
