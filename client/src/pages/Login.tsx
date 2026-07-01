@@ -1,18 +1,24 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { useState } from "react";
-import Logo from "../components/layout/Logo";
+import { useState, type FormEvent } from "react";
+import AuthShell from "../components/auth/AuthShell";
+import {
+  FormField,
+  InlineAlert,
+  PrimaryButton,
+  TextInput,
+} from "../components/ui";
 import { authService } from "../services/authService";
 
 function Login() {
-  const [email, setEmail] = useState("admin@tradelike.co.uk");
-  const [password, setPassword] = useState("Password123!");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   const navigate = useNavigate();
   const location = useLocation();
 
-  async function handleSubmit(event: React.FormEvent) {
+  async function handleSubmit(event: FormEvent) {
     event.preventDefault();
 
     if (email.trim() === "") {
@@ -54,102 +60,79 @@ function Login() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-50">
-      <header className="px-8 py-6">
-        <Logo />
-      </header>
-
-      <div className="flex justify-center px-6">
-        <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
-          <h1 className="mb-2 text-3xl font-bold">
-            Sign in
-          </h1>
-
-          <p className="mb-8 text-slate-600">
-            Access your TradeLike account.
-          </p>
-
-          <p className="mb-5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-700">
-            Local development admin login is prefilled for speed.
-          </p>
-
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div>
-              <label
-                htmlFor="email"
-                className="mb-2 block text-sm font-medium"
-              >
-                Email Address
-              </label>
-
-              <input
-                id="email"
-                type="email"
-                value={email}
-                onChange={event => {
-                  setEmail(event.target.value);
-                  setError("");
-                }}
-                className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-blue-600"
-              />
-            </div>
-
-            <div>
-              <label
-                htmlFor="password"
-                className="mb-2 block text-sm font-medium"
-              >
-                Password
-              </label>
-
-              <input
-                id="password"
-                type="password"
-                value={password}
-                onChange={event => {
-                  setPassword(event.target.value);
-                  setError("");
-                }}
-                className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-blue-600"
-              />
-            </div>
-
-            {error && (
-              <p className="rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-600">
-                {error}
-              </p>
-            )}
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full rounded-lg bg-blue-600 py-3 font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-400"
-            >
-              {loading ? "Signing In..." : "Sign In"}
-            </button>
-          </form>
-
-          <p className="mt-6 text-center text-sm text-slate-600">
-            No account yet?{" "}
-            <Link
-              to="/signup"
-              className="font-semibold text-blue-600 hover:underline"
-            >
-              Create Account
-            </Link>
-          </p>
-
-          <p className="mt-4 text-center">
-            <Link
-              to="/admin"
-              className="text-xs font-medium text-slate-400 hover:text-slate-700"
-            >
-              Staff Admin Portal
-            </Link>
-          </p>
-        </div>
+    <AuthShell
+      eyebrow="Welcome back"
+      title="Run today's trade work from one focused dashboard."
+      description="Sign in to manage jobs, customers, quotes and team admin with the same polished workspace introduced on the homepage."
+      highlights={["Schedule jobs", "Track quotes", "Manage customers"]}
+    >
+      <div>
+        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-600">
+          TradeLike account
+        </p>
+        <h2 className="mt-3 text-3xl font-bold tracking-tight text-slate-950">
+          Sign in
+        </h2>
+        <p className="mt-2 text-sm leading-6 text-slate-600">
+          Access your workspace and pick up where you left off.
+        </p>
       </div>
-    </main>
+
+      <form onSubmit={handleSubmit} className="mt-8 space-y-5">
+        <FormField label="Email address" htmlFor="email">
+          <TextInput
+            id="email"
+            type="email"
+            value={email}
+            autoComplete="email"
+            hasError={Boolean(error)}
+            onChange={event => {
+              setEmail(event.target.value);
+              setError("");
+            }}
+          />
+        </FormField>
+
+        <FormField label="Password" htmlFor="password">
+          <TextInput
+            id="password"
+            type="password"
+            value={password}
+            autoComplete="current-password"
+            hasError={Boolean(error)}
+            onChange={event => {
+              setPassword(event.target.value);
+              setError("");
+            }}
+          />
+        </FormField>
+
+        {error && <InlineAlert tone="error">{error}</InlineAlert>}
+
+        <PrimaryButton type="submit" size="lg" fullWidth disabled={loading}>
+          {loading ? "Signing in..." : "Sign in"}
+        </PrimaryButton>
+      </form>
+
+      <p className="mt-6 text-center text-sm text-slate-600">
+        No account yet?{" "}
+        <Link
+          to="/signup"
+          className="font-semibold text-blue-600 hover:text-blue-700 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+        >
+          Start 14-day free trial
+        </Link>
+      </p>
+
+      <p className="mt-4 text-center">
+        <Link
+          to="/admin"
+          className="text-xs font-medium text-slate-400 hover:text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+        >
+          Staff admin portal
+        </Link>
+      </p>
+    </AuthShell>
   );
 }
 
