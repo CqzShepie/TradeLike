@@ -28,6 +28,14 @@ public class TradeLikeDbContext : DbContext
 
     public DbSet<QuoteLineItem> QuoteLineItems => Set<QuoteLineItem>();
 
+    public DbSet<Invoice> Invoices => Set<Invoice>();
+
+    public DbSet<Van> Vans => Set<Van>();
+
+    public DbSet<Product> Products => Set<Product>();
+
+    public DbSet<VanStock> VanStock => Set<VanStock>();
+
     public DbSet<Engineer> Engineers => Set<Engineer>();
 
     public DbSet<CustomerStaffTeam> CustomerStaffTeams => Set<CustomerStaffTeam>();
@@ -253,6 +261,12 @@ public class TradeLikeDbContext : DbContext
         {
             entity.HasIndex(j => j.TenantId);
 
+            entity.HasIndex(j => new
+            {
+                j.TenantId,
+                j.ScheduledDate
+            });
+
             entity.Property(j => j.Customer)
                 .IsRequired()
                 .HasMaxLength(100);
@@ -298,6 +312,12 @@ public class TradeLikeDbContext : DbContext
         {
             entity.HasIndex(q => q.TenantId);
 
+            entity.HasIndex(q => new
+            {
+                q.TenantId,
+                q.CreatedAt
+            });
+
             entity.Property(q => q.Amount)
                 .HasPrecision(18, 2);
 
@@ -334,6 +354,69 @@ public class TradeLikeDbContext : DbContext
         modelBuilder.Entity<Customer>(entity =>
         {
             entity.HasIndex(customer => customer.TenantId);
+        });
+
+        modelBuilder.Entity<Invoice>(entity =>
+        {
+            entity.HasIndex(invoice => invoice.TenantId);
+            entity.HasIndex(invoice => new { invoice.TenantId, invoice.CreatedAt });
+            entity.HasIndex(invoice => new { invoice.TenantId, invoice.Status });
+
+            entity.Property(invoice => invoice.InvoiceNumber)
+                .IsRequired()
+                .HasMaxLength(40);
+
+            entity.Property(invoice => invoice.CustomerName)
+                .IsRequired()
+                .HasMaxLength(150);
+
+            entity.Property(invoice => invoice.Title)
+                .IsRequired()
+                .HasMaxLength(200);
+
+            entity.Property(invoice => invoice.Status)
+                .IsRequired()
+                .HasMaxLength(30);
+        });
+
+        modelBuilder.Entity<Van>(entity =>
+        {
+            entity.HasIndex(van => van.TenantId);
+
+            entity.Property(van => van.Name)
+                .IsRequired()
+                .HasMaxLength(120);
+
+            entity.Property(van => van.Registration)
+                .HasMaxLength(40);
+        });
+
+        modelBuilder.Entity<Product>(entity =>
+        {
+            entity.HasIndex(product => product.TenantId);
+
+            entity.Property(product => product.Name)
+                .IsRequired()
+                .HasMaxLength(160);
+
+            entity.Property(product => product.Sku)
+                .HasMaxLength(60);
+        });
+
+        modelBuilder.Entity<VanStock>(entity =>
+        {
+            entity.HasIndex(stock => new { stock.TenantId, stock.VanId, stock.ProductId })
+                .IsUnique();
+
+            entity.HasOne(stock => stock.Van)
+                .WithMany(van => van.Stock)
+                .HasForeignKey(stock => stock.VanId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(stock => stock.Product)
+                .WithMany()
+                .HasForeignKey(stock => stock.ProductId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<Engineer>(entity =>

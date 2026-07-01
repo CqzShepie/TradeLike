@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import Sidebar from "../components/layout/Sidebar";
 import { invoicesService } from "../services/invoicesService";
 import type { Invoice, InvoiceStatus } from "../services/invoicesService";
+import { paymentsService } from "../services/paymentsService";
 import { jobsService } from "../services/jobsService";
 import { quotesService } from "../services/quotesService";
 import type { Job } from "../types/job";
@@ -85,6 +86,15 @@ export default function Invoices() {
     setInvoices(invoicesService.delete(id));
   }
 
+  async function payNow(invoice: Invoice) {
+    try {
+      const result = await paymentsService.checkout(invoice.id, "stripe");
+      window.location.href = result.checkoutUrl;
+    } catch {
+      setMessage("Could not start checkout for this invoice.");
+    }
+  }
+
   return (
     <main className="flex min-h-screen bg-slate-50">
       <Sidebar />
@@ -138,7 +148,7 @@ export default function Invoices() {
               </div>
 
               <div className="mt-4 max-h-[680px] divide-y divide-slate-200 overflow-y-auto pr-2">
-                {filteredInvoices.map(invoice => <article key={invoice.id} className="grid gap-3 py-4 lg:grid-cols-[minmax(0,1fr)_140px_140px_90px]"><div className="min-w-0"><p className="font-bold text-slate-900">{invoice.invoiceNumber} · {invoice.title}</p><p className="mt-1 text-sm text-slate-600">{invoice.customerName} · Due {formatDate(invoice.dueDate)}</p><div className="mt-2 flex flex-wrap gap-2 text-xs font-semibold text-blue-700">{invoice.jobId && <Link to={`/jobs/${invoice.jobId}`}>Job #{invoice.jobId}</Link>}{invoice.quoteId && <Link to={`/quotes/${invoice.quoteId}`}>Quote #{invoice.quoteId}</Link>}</div></div><select value={invoice.status} onChange={event => updateStatus(invoice.id, event.target.value as InvoiceStatus)} className="h-fit rounded-lg border border-slate-300 px-3 py-2 text-sm">{statuses.map(status => <option key={status} value={status}>{status}</option>)}</select><p className="h-fit rounded-lg bg-slate-100 px-3 py-2 text-sm font-bold text-slate-900">{money.format(invoice.total)}</p><button type="button" onClick={() => deleteInvoice(invoice.id)} className="h-fit rounded-lg border border-red-200 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50">Delete</button></article>)}
+                {filteredInvoices.map(invoice => <article key={invoice.id} className="grid gap-3 py-4 lg:grid-cols-[minmax(0,1fr)_140px_140px_90px_90px]"><div className="min-w-0"><p className="font-bold text-slate-900">{invoice.invoiceNumber} · {invoice.title}</p><p className="mt-1 text-sm text-slate-600">{invoice.customerName} · Due {formatDate(invoice.dueDate)}</p><div className="mt-2 flex flex-wrap gap-2 text-xs font-semibold text-blue-700">{invoice.jobId && <Link to={`/jobs/${invoice.jobId}`}>Job #{invoice.jobId}</Link>}{invoice.quoteId && <Link to={`/quotes/${invoice.quoteId}`}>Quote #{invoice.quoteId}</Link>}</div></div><select value={invoice.status} onChange={event => updateStatus(invoice.id, event.target.value as InvoiceStatus)} className="h-fit rounded-lg border border-slate-300 px-3 py-2 text-sm">{statuses.map(status => <option key={status} value={status}>{status}</option>)}</select><p className="h-fit rounded-lg bg-slate-100 px-3 py-2 text-sm font-bold text-slate-900">{money.format(invoice.total)}</p><button type="button" onClick={() => payNow(invoice)} className="h-fit rounded-lg border border-blue-200 px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-50">Pay Now</button><button type="button" onClick={() => deleteInvoice(invoice.id)} className="h-fit rounded-lg border border-red-200 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50">Delete</button></article>)}
                 {filteredInvoices.length === 0 && <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-6 text-sm text-slate-500">No invoices yet.</p>}
               </div>
             </Panel>

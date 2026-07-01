@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import WeekGrid from "./WeekGrid";
 import WeekNavigation from "./WeekNavigation";
+import RouteMapModal from "./RouteMapModal";
 import { useWeekJobs } from "../../hooks/useWeekJobs";
 import { jobsService } from "../../services/jobsService";
 import { customerStaffService } from "../../services/customerStaffService";
@@ -23,6 +24,7 @@ export default function WeekCalendar() {
     const [assignments, setAssignments] = useState<JobAssignment[]>([]);
     const [leaveRequests, setLeaveRequests] = useState<StaffLeaveRequest[]>([]);
     const [selectedCalendar, setSelectedCalendar] = useState("all");
+    const [showRouteModal, setShowRouteModal] = useState(false);
     const [optimisticJobs, setOptimisticJobs] = useState<Job[]>([]);
     const { jobs: serverJobs } = useWeekJobs(currentWeek);
 
@@ -123,7 +125,9 @@ export default function WeekCalendar() {
     function handleCurrentWeek() { setCurrentWeek(startOfWeek(new Date())); }
     function handleNextWeek() { setCurrentWeek(previous => { const date = new Date(previous); date.setDate(date.getDate() + 7); return startOfWeek(date); }); }
 
-    return <div className="relative overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm"><WeekNavigation weekLabel={weekLabel} onPreviousWeek={handlePreviousWeek} onCurrentWeek={handleCurrentWeek} onNextWeek={handleNextWeek} /><div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-4 py-2"><div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Dispatch View</div><select className="rounded border border-gray-300 px-2 py-1 text-xs" value={selectedCalendar} onChange={event => setSelectedCalendar(event.target.value)}><option value="all">Merged: everyone</option><option value="unassigned">Unassigned jobs</option>{members.map(member => <option key={member.id} value={`staff:${member.id}`}>{member.firstName} {member.lastName}</option>)}{teams.map(team => <option key={team.id} value={`team:${team.id}`}>Team: {team.name}</option>)}</select></div><WeekGrid weekStart={currentWeek} jobs={jobs} engineers={engineers} staffMembers={members} teams={teams} leaveRequests={leaveRequests} onSelectJob={setSelectedJob} onMoveJob={handleMoveJob} />{selectedJob && (() => {
+    const selectedEngineerId = selectedCalendar.startsWith("staff:") ? Number(selectedCalendar.replace("staff:", "")) : null;
+
+    return <div className="relative overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm"><WeekNavigation weekLabel={weekLabel} onPreviousWeek={handlePreviousWeek} onCurrentWeek={handleCurrentWeek} onNextWeek={handleNextWeek} /><div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-4 py-2"><div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Dispatch View</div><div className="flex flex-wrap items-center gap-2"><button type="button" onClick={() => setShowRouteModal(true)} className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700">Optimise Route</button><select className="rounded border border-gray-300 px-2 py-1 text-xs" value={selectedCalendar} onChange={event => setSelectedCalendar(event.target.value)}><option value="all">Merged: everyone</option><option value="unassigned">Unassigned jobs</option>{members.map(member => <option key={member.id} value={`staff:${member.id}`}>{member.firstName} {member.lastName}</option>)}{teams.map(team => <option key={team.id} value={`team:${team.id}`}>Team: {team.name}</option>)}</select></div></div><WeekGrid weekStart={currentWeek} jobs={jobs} engineers={engineers} staffMembers={members} teams={teams} leaveRequests={leaveRequests} onSelectJob={setSelectedJob} onMoveJob={handleMoveJob} />{showRouteModal && <RouteMapModal date={currentWeek} engineerId={selectedEngineerId} onClose={() => setShowRouteModal(false)} />}{selectedJob && (() => {
   const selectedAssignment = assignmentMap.get(selectedJob.id);
   const selectedTeam = teams.find(team => team.id === selectedAssignment?.assignedTeamId);
   const leadEngineer = members.find(member => member.id === selectedAssignment?.leadStaffMemberId || member.id === selectedJob.engineerId);

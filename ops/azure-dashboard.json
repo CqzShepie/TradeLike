@@ -1,0 +1,93 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "dashboardName": {
+      "type": "string",
+      "defaultValue": "tradelike-observability"
+    },
+    "applicationInsightsResourceId": {
+      "type": "string"
+    },
+    "sqlDatabaseResourceId": {
+      "type": "string"
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Portal/dashboards",
+      "apiVersion": "2020-09-01-preview",
+      "name": "[parameters('dashboardName')]",
+      "location": "[resourceGroup().location]",
+      "properties": {
+        "lenses": {
+          "0": {
+            "order": 0,
+            "parts": {
+              "0": {
+                "position": { "x": 0, "y": 0, "rowSpan": 4, "colSpan": 6 },
+                "metadata": {
+                  "type": "Extension/Microsoft_OperationsManagementSuite_Workspace/PartType/LogsDashboardPart",
+                  "settings": {
+                    "content": {
+                      "Query": "requests | summarize RequestsPerSecond=count() / 60 by bin(timestamp, 1m)",
+                      "ResourceId": "[parameters('applicationInsightsResourceId')]",
+                      "PartTitle": "Requests/sec"
+                    }
+                  }
+                }
+              },
+              "1": {
+                "position": { "x": 6, "y": 0, "rowSpan": 4, "colSpan": 6 },
+                "metadata": {
+                  "type": "Extension/Microsoft_OperationsManagementSuite_Workspace/PartType/LogsDashboardPart",
+                  "settings": {
+                    "content": {
+                      "Query": "requests | summarize P95LatencyMs=percentile(duration, 95) by bin(timestamp, 5m)",
+                      "ResourceId": "[parameters('applicationInsightsResourceId')]",
+                      "PartTitle": "P95 latency"
+                    }
+                  }
+                }
+              },
+              "2": {
+                "position": { "x": 0, "y": 4, "rowSpan": 4, "colSpan": 6 },
+                "metadata": {
+                  "type": "Extension/Microsoft_OperationsManagementSuite_Workspace/PartType/LogsDashboardPart",
+                  "settings": {
+                    "content": {
+                      "Query": "requests | summarize Errors=countif(resultCode startswith '4' or resultCode startswith '5') by resultCode, bin(timestamp, 5m)",
+                      "ResourceId": "[parameters('applicationInsightsResourceId')]",
+                      "PartTitle": "4xx / 5xx"
+                    }
+                  }
+                }
+              },
+              "3": {
+                "position": { "x": 6, "y": 4, "rowSpan": 4, "colSpan": 6 },
+                "metadata": {
+                  "type": "Extension/Microsoft_OperationsManagementSuite_Workspace/PartType/LogsDashboardPart",
+                  "settings": {
+                    "content": {
+                      "Query": "dependencies | where type == 'SQL' | summarize P95SqlDurationMs=percentile(duration, 95) by bin(timestamp, 5m)",
+                      "ResourceId": "[parameters('applicationInsightsResourceId')]",
+                      "PartTitle": "SQL duration"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "metadata": {
+          "model": {
+            "timeRange": {
+              "value": { "relative": { "duration": 24, "timeUnit": 1 } },
+              "type": "MsPortalFx.Composition.Configuration.ValueTypes.TimeRange"
+            }
+          }
+        }
+      }
+    }
+  ]
+}

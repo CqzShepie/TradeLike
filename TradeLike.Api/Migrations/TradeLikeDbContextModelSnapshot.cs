@@ -504,6 +504,69 @@ namespace TradeLike.Api.Migrations
                     b.ToTable("Engineers");
                 });
 
+            modelBuilder.Entity("TradeLike.Api.Models.Invoice", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("CustomerId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("CustomerName")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<DateTime>("DueDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("InvoiceNumber")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<int?>("JobId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("PaidAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("QuoteId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<int>("TenantId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("TotalPence")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId");
+
+                    b.HasIndex("TenantId", "CreatedAt");
+
+                    b.HasIndex("TenantId", "Status");
+
+                    b.ToTable("Invoices");
+                });
+
             modelBuilder.Entity("TradeLike.Api.Models.Job", b =>
                 {
                     b.Property<int>("Id")
@@ -578,6 +641,8 @@ namespace TradeLike.Api.Migrations
                     b.HasIndex("QuoteId");
 
                     b.HasIndex("TenantId");
+
+                    b.HasIndex("TenantId", "ScheduledDate");
 
                     b.ToTable("Jobs");
                 });
@@ -695,6 +760,34 @@ namespace TradeLike.Api.Migrations
                         });
                 });
 
+            modelBuilder.Entity("TradeLike.Api.Models.Product", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)");
+
+                    b.Property<string>("Sku")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("nvarchar(60)");
+
+                    b.Property<int>("TenantId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId");
+
+                    b.ToTable("Products");
+                });
+
             modelBuilder.Entity("TradeLike.Api.Models.Quote", b =>
                 {
                     b.Property<int>("Id")
@@ -771,6 +864,8 @@ namespace TradeLike.Api.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("TenantId");
+
+                    b.HasIndex("TenantId", "CreatedAt");
 
                     b.ToTable("Quotes");
                 });
@@ -1148,6 +1243,72 @@ namespace TradeLike.Api.Migrations
                     b.ToTable("Users");
                 });
 
+            modelBuilder.Entity("TradeLike.Api.Models.Van", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("EngineerId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<string>("Registration")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<int>("TenantId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId");
+
+                    b.ToTable("Vans");
+                });
+
+            modelBuilder.Entity("TradeLike.Api.Models.VanStock", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("ProductId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Qty")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TenantId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("VanId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProductId");
+
+                    b.HasIndex("VanId");
+
+                    b.HasIndex("TenantId", "VanId", "ProductId")
+                        .IsUnique();
+
+                    b.ToTable("VanStock");
+                });
+
             modelBuilder.Entity("TradeLike.Api.Models.Job", b =>
                 {
                     b.HasOne("TradeLike.Api.Models.Engineer", "Engineer")
@@ -1243,6 +1404,25 @@ namespace TradeLike.Api.Migrations
                     b.Navigation("Tenant");
                 });
 
+            modelBuilder.Entity("TradeLike.Api.Models.VanStock", b =>
+                {
+                    b.HasOne("TradeLike.Api.Models.Product", "Product")
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("TradeLike.Api.Models.Van", "Van")
+                        .WithMany("Stock")
+                        .HasForeignKey("VanId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Product");
+
+                    b.Navigation("Van");
+                });
+
             modelBuilder.Entity("TradeLike.Api.Models.JobAssignment", b =>
                 {
                     b.Navigation("StaffMembers");
@@ -1251,6 +1431,11 @@ namespace TradeLike.Api.Migrations
             modelBuilder.Entity("TradeLike.Api.Models.Quote", b =>
                 {
                     b.Navigation("LineItems");
+                });
+
+            modelBuilder.Entity("TradeLike.Api.Models.Van", b =>
+                {
+                    b.Navigation("Stock");
                 });
 #pragma warning restore 612, 618
         }

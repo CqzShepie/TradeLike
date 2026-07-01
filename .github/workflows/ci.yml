@@ -27,16 +27,52 @@ jobs:
         run: dotnet build TradeLike.Api/TradeLike.Api.csproj -c Release --no-restore
 
       - name: Test
-        shell: pwsh
-        run: |
-          $testProjects = Get-ChildItem -Recurse -Filter *Tests.csproj
-          if ($testProjects) {
-            foreach ($project in $testProjects) {
-              dotnet test $project.FullName -c Release --no-build
-            }
-          } else {
-            "No test projects found."
-          }
+        run: dotnet test TradeLike.Api.Tests/TradeLike.Api.Tests.csproj -c Release
+
+  elastic-test:
+    name: Elastic Search
+    runs-on: ubuntu-latest
+
+    env:
+      ELASTIC_URI: http://localhost:9200
+      ELASTIC_API_KEY: ci-placeholder
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore
+        run: dotnet restore TradeLike.Api/TradeLike.Api.csproj
+
+      - name: Build search components
+        run: dotnet build TradeLike.Api/TradeLike.Api.csproj -c Release --no-restore
+
+  notify-svc-build:
+    name: Notification Service
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore
+        run: dotnet restore NotificationService/NotificationService.csproj
+
+      - name: Build
+        run: dotnet build NotificationService/NotificationService.csproj -c Release --no-restore
+
+      - name: Docker build
+        run: docker build -f NotificationService/Dockerfile .
 
   frontend:
     name: Frontend
@@ -56,6 +92,69 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: client/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm run test
+
+      - name: Build
+        run: npm run build
+
+  route-tests:
+    name: Route tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Test route planner surface
+        run: dotnet test TradeLike.Api.Tests/TradeLike.Api.Tests.csproj -c Release --filter Category=Route
+
+  payments-tests:
+    name: Payments tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Test payments surface
+        run: dotnet test TradeLike.Api.Tests/TradeLike.Api.Tests.csproj -c Release --filter Category=Payments
+
+  mobile:
+    name: Mobile
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: mobile
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
 
       - name: Install
         run: npm ci

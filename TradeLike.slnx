@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="TradeLike.Api.Tests/TradeLike.Api.Tests.csproj" />
+  <Project Path="TradeLike.Api/TradeLike.Api.csproj" />
+</Solution>
