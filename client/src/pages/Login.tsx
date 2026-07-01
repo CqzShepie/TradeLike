@@ -67,13 +67,13 @@ function Login() {
       highlights={["Schedule jobs", "Track quotes", "Manage customers"]}
     >
       <div>
-        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-600">
+        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-300">
           TradeLike account
         </p>
-        <h2 className="mt-3 text-3xl font-bold tracking-tight text-slate-950">
+        <h2 className="mt-3 text-3xl font-bold tracking-tight text-white">
           Sign in
         </h2>
-        <p className="mt-2 text-sm leading-6 text-slate-600">
+        <p className="mt-2 text-sm leading-6 text-slate-300">
           Access your workspace and pick up where you left off.
         </p>
       </div>
@@ -114,11 +114,11 @@ function Login() {
         </PrimaryButton>
       </form>
 
-      <p className="mt-6 text-center text-sm text-slate-600">
+      <p className="mt-6 text-center text-sm text-slate-300">
         No account yet?{" "}
         <Link
           to="/signup"
-          className="font-semibold text-blue-600 hover:text-blue-700 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+          className="font-semibold text-blue-300 hover:text-blue-200 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
         >
           Start 14-day free trial
         </Link>
@@ -127,7 +127,7 @@ function Login() {
       <p className="mt-4 text-center">
         <Link
           to="/admin"
-          className="text-xs font-medium text-slate-400 hover:text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+          className="text-xs font-medium text-slate-500 hover:text-slate-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
         >
           Staff admin portal
         </Link>

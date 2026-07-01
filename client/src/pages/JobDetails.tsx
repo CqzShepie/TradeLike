@@ -7,7 +7,8 @@ import { ProductPage, ProductPanel } from "../components/ui";
 import type { Job, JobPriority, JobStatus } from "../types/job";
 import { jobsService } from "../services/jobsService";
 import { formatDateTime, formatPhone, toDateTimeLocalValue } from "../utils/inputFormatters";
-import { parseStoredNote, splitStoredNotes } from "../utils/jobNotes";
+import { createStoredNote, parseStoredNote, splitStoredNotes } from "../utils/jobNotes";
+import { authService } from "../services/authService";
 
 const statuses: JobStatus[] = ["Scheduled", "InProgress", "Completed", "Cancelled"];
 const priorities: JobPriority[] = ["Low", "Normal", "High", "Urgent"];
@@ -104,7 +105,10 @@ export default function JobDetails() {
       return;
     }
 
-    await saveNotes([`${new Date().toLocaleString("en-GB")} - ${value}`, ...notes]);
+    const user = authService.getUser();
+    const author = user?.name || user?.email || "Team member not recorded";
+
+    await saveNotes([createStoredNote(author, value), ...notes]);
     setNewNote("");
     setMessage("Note added.");
   }
@@ -222,15 +226,15 @@ export default function JobDetails() {
 
 function NoteCard({ note, onRemove }: { note: string; onRemove: () => void }) {
   const parsed = parseStoredNote(note);
+  const meta = [parsed.author, parsed.dateLabel].filter(Boolean).join(" - ");
 
   return (
     <div className="relative rounded-lg border border-white/10 bg-slate-900 p-4 pr-24 text-sm text-slate-300">
       <button type="button" onClick={onRemove} className="absolute right-3 top-3 rounded border border-red-400/30 px-2 py-1 text-xs font-semibold text-red-200 hover:bg-red-500/10">
         Remove
       </button>
-      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{parsed.author}</p>
-      <p className="mt-1 text-sm font-bold text-white">{parsed.dateLabel}</p>
-      <p className="mt-3 whitespace-pre-wrap leading-6 text-slate-300">{parsed.body}</p>
+      <p className="whitespace-pre-wrap pr-4 leading-6 text-slate-100">{parsed.body}</p>
+      {meta && <p className="mt-3 text-xs font-medium text-slate-500">{meta}</p>}
     </div>
   );
 }
@@ -238,7 +242,7 @@ function NoteCard({ note, onRemove }: { note: string; onRemove: () => void }) {
 function JobEditForm({ form, setForm, onSubmit }: { form: Job; setForm: (job: Job) => void; onSubmit: (event: FormEvent) => void }) {
   return (
     <form onSubmit={onSubmit} className="mt-6 grid gap-4 md:grid-cols-2">
-      <Field label="Job title"><Input value={form.jobTitle} onChange={value => setForm({ ...form, jobTitle: value })} /></Field>
+      <Field label="Job needed"><Input value={form.jobTitle} onChange={value => setForm({ ...form, jobTitle: value })} /></Field>
       <Field label="Customer"><Input value={form.customer} onChange={value => setForm({ ...form, customer: value })} /></Field>
       <Field label="Phone"><Input value={form.phone} onChange={value => setForm({ ...form, phone: formatPhone(value) })} /></Field>
       <Field label="Scheduled">

@@ -76,7 +76,7 @@ function NewJobForm({
         }
 
         if (jobTitle.trim() === "") {
-            setError("Job title is required.");
+            setError("Job needed is required.");
             return;
         }
 
@@ -172,10 +172,11 @@ function NewJobForm({
                     />
                 </Field>
 
-                <Field label="Job Title">
+                <Field label="Job needed">
                     <TextInput
                         value={jobTitle}
                         onChange={event => setJobTitle(event.target.value)}
+                        placeholder="Boiler service"
                     />
                 </Field>
 

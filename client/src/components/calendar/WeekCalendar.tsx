@@ -171,23 +171,25 @@ export default function WeekCalendar() {
                             Optimise Route
                         </button>
                     )}
-                    <SelectMenu
-                        ariaLabel="Calendar dispatch filter"
-                        value={selectedCalendar}
-                        onChange={setSelectedCalendar}
-                        disabled={!canUseStaffScheduling}
-                        options={calendarOptions}
-                        buttonClassName="px-3 py-2 text-xs"
-                    />
+                    {canUseStaffScheduling && (
+                        <SelectMenu
+                            ariaLabel="Calendar dispatch filter"
+                            value={selectedCalendar}
+                            onChange={setSelectedCalendar}
+                            options={calendarOptions}
+                            buttonClassName="px-3 py-2 text-xs"
+                        />
+                    )}
                 </div>
             </div>
             <WeekGrid
                 weekStart={currentWeek}
                 jobs={jobs}
-                engineers={engineers}
-                staffMembers={members}
-                teams={teams}
-                leaveRequests={leaveRequests}
+                engineers={canUseStaffScheduling ? engineers : []}
+                staffMembers={canUseStaffScheduling ? members : []}
+                teams={canUseStaffScheduling ? teams : []}
+                leaveRequests={canUseStaffScheduling ? leaveRequests : []}
+                showStaffDetails={canUseStaffScheduling}
                 onSelectJob={setSelectedJob}
                 onMoveJob={handleMoveJob}
             />
@@ -210,9 +212,11 @@ export default function WeekCalendar() {
                     ["Customer Address", selectedJob.address || "Not recorded"],
                     ["Job Status", selectedJob.status === "InProgress" ? "In Progress" : selectedJob.status],
                     ["Job Urgency", selectedJob.priority],
-                    ["Lead Engineer", leadEngineer ? `${leadEngineer.firstName} ${leadEngineer.lastName}` : "No lead engineer"],
-                    ["Staff Assigned To Job", extraStaff.length ? extraStaff.map(member => `${member.firstName} ${member.lastName}`).join(", ") : "No extra staff"],
-                    ["Team Assigned To Job", selectedTeam?.name ?? selectedJob.assignedTeamName ?? "No Team Recorded"],
+                    ...(canUseStaffScheduling ? [
+                        ["Lead Engineer", leadEngineer ? `${leadEngineer.firstName} ${leadEngineer.lastName}` : "No lead engineer"],
+                        ["Staff Assigned To Job", extraStaff.length ? extraStaff.map(member => `${member.firstName} ${member.lastName}`).join(", ") : "No extra staff"],
+                        ["Team Assigned To Job", selectedTeam?.name ?? selectedJob.assignedTeamName ?? "No team recorded"],
+                    ] : []),
                 ];
 
                 return (

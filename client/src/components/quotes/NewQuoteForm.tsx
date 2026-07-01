@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
+import { Link } from "react-router-dom";
 import type { Customer } from "../../types/customer";
 import type { NewQuote, NewQuoteLineItem } from "../../types/newQuote";
 import type {
@@ -21,7 +22,8 @@ interface NewQuoteFormProps {
 
 const statuses: QuoteStatus[] = ["Draft", "Sent", "Accepted", "Rejected"];
 const lineTypes: QuoteLineItemType[] = ["Labour", "Materials", "Other"];
-const discountTypes: QuoteDiscountType[] = ["Amount", "Percentage"];
+type DiscountMode = "None" | QuoteDiscountType;
+const discountTypes: DiscountMode[] = ["None", "Amount", "Percentage"];
 
 const defaultLineItem: NewQuoteLineItem = {
   type: "Labour",
@@ -45,7 +47,7 @@ export default function NewQuoteForm({
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [discountType, setDiscountType] =
-    useState<QuoteDiscountType>("Amount");
+    useState<DiscountMode>("None");
   const [discountValue, setDiscountValue] = useState("0");
   const [status, setStatus] = useState<QuoteStatus>("Draft");
   const [notes, setNotes] = useState("");
@@ -93,10 +95,10 @@ export default function NewQuoteForm({
     }
 
     setSelectedCustomerId(String(editingQuote.customerId));
-    setCustomerSearch(`#${editingQuote.customerId} — ${editingQuote.customerName}`);
+    setCustomerSearch(`#${editingQuote.customerId} - ${editingQuote.customerName}`);
     setTitle(editingQuote.title);
     setDescription(editingQuote.description ?? "");
-    setDiscountType(editingQuote.discountType ?? "Amount");
+    setDiscountType(Number(editingQuote.discountValue || editingQuote.discountTotal || 0) > 0 ? editingQuote.discountType ?? "Amount" : "None");
     setDiscountValue(
       String(
         Number(editingQuote.discountValue || 0) > 0
@@ -141,8 +143,11 @@ export default function NewQuoteForm({
       .filter(customer => {
         const id = String(customer.id);
         const name = customer.name.toLowerCase();
+        const email = customer.email.toLowerCase();
+        const phone = customer.phone.toLowerCase();
+        const address = customer.address.toLowerCase();
 
-        return id.includes(search) || name.includes(search);
+        return [id, name, email, phone, address].some(value => value.includes(search));
       })
       .slice(0, 50);
   }, [customers, customerSearch]);
@@ -188,13 +193,16 @@ export default function NewQuoteForm({
       return;
     }
 
+    const payloadDiscountValue = discountType === "None" ? 0 : Number(discountValue || 0);
+    const payloadDiscountType: QuoteDiscountType = discountType === "Percentage" ? "Percentage" : "Amount";
+
     const payload: NewQuote = {
       customerId: selectedCustomer.id,
       customerName: selectedCustomer.name,
       title: title.trim(),
       description: description.trim() || null,
-      discountType,
-      discountValue: Number(discountValue || 0),
+      discountType: payloadDiscountType,
+      discountValue: payloadDiscountValue,
       discountTotal: totals.discount,
       status,
       notes: notes.trim() || null,
@@ -251,7 +259,7 @@ export default function NewQuoteForm({
 
     const numericDiscountValue = Number(discountValue || 0);
 
-    if (numericDiscountValue < 0) {
+    if (discountType !== "None" && numericDiscountValue < 0) {
       setError("Discount value cannot be negative.");
       return false;
     }
@@ -296,7 +304,7 @@ export default function NewQuoteForm({
 
   function selectCustomer(customer: Customer) {
     setSelectedCustomerId(String(customer.id));
-    setCustomerSearch(`#${customer.id} — ${customer.name}`);
+    setCustomerSearch(`#${customer.id} - ${customer.name}`);
     setCustomerPickerOpen(false);
     setError("");
   }
@@ -307,7 +315,7 @@ export default function NewQuoteForm({
     setCustomerPickerOpen(false);
     setTitle("");
     setDescription("");
-    setDiscountType("Amount");
+    setDiscountType("None");
     setDiscountValue("0");
     setStatus("Draft");
     setNotes("");
@@ -367,7 +375,7 @@ export default function NewQuoteForm({
         <div className="md:col-span-2">
           <Field
             label="Search customer"
-            hint="Start typing a customer name or database ID. Customer ID is filled automatically."
+            hint="Search by name, email, phone, address or customer ID."
           >
             <div
               className="relative"
@@ -384,40 +392,44 @@ export default function NewQuoteForm({
                   setCustomerPickerOpen(true);
                   setError("");
                 }}
-                disabled={loadingCustomers || customers.length === 0}
+                disabled={loadingCustomers}
                 placeholder={
-                  loadingCustomers ? "Loading customers..." : "Search customer name or ID"
+                  loadingCustomers ? "Loading customers..." : "Search customer name, email, phone or ID"
                 }
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600 disabled:bg-slate-100"
               />
 
-              {customerPickerOpen && !loadingCustomers && customers.length > 0 && (
-                <div className="absolute z-20 mt-2 max-h-72 w-full overflow-auto rounded-xl border border-slate-200 bg-white shadow-xl">
+              {customerPickerOpen && !loadingCustomers && (
+                <div className="absolute z-30 mt-2 max-h-80 w-full overflow-auto rounded-xl border border-white/10 bg-slate-950 p-1 shadow-2xl shadow-slate-950/60">
                   {filteredCustomers.length > 0 ? (
                     filteredCustomers.map(customer => (
                       <button
                         key={customer.id}
                         type="button"
                         onMouseDown={event => event.preventDefault()}
+                        onPointerDown={() => selectCustomer(customer)}
                         onClick={() => selectCustomer(customer)}
-                        className="flex w-full items-center justify-between gap-3 border-b border-slate-100 px-4 py-3 text-left text-sm hover:bg-blue-50 last:border-b-0"
+                        className="flex w-full items-start justify-between gap-3 rounded-lg px-4 py-3 text-left text-sm text-slate-200 hover:bg-blue-600/20 focus:bg-blue-600/20 focus:outline-none"
                       >
-                        <span>
-                          <span className="font-semibold text-slate-900">
+                        <span className="min-w-0">
+                          <span className="block truncate font-semibold text-white">
                             {customer.name}
                           </span>
-                          <span className="ml-2 text-xs text-slate-500">
-                            Customer ID #{customer.id}
+                          <span className="mt-1 block truncate text-xs text-slate-400">
+                            #{customer.id} {customer.email || customer.phone || customer.address || "No contact details"}
                           </span>
                         </span>
-                        <span className="text-xs font-semibold text-blue-700">
+                        <span className="shrink-0 text-xs font-semibold text-blue-300">
                           Select
                         </span>
                       </button>
                     ))
                   ) : (
-                    <div className="px-4 py-3 text-sm text-slate-500">
-                      No customers match that search.
+                    <div className="rounded-lg px-4 py-3 text-sm text-slate-300">
+                      <p>No customers found.</p>
+                      <Link to="/customers" className="mt-2 inline-flex font-semibold text-blue-300 hover:text-blue-200">
+                        Add customer
+                      </Link>
                     </div>
                   )}
 
@@ -439,6 +451,21 @@ export default function NewQuoteForm({
             placeholder="Auto-filled after selecting customer"
             className="w-full rounded-lg border border-slate-200 bg-slate-100 px-3 py-2 text-sm text-slate-600"
           />
+        </Field>
+
+        <Field label="Selected customer">
+          <div className="min-h-[42px] rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-slate-300">
+            {selectedCustomer ? (
+              <>
+                <span className="font-semibold text-white">{selectedCustomer.name}</span>
+                <span className="ml-2 text-xs text-slate-400">
+                  {selectedCustomer.email || selectedCustomer.phone || selectedCustomer.address || "No contact details"}
+                </span>
+              </>
+            ) : (
+              "No customer selected"
+            )}
+          </div>
         </Field>
 
         <Field label="Quote status">
@@ -636,31 +663,41 @@ export default function NewQuoteForm({
               <SelectMenu
                 ariaLabel="Discount type"
                 value={discountType}
-                onChange={value =>
-                  setDiscountType(value as QuoteDiscountType)
-                }
+                onChange={value => {
+                  const nextValue = value as DiscountMode;
+                  setDiscountType(nextValue);
+                  if (nextValue === "None") {
+                    setDiscountValue("0");
+                  }
+                }}
                 options={discountTypes.map(type => ({
                   value: type,
-                  label: type === "Amount" ? "GBP amount" : "% percentage",
+                  label: type === "None" ? "No discount" : type === "Amount" ? "£ discount" : "% discount",
                 }))}
               />
             </Field>
 
-            <Field
-              label={
-                discountType === "Amount" ? "Discount value (GBP)" : "Discount value (%)"
-              }
-            >
-              <input
-                type="number"
-                step="1"
-                min="0"
-                max={discountType === "Percentage" ? 100 : undefined}
-                value={discountValue}
-                onChange={event => setDiscountValue(event.target.value)}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-blue-600"
-              />
-            </Field>
+            {discountType === "None" ? (
+              <div className="rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-sm font-medium text-slate-400">
+                No discount applied
+              </div>
+            ) : (
+              <Field
+                label={
+                  discountType === "Amount" ? "Discount value (£)" : "Discount percentage (%)"
+                }
+              >
+                <input
+                  type="number"
+                  step="1"
+                  min="0"
+                  max={discountType === "Percentage" ? 100 : undefined}
+                  value={discountValue}
+                  onChange={event => setDiscountValue(event.target.value)}
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-blue-600"
+                />
+              </Field>
+            )}
           </div>
 
           <div className="mt-4 space-y-2 text-sm">
@@ -688,7 +725,7 @@ export default function NewQuoteForm({
 
         <button
           type="submit"
-          disabled={saving || loadingCustomers || customers.length === 0}
+          disabled={saving || loadingCustomers}
           className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-400"
         >
           {saving ? "Saving..." : editingQuote ? "Update Quote" : "Create Quote"}
@@ -753,14 +790,14 @@ function calculateLineTotal(item: NewQuoteLineItem) {
 }
 
 function calculateDiscountTotal(
-  discountType: QuoteDiscountType,
+  discountType: DiscountMode,
   discountValue: number,
   subtotal: number,
   vatTotal: number
 ) {
   const preDiscountTotal = subtotal + vatTotal;
 
-  if (discountValue <= 0) {
+  if (discountType === "None" || discountValue <= 0) {
     return 0;
   }
 

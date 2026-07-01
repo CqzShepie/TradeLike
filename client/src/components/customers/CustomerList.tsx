@@ -9,18 +9,22 @@ interface CustomerListProps {
   customers: Customer[];
   onDeleteCustomer: (id: number) => void;
   onEditCustomer: (customer: Customer) => void;
+  emptyTitle?: string;
+  emptyDescription?: string;
 }
 
 export default function CustomerList({
   customers,
   onDeleteCustomer,
   onEditCustomer,
+  emptyTitle = "No customers found",
+  emptyDescription = "Try widening your search or add a new customer record to get started.",
 }: CustomerListProps) {
   if (customers.length === 0) {
     return (
       <EmptyState
-        title="No customers found"
-        description="Try widening your search or add a new customer record to get started."
+        title={emptyTitle}
+        description={emptyDescription}
       />
     );
   }

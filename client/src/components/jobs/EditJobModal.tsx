@@ -53,7 +53,7 @@ function EditJobModal({
 
         <div className="space-y-1">
           <label className="text-sm font-medium text-slate-700">
-            Job Title
+            Job needed
           </label>
 
           <Input

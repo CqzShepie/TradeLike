@@ -31,7 +31,7 @@ export function formatShortDate(value: string | Date | null | undefined) {
 
 export function formatLongDate(value: string | Date | null | undefined) {
   const date = value instanceof Date ? value : new Date(value ?? "");
-  if (Number.isNaN(date.getTime())) return "Date not recorded";
+  if (Number.isNaN(date.getTime())) return "No date recorded";
   return date.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
 }
 

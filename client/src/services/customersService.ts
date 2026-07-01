@@ -3,8 +3,15 @@ import type { NewCustomer } from "../types/newCustomer";
 import { apiClient } from "./apiClient";
 
 export const customersService = {
-    getAll: () =>
-        apiClient.get<Customer[]>("/customers"),
+    async getAll() {
+        const response = await apiClient.get<Customer[] | { items?: Customer[]; data?: Customer[]; customers?: Customer[] }>("/customers");
+
+        if (Array.isArray(response)) {
+            return response;
+        }
+
+        return response.items ?? response.data ?? response.customers ?? [];
+    },
 
     getById: (id: number) =>
         apiClient.get<Customer>(`/customers/${id}`),
