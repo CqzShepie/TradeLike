@@ -13,6 +13,22 @@ type ApiErrorBody = {
   errors?: Record<string, string[]>;
 };
 
+export class ApiError extends Error {
+  status: number;
+  details?: unknown;
+
+  constructor(status: number, message: string, details?: unknown) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.details = details;
+  }
+}
+
+export function isApiError(error: unknown): error is ApiError {
+  return error instanceof ApiError;
+}
+
 export function setToken(token: string) {
   localStorage.setItem(TOKEN_KEY, token);
 }
@@ -63,16 +79,12 @@ async function request<T>(
 
   if (response.status === 402) {
     toast.error("Upgrade required");
-
-    if (!window.location.pathname.startsWith("/settings/billing")) {
-      window.location.href = "/settings/billing";
-    }
   }
 
   const responseText = await response.text();
 
   if (!response.ok) {
-    const message = getErrorMessage(responseText, response.status);
+    const { message, details } = getErrorMessage(responseText, response.status);
 
     console.error("API Request Failed", {
       url,
@@ -81,7 +93,7 @@ async function request<T>(
       message,
     });
 
-    throw new Error(message);
+    throw new ApiError(response.status, message, details);
   }
 
   if (response.status === 204 || responseText.trim() === "") {
@@ -93,18 +105,18 @@ async function request<T>(
 
 function getErrorMessage(responseText: string, status: number) {
   if (responseText.trim() === "") {
-    return `Request failed (${status})`;
+    return { message: `Request failed (${status})` };
   }
 
   try {
     const parsed = JSON.parse(responseText) as ApiErrorBody;
 
     if (typeof parsed.error === "string" && parsed.error.trim() !== "") {
-      return parsed.error;
+      return { message: parsed.error, details: parsed };
     }
 
     if (typeof parsed.message === "string" && parsed.message.trim() !== "") {
-      return parsed.message;
+      return { message: parsed.message, details: parsed };
     }
 
     if (parsed.errors) {
@@ -113,18 +125,18 @@ function getErrorMessage(responseText: string, status: number) {
         .find(error => error.trim() !== "");
 
       if (firstError) {
-        return firstError;
+        return { message: firstError, details: parsed };
       }
     }
 
     if (typeof parsed.title === "string" && parsed.title.trim() !== "") {
-      return parsed.title;
+      return { message: parsed.title, details: parsed };
     }
   } catch {
-    return responseText;
+    return { message: responseText };
   }
 
-  return `Request failed (${status})`;
+  return { message: `Request failed (${status})` };
 }
 
 export const apiClient = {

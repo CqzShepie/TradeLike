@@ -38,7 +38,7 @@ export default function WeekGrid({
     });
 
     return (
-        <div className="grid grid-cols-7">
+        <div className="grid min-w-[980px] grid-cols-7 overflow-hidden">
             {days.map(day => {
                 const dayJobs = getJobsForDay(jobs, day);
                 const intensity = getDayIntensity(jobs, day);

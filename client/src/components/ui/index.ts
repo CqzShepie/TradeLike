@@ -16,6 +16,12 @@ export { default as PageLayout } from "./PageLayout";
 export { default as PageShell } from "./PageShell";
 export { default as PanelCard } from "./PanelCard";
 export { default as PriorityBadge } from "./PriorityBadge";
+export {
+  default as ProductPage,
+  ProductPageHeader,
+  ProductPanel,
+  ProductStat,
+} from "./ProductPage";
 export { default as SelectInput } from "./SelectInput";
 export { default as SectionHeader } from "./SectionHeader";
 export { default as StatsGrid } from "./StatsGrid";

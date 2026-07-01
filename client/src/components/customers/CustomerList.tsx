@@ -39,33 +39,33 @@ export default function CustomerList({
       </div>
 
       <TableShell className="hidden md:block">
-        <table className="min-w-full divide-y divide-slate-200">
-          <thead className="bg-slate-50">
+        <table className="min-w-full divide-y divide-white/10">
+          <thead className="bg-white/[0.03]">
             <tr>
-              <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+              <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
                 Customer
               </th>
-              <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+              <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
                 Contact
               </th>
-              <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+              <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
                 Address
               </th>
-              <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+              <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
                 Notes
               </th>
-              <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">
+              <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-400">
                 Actions
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-200 bg-white">
+          <tbody className="divide-y divide-white/10 bg-slate-950/30">
             {customers.map(customer => (
-              <tr key={customer.id} className="transition hover:bg-blue-50/40">
+              <tr key={customer.id} className="transition hover:bg-white/[0.03]">
                 <td className="px-5 py-4 align-top">
                   <Link
                     to={`/customers/${customer.id}`}
-                    className="block font-semibold text-slate-950 transition hover:text-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+                    className="block font-semibold text-white transition hover:text-blue-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
                   >
                     {customer.name}
                   </Link>
@@ -74,19 +74,19 @@ export default function CustomerList({
                   </p>
                 </td>
                 <td className="px-5 py-4 align-top">
-                  <div className="space-y-2 text-sm leading-6 text-slate-600">
+                  <div className="space-y-2 text-sm leading-6 text-slate-300">
                     <p>{customer.phone || "No phone"}</p>
                     <p>{customer.email || "No email"}</p>
                   </div>
                 </td>
-                <td className="px-5 py-4 align-top text-sm leading-6 text-slate-600">
+                <td className="px-5 py-4 align-top text-sm leading-6 text-slate-300">
                   {customer.address || "No address"}
                 </td>
                 <td className="px-5 py-4 align-top">
                   <Badge tone={customer.notes ? "green" : "neutral"}>
                     {customer.notes ? "Has notes" : "No notes"}
                   </Badge>
-                  <p className="mt-2 max-w-md text-sm leading-6 text-slate-600">
+                  <p className="mt-2 max-w-md text-sm leading-6 text-slate-300">
                     {customer.notes?.trim() || "Nothing recorded yet."}
                   </p>
                 </td>

@@ -1,22 +1,17 @@
 import { useEffect, useState } from "react";
-import { BarChart3, Briefcase, CalendarDays, Code2, FileText, LayoutDashboard, Package, Palette, Search, Settings2, UploadCloud, Users, UserCog, Umbrella } from "lucide-react";
-import { NavLink, useNavigate } from "react-router-dom";
+import { Search } from "lucide-react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 
 import Logo from "./Logo";
 import { useGlobalSearch } from "../../contexts/useGlobalSearch";
 import { useAuth } from "../../hooks/useAuth";
-
-type SidebarNavItem = {
-  to: string;
-  label: string;
-  icon: typeof LayoutDashboard;
-  end?: boolean;
-};
+import { getSidebarNavigation, isNavigationItemActive } from "../../routes/navigationConfig";
 
 function Sidebar() {
   const [showHomeConfirm, setShowHomeConfirm] = useState(false);
   const navigate = useNavigate();
-  const { isDirector, isManagerOrDirector } = useAuth();
+  const location = useLocation();
+  const { user } = useAuth();
   const search = useGlobalSearch();
 
   useEffect(() => {
@@ -26,30 +21,7 @@ function Sidebar() {
     };
   }, []);
 
-  const navItems: SidebarNavItem[] = [
-    { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, end: true },
-    { to: "/customers", label: "Customers", icon: Users },
-    { to: "/jobs", label: "Jobs", icon: Briefcase },
-    { to: "/quotes", label: "Quotes", icon: FileText },
-    { to: "/calendar", label: "Calendar", icon: CalendarDays, end: true },
-    ...(isManagerOrDirector
-      ? [
-          { to: "/team", label: "Team", icon: UserCog },
-          { to: "/leave", label: "Leave", icon: Umbrella },
-          { to: "/reports", label: "Reports", icon: BarChart3 },
-          { to: "/reports/overview", label: "Analytics", icon: BarChart3 },
-          { to: "/inventory", label: "Inventory", icon: Package },
-        ]
-      : []),
-    ...(isDirector
-      ? [
-          { to: "/settings/api", label: "API", icon: Code2, end: true },
-          { to: "/settings/branding", label: "Branding", icon: Palette, end: true },
-          { to: "/settings/import-export", label: "Import / Export", icon: UploadCloud, end: true },
-        ]
-      : []),
-    { to: "/settings", label: "Settings", icon: Settings2, end: true },
-  ];
+  const navItems = getSidebarNavigation(user);
 
   function goToHomeScreen() {
     setShowHomeConfirm(false);
@@ -73,37 +45,35 @@ function Sidebar() {
         </button>
 
         <nav className="flex flex-col gap-2">
-          {navItems.map(item => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.end}
-              className={({ isActive }) =>
-                [
+          {navItems.map(item => {
+            const isActive = isNavigationItemActive(item, location.pathname);
+            const Icon = item.icon;
+
+            return (
+              <Link
+                key={item.id}
+                to={item.path}
+                className={[
                   "group flex items-center gap-3 rounded-2xl border px-4 py-3 text-sm font-medium transition",
                   isActive
                     ? "border-blue-500/40 bg-blue-500/15 text-white shadow-sm shadow-blue-950/30"
                     : "border-transparent text-slate-300 hover:border-white/10 hover:bg-white/5 hover:text-white",
-                ].join(" ")
-              }
-            >
-              {({ isActive }) => (
-                <>
-                  <span
-                    className={[
-                      "flex h-10 w-10 items-center justify-center rounded-xl border transition",
-                      isActive
-                        ? "border-blue-500/30 bg-blue-500/20 text-blue-300"
-                        : "border-white/10 bg-slate-900 text-slate-300 group-hover:border-white/15 group-hover:bg-slate-800 group-hover:text-white",
-                    ].join(" ")}
-                  >
-                    <item.icon className="h-5 w-5" />
-                  </span>
-                  <span>{item.label}</span>
-                </>
-              )}
-            </NavLink>
-          ))}
+                ].join(" ")}
+              >
+                <span
+                  className={[
+                    "flex h-10 w-10 items-center justify-center rounded-xl border transition",
+                    isActive
+                      ? "border-blue-500/30 bg-blue-500/20 text-blue-300"
+                      : "border-white/10 bg-slate-900 text-slate-300 group-hover:border-white/15 group-hover:bg-slate-800 group-hover:text-white",
+                  ].join(" ")}
+                >
+                  <Icon className="h-5 w-5" />
+                </span>
+                <span>{item.label}</span>
+              </Link>
+            );
+          })}
         </nav>
       </aside>
 

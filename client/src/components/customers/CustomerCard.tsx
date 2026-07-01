@@ -26,33 +26,33 @@ function CustomerCard({
   }
 
   return (
-    <Card as="article" className="h-full border-slate-200 bg-white shadow-sm transition hover:border-blue-300 hover:shadow-md">
+    <Card as="article" tone="dark" className="h-full border-white/10 bg-slate-950/50 shadow-sm transition hover:border-blue-400/50 hover:shadow-md">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <Badge tone="blue">Customer #{customer.id}</Badge>
 
           <Link
             to={`/customers/${customer.id}`}
-            className="mt-3 block text-lg font-bold text-slate-950 transition hover:text-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+            className="mt-3 block text-lg font-bold text-white transition hover:text-blue-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
           >
             {customer.name}
           </Link>
 
-          <div className="mt-4 space-y-2 text-sm leading-6 text-slate-600">
+          <div className="mt-4 space-y-2 text-sm leading-6 text-slate-300">
             <p>
-              <span className="font-semibold text-slate-900">Phone:</span>{" "}
+              <span className="font-semibold text-slate-100">Phone:</span>{" "}
               {customer.phone || "Not added"}
             </p>
             <p>
-              <span className="font-semibold text-slate-900">Email:</span>{" "}
+              <span className="font-semibold text-slate-100">Email:</span>{" "}
               {customer.email || "Not added"}
             </p>
             <p>
-              <span className="font-semibold text-slate-900">Address:</span>{" "}
+              <span className="font-semibold text-slate-100">Address:</span>{" "}
               {customer.address || "Not added"}
             </p>
             <p className="line-clamp-3">
-              <span className="font-semibold text-slate-900">Notes:</span>{" "}
+              <span className="font-semibold text-slate-100">Notes:</span>{" "}
               {customer.notes?.trim() || "No notes"}
             </p>
           </div>

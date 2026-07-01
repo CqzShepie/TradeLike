@@ -7,12 +7,15 @@ import {
   Badge,
   Card,
   ErrorState,
+  EmptyState,
   LoadingState,
   PageHeader,
   PageLayout,
   SecondaryButton,
 } from "../components/ui";
 import { useDashboardSummary } from "../hooks/useDashboardSummary";
+import AccessDenied from "./AccessDenied";
+import UpgradeRequired from "./UpgradeRequired";
 
 function Dashboard() {
   const { summary, loading, error, refresh } = useDashboardSummary();
@@ -21,6 +24,22 @@ function Dashboard() {
     day: "numeric",
     month: "long",
   });
+  const isEmptySummary = summary &&
+    summary.totalJobs === 0 &&
+    summary.scheduledJobs === 0 &&
+    summary.inProgressJobs === 0 &&
+    summary.completedJobs === 0 &&
+    summary.todayJobs.length === 0 &&
+    summary.upcomingJobs.length === 0 &&
+    summary.recentActivity.length === 0;
+
+  if (error && "status" in error && error.status === 403) {
+    return <AccessDenied />;
+  }
+
+  if (error && "status" in error && error.status === 402) {
+    return <UpgradeRequired />;
+  }
 
   return (
     <PageLayout>
@@ -41,7 +60,7 @@ function Dashboard() {
       {!loading && error && (
         <ErrorState
           title="Unable to load dashboard"
-          description={error}
+          description={error.message}
           action={
             <SecondaryButton type="button" onClick={refresh}>
               Try again
@@ -50,7 +69,14 @@ function Dashboard() {
         />
       )}
 
-      {!loading && !error && summary && (
+      {!loading && !error && isEmptySummary && (
+        <EmptyState
+          title="No dashboard activity yet"
+          description="Add customers and schedule jobs to start filling your command centre with live business activity."
+        />
+      )}
+
+      {!loading && !error && summary && !isEmptySummary && (
         <div className="space-y-8">
           <Card tone="dark" padding="lg" className="overflow-hidden">
             <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">

@@ -1,18 +1,19 @@
 import { useCallback, useEffect, useState } from "react";
+import { ApiError, isApiError } from "../services/apiClient";
 import { dashboardService } from "../services/dashboardService";
 import type { DashboardSummary } from "../types/dashboard";
 
 interface UseDashboardSummaryResult {
     summary: DashboardSummary | null;
     loading: boolean;
-    error: string | null;
+    error: ApiError | Error | null;
     refresh: () => Promise<void>;
 }
 
 export function useDashboardSummary(): UseDashboardSummaryResult {
     const [summary, setSummary] = useState<DashboardSummary | null>(null);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+    const [error, setError] = useState<ApiError | Error | null>(null);
 
     const loadSummary = useCallback(async () => {
         try {
@@ -22,8 +23,8 @@ export function useDashboardSummary(): UseDashboardSummaryResult {
             const data = await dashboardService.getSummary();
 
             setSummary(data);
-        } catch {
-            setError("Unable to load dashboard.");
+        } catch (err) {
+            setError(isApiError(err) ? err : new Error("Unable to load dashboard."));
             setSummary(null);
         } finally {
             setLoading(false);
@@ -39,9 +40,9 @@ export function useDashboardSummary(): UseDashboardSummaryResult {
                     setSummary(data);
                 }
             })
-            .catch(() => {
+            .catch((err) => {
                 if (isMounted) {
-                    setError("Unable to load dashboard.");
+                    setError(isApiError(err) ? err : new Error("Unable to load dashboard."));
                     setSummary(null);
                 }
             })

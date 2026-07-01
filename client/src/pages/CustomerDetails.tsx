@@ -162,7 +162,7 @@ export default function CustomerDetails() {
   void auditVersion;
 
   return (
-    <main className="flex min-h-screen bg-slate-50">
+    <main className="flex min-h-screen bg-slate-950 text-slate-100">
       <Sidebar />
       <section className="flex-1 p-10">
         <div className="mb-6"><Link to="/customers" className="text-sm font-medium text-blue-400 hover:underline">Back to Customers</Link></div>
@@ -170,9 +170,9 @@ export default function CustomerDetails() {
         {!loading && error && <Alert tone="error" onClose={() => setError("")}>{error}</Alert>}
         {!loading && !error && customer && form && (
           <div className="space-y-6">
-            <header className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+            <header className="rounded-2xl border border-white/10 bg-slate-900/80 p-6 shadow-2xl shadow-slate-950/20">
               <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
-                <div><p className="text-xs font-semibold uppercase tracking-wide text-blue-600">Customer ID {customer.id}</p><h1 className="mt-1 text-3xl font-bold text-slate-900">{customer.name}</h1><p className="mt-2 text-sm text-slate-600">{customer.email || "No email"} Â· {formatPhone(customer.phone) || "No phone"}</p></div>
+                <div><p className="text-xs font-semibold uppercase tracking-wide text-blue-300">Customer ID {customer.id}</p><h1 className="mt-1 text-3xl font-bold text-white">{customer.name}</h1><p className="mt-2 text-sm text-slate-300">{customer.email || "No email"} - {formatPhone(customer.phone) || "No phone"}</p></div>
                 <div className="grid gap-3 sm:grid-cols-4"><MiniStat label="Open jobs" value={openJobs.length} /><MiniStat label="Previous jobs" value={previousJobs.length} /><MiniStat label="Quotes" value={quotes.length} /><MiniStat label="Invoice value" value={formatCurrency(invoiceTotal)} /></div>
               </div>
               <div className="mt-6 flex flex-wrap gap-2">{tabs.map(tab => <button key={tab.id} type="button" onClick={() => setActiveTab(tab.id)} className={`rounded-full px-4 py-2 text-sm font-semibold ${activeTab === tab.id ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"}`}>{tab.label}</button>)}</div>
@@ -201,13 +201,13 @@ function JobGroup({ title, jobs, onInvoice }: { title: string; jobs: Job[]; onIn
 
 function isPreviousJob(job: Job) { const today = new Date(); today.setHours(0, 0, 0, 0); return job.status === "Completed" || job.status === "Cancelled" || new Date(job.scheduledDate) < today; }
 function readPinned() { try { return JSON.parse(localStorage.getItem(pinnedKey) ?? "[]") as string[]; } catch { return []; } }
-function Panel({ title, children }: { title: string; children: ReactNode }) { return <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"><h2 className="text-xl font-bold text-slate-900">{title}</h2><div className="mt-5">{children}</div></section>; }
-function Field({ label, children }: { label: string; children: ReactNode }) { return <label className="block"><span className="mb-1 block text-sm font-medium text-slate-700">{label}</span>{children}</label>; }
-function Input({ value, onChange }: { value: string; onChange: (value: string) => void }) { return <input value={value} onChange={event => onChange(event.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600" />; }
-function Snapshot({ label, value }: { label: string; value: string }) { return <div><p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{label}</p><p className="mt-1 font-medium text-slate-900">{value}</p></div>; }
-function MiniStat({ label, value, onClick }: { label: string | number; value: string | number; onClick?: () => void }) { const content = <><p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{label}</p><p className="mt-1 text-lg font-bold text-slate-900">{value}</p></>; return onClick ? <button type="button" onClick={onClick} className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-left hover:bg-white">{content}</button> : <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">{content}</div>; }
-function Badge({ children }: { children: ReactNode }) { return <span className="inline-flex h-fit w-fit rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">{children}</span>; }
-function EmptyState({ children }: { children: ReactNode }) { return <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-6 text-sm text-slate-600">{children}</div>; }
-function Alert({ tone, children, onClose }: { tone: "success" | "error"; children: ReactNode; onClose: () => void }) { return <div className={`flex items-start justify-between gap-4 rounded-xl border p-4 text-sm font-medium ${tone === "success" ? "border-green-200 bg-green-50 text-green-700" : "border-red-200 bg-red-50 text-red-700"}`}><span>{children}</span><button type="button" onClick={onClose} className="rounded px-2 text-lg leading-none hover:bg-white/70">Ã—</button></div>; }
+function Panel({ title, children }: { title: string; children: ReactNode }) { return <section className="rounded-2xl border border-white/10 bg-slate-900/80 p-6 shadow-2xl shadow-slate-950/20 [&_.bg-slate-50]:!bg-slate-950/50 [&_.border-slate-200]:!border-white/10 [&_.divide-slate-200>*]:!border-white/10 [&_.text-slate-400]:!text-slate-500 [&_.text-slate-500]:!text-slate-400 [&_.text-slate-600]:!text-slate-300 [&_.text-slate-700]:!text-slate-200 [&_.text-slate-900]:!text-white"><h2 className="text-xl font-bold text-white">{title}</h2><div className="mt-5">{children}</div></section>; }
+function Field({ label, children }: { label: string; children: ReactNode }) { return <label className="block"><span className="mb-1 block text-sm font-medium text-slate-300">{label}</span>{children}</label>; }
+function Input({ value, onChange }: { value: string; onChange: (value: string) => void }) { return <input value={value} onChange={event => onChange(event.target.value)} className="w-full rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/40" />; }
+function Snapshot({ label, value }: { label: string; value: string }) { return <div><p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{label}</p><p className="mt-1 font-medium text-slate-100">{value}</p></div>; }
+function MiniStat({ label, value, onClick }: { label: string | number; value: string | number; onClick?: () => void }) { const content = <><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</p><p className="mt-1 text-lg font-bold text-white">{value}</p></>; return onClick ? <button type="button" onClick={onClick} className="rounded-lg border border-white/10 bg-white/[0.04] p-4 text-left hover:bg-white/10">{content}</button> : <div className="rounded-lg border border-white/10 bg-white/[0.04] p-4">{content}</div>; }
+function Badge({ children }: { children: ReactNode }) { return <span className="inline-flex h-fit w-fit rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 text-xs font-semibold text-slate-100">{children}</span>; }
+function EmptyState({ children }: { children: ReactNode }) { return <div className="rounded-lg border border-dashed border-white/10 bg-slate-950/50 p-6 text-sm text-slate-400">{children}</div>; }
+function Alert({ tone, children, onClose }: { tone: "success" | "error"; children: ReactNode; onClose: () => void }) { return <div className={`flex items-start justify-between gap-4 rounded-xl border p-4 text-sm font-medium ${tone === "success" ? "border-green-400/30 bg-green-950/30 text-green-100" : "border-red-400/30 bg-red-950/30 text-red-100"}`}><span>{children}</span><button type="button" onClick={onClose} className="rounded px-2 text-lg leading-none hover:bg-white/10">x</button></div>; }
 
 

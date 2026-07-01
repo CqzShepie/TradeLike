@@ -119,15 +119,15 @@ export default function NewCustomerForm({
   }
 
   return (
-    <Card as="section" padding="lg" className="border-slate-200 bg-white shadow-sm">
+    <Card as="section" tone="dark" padding="lg" className="border-white/10 bg-slate-900/80 shadow-2xl shadow-slate-950/20">
       <div className="mb-6">
-        <p className="text-sm font-semibold uppercase tracking-wide text-blue-700">
+        <p className="text-sm font-semibold uppercase tracking-wide text-blue-300">
           {editingCustomer ? "Edit customer" : "New customer"}
         </p>
-        <h2 className="mt-2 text-2xl font-bold tracking-tight text-slate-950">
+        <h2 className="mt-2 text-2xl font-bold tracking-tight text-white">
           {editingCustomer ? editingCustomer.name : "Add customer"}
         </h2>
-        <p className="mt-2 text-sm leading-6 text-slate-500">
+        <p className="mt-2 text-sm leading-6 text-slate-400">
           Add contact details, address and notes in one place.
         </p>
       </div>
