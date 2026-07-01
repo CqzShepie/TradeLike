@@ -29,6 +29,12 @@ public sealed class ElasticSyncHostedService : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        if (!_configuration.GetValue("Features:ElasticSearch:Enabled", true))
+        {
+            _logger.LogInformation("Elasticsearch sync disabled: feature disabled");
+            return;
+        }
+
         var client = new ElasticSearchClient(
             _httpClientFactory.CreateClient(nameof(ElasticSyncHostedService)),
             _configuration,
@@ -36,7 +42,7 @@ public sealed class ElasticSyncHostedService : BackgroundService
 
         if (!client.IsConfigured)
         {
-            _logger.LogInformation("Elasticsearch sync is disabled because ELASTIC_URI or ELASTIC_API_KEY is missing.");
+            _logger.LogInformation("Elasticsearch sync disabled: missing config");
             return;
         }
 

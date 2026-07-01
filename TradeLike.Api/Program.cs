@@ -36,7 +36,8 @@ Log.Logger = new LoggerConfiguration()
 var builder = WebApplication.CreateBuilder(args);
 
 var keyVaultUri = builder.Configuration["AZURE_VAULT_URI"];
-if (!string.IsNullOrWhiteSpace(keyVaultUri))
+if (builder.Configuration.GetValue("Features:KeyVault:Enabled", true) &&
+    !string.IsNullOrWhiteSpace(keyVaultUri))
 {
     builder.Configuration.AddAzureKeyVault(
         new Uri(keyVaultUri),
@@ -131,7 +132,12 @@ builder.Services.AddHttpClient();
 builder.Services.AddHealthChecks()
     .AddCheck<SqlHealthCheck>("sql")
     .AddCheck<KeyVaultHealthCheck>("key_vault")
-    .AddCheck<StripeHealthCheck>("stripe");
+    .AddCheck<StripeHealthCheck>("stripe")
+    .AddCheck<ElasticSearchHealthCheck>("elasticsearch")
+    .AddCheck<ServiceBusHealthCheck>("service_bus")
+    .AddCheck<SendGridHealthCheck>("sendgrid")
+    .AddCheck<TwilioHealthCheck>("twilio")
+    .AddCheck<ExternalServicesHealthCheck>("external_services");
 builder.Services.Configure<HealthCheckPublisherOptions>(options =>
 {
     options.Delay = TimeSpan.FromSeconds(15);
