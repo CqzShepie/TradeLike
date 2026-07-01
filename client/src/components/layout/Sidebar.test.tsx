@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { BrowserRouter } from "react-router-dom";
 
 import Sidebar from "./Sidebar";
+import { GlobalSearchProvider } from "../../contexts/GlobalSearchContext";
 import type { AuthUser } from "../../services/authService";
 
 const employeeUser: AuthUser = {
@@ -49,7 +50,9 @@ describe("Sidebar", () => {
 
     render(
       <BrowserRouter>
-        <Sidebar />
+        <GlobalSearchProvider>
+          <Sidebar />
+        </GlobalSearchProvider>
       </BrowserRouter>
     );
 
