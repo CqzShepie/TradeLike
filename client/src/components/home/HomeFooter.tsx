@@ -6,7 +6,7 @@ export default function HomeFooter() {
     <footer className="border-t border-slate-800 bg-slate-950 px-5 py-8 sm:px-6">
       <div className="mx-auto flex max-w-7xl flex-col gap-5 text-sm text-slate-400 md:flex-row md:items-center md:justify-between">
         <div>
-          <Logo />
+          <Logo tone="dark" />
           <p className="mt-2 max-w-xl">
             Job, quote, customer and scheduling software for UK trade businesses.
           </p>
