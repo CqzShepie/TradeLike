@@ -1,37 +1,20 @@
-import type { JobStatus } from "../../types/job";
-import type { QuoteStatus } from "../../types/quote";
+import type { ReactNode } from "react";
 
-type StatusBadgeStatus = JobStatus | QuoteStatus;
-
-interface StatusBadgeProps {
-  status: StatusBadgeStatus;
-}
-
-const styles: Record<StatusBadgeStatus, string> = {
-  Scheduled: "bg-blue-100 text-blue-700",
-  InProgress: "bg-amber-100 text-amber-700",
-  Completed: "bg-green-100 text-green-700",
-  Cancelled: "bg-red-100 text-red-700",
-  Draft: "bg-slate-100 text-slate-700",
-  Sent: "bg-blue-100 text-blue-700",
-  Accepted: "bg-green-100 text-green-700",
-  Rejected: "bg-red-100 text-red-700",
+type StatusBadgeProps = {
+  children?: ReactNode;
+  status?: string;
 };
 
-function StatusBadge({ status }: StatusBadgeProps) {
+export default function StatusBadge({ children, status }: StatusBadgeProps) {
+  const value = children ?? formatStatus(status ?? "");
+
   return (
-    <span
-      className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
-        styles[status]
-      }`}
-    >
-      {formatStatus(status)}
+    <span className="inline-flex h-fit w-fit rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+      {value}
     </span>
   );
 }
 
-function formatStatus(status: StatusBadgeStatus) {
-  return status === "InProgress" ? "In Progress" : status;
+function formatStatus(value: string) {
+  return value === "InProgress" ? "In Progress" : value;
 }
-
-export default StatusBadge;
