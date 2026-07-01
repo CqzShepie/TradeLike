@@ -92,6 +92,10 @@ function Customers() {
       return;
     }
 
+    openCustomerForm();
+  }
+
+  function openCustomerForm() {
     setShowForm(true);
   }
 
@@ -196,6 +200,14 @@ function Customers() {
                     }}
                     emptyTitle={customers.length === 0 ? "Add your first customer" : "No customers found"}
                     emptyDescription={customers.length === 0 ? "Create a customer record to start building your directory." : "Try widening your search or add a new customer record."}
+                    emptyAction={customers.length === 0 ? (
+                      <PrimaryButton type="button" onClick={openCustomerForm}>
+                        <span className="inline-flex items-center gap-2">
+                          <Plus className="h-4 w-4" />
+                          Add customer
+                        </span>
+                      </PrimaryButton>
+                    ) : null}
                   />
                 </div>
               </Card>

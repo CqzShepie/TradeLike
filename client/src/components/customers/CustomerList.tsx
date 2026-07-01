@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import type { ReactNode } from "react";
 
 import CustomerCard from "./CustomerCard";
 import { Badge, DangerButton, EmptyState, SecondaryButton, TableShell } from "../ui";
@@ -11,6 +12,7 @@ interface CustomerListProps {
   onEditCustomer: (customer: Customer) => void;
   emptyTitle?: string;
   emptyDescription?: string;
+  emptyAction?: ReactNode;
 }
 
 export default function CustomerList({
@@ -19,12 +21,14 @@ export default function CustomerList({
   onEditCustomer,
   emptyTitle = "No customers found",
   emptyDescription = "Try widening your search or add a new customer record to get started.",
+  emptyAction,
 }: CustomerListProps) {
   if (customers.length === 0) {
     return (
       <EmptyState
         title={emptyTitle}
         description={emptyDescription}
+        action={emptyAction}
       />
     );
   }

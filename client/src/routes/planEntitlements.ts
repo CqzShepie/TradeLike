@@ -167,6 +167,12 @@ export function roleAllowsFeature(role: UserRole | null | undefined, feature: Pl
   return featureRoles[feature].includes(resolveRole(role));
 }
 
+export function canUseStaffScheduling(user: Pick<AuthUser, "plan" | "role"> | null | undefined) {
+  return Boolean(user) &&
+    planIncludesFeature(user?.plan, "staff-scheduling") &&
+    roleAllowsFeature(user?.role, "staff-scheduling");
+}
+
 export function canAccessRoute(user: AuthUser | null, routeConfig: EntitlementRouteConfig): AccessDecision {
   if (!user) {
     return "denied";

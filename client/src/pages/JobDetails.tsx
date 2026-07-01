@@ -9,6 +9,8 @@ import { jobsService } from "../services/jobsService";
 import { formatDateTime, formatPhone, toDateTimeLocalValue } from "../utils/inputFormatters";
 import { createStoredNote, parseStoredNote, splitStoredNotes } from "../utils/jobNotes";
 import { authService } from "../services/authService";
+import { useAuth } from "../hooks/useAuth";
+import { canUseStaffScheduling } from "../routes/planEntitlements";
 
 const statuses: JobStatus[] = ["Scheduled", "InProgress", "Completed", "Cancelled"];
 const priorities: JobPriority[] = ["Low", "Normal", "High", "Urgent"];
@@ -22,6 +24,8 @@ export default function JobDetails() {
   const [newNote, setNewNote] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const { user } = useAuth();
+  const showStaffScheduling = canUseStaffScheduling(user);
 
   useEffect(() => {
     const jobId = Number(id);
@@ -192,7 +196,7 @@ export default function JobDetails() {
           </ProductPanel>
 
           <aside className="space-y-6">
-            <JobDetailsAssignmentPanel job={job} />
+            {showStaffScheduling && <JobDetailsAssignmentPanel job={job} />}
             <ProductPanel>
               <h2 className="text-lg font-bold text-white">Quote link</h2>
               <form onSubmit={linkQuote} className="mt-4 flex gap-2">

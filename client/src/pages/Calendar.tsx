@@ -8,13 +8,11 @@ import {
   ProductStat,
 } from "../components/ui";
 import { useAuth } from "../hooks/useAuth";
-import { planIncludesFeature, roleAllowsFeature } from "../routes/planEntitlements";
+import { canUseStaffScheduling } from "../routes/planEntitlements";
 
 export default function CalendarPage() {
   const { user } = useAuth();
-  const canUseStaffScheduling =
-    planIncludesFeature(user?.plan, "staff-scheduling") &&
-    roleAllowsFeature(user?.role, "staff-scheduling");
+  const showStaffScheduling = canUseStaffScheduling(user);
 
   return (
     <ProductPage maxWidth="full">
@@ -28,8 +26,8 @@ export default function CalendarPage() {
         <ProductStat label="Week view" value="7 days" helper="Monday to Sunday planning" icon={<CalendarDays className="h-5 w-5" />} />
         <ProductStat
           label="Route tools"
-          value={canUseStaffScheduling ? "Ready" : "Team+"}
-          helper={canUseStaffScheduling ? "available from the dispatch board" : "staff scheduling unlocks on Team"}
+          value={showStaffScheduling ? "Ready" : "Team+"}
+          helper={showStaffScheduling ? "available from the dispatch board" : "staff scheduling unlocks on Team"}
           icon={<Route className="h-5 w-5" />}
         />
       </section>
