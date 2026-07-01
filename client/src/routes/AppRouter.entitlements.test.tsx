@@ -94,6 +94,17 @@ describe("AppRouter entitlement guards", () => {
     expect(screen.getByRole("heading", { name: expectedHeading })).toBeInTheDocument();
   });
 
+  it.each(["Director", "Customer", "CustomerDirector"] as const)(
+    "allows a Solo legacy %s user to visit /jobs",
+    role => {
+      setSession({ ...soloDirector, role });
+
+      renderRouter("/jobs");
+
+      expect(screen.getByRole("heading", { name: "Jobs page" })).toBeInTheDocument();
+    }
+  );
+
   it("shows UpgradeRequired when a Solo user visits Team directly", () => {
     setSession(soloDirector);
 

@@ -65,9 +65,9 @@ export type NavigationItem = {
   children?: NavigationItem[];
 };
 
-const employeeRoles: UserRole[] = ["CustomerEmployee", "CustomerManager", "CustomerDirector", "Customer", "Director"];
-const managerRoles: UserRole[] = ["CustomerManager", "CustomerDirector", "Customer", "Director"];
-const directorRoles: UserRole[] = ["CustomerDirector", "Director"];
+const employeeRoles: UserRole[] = ["CustomerEmployee", "CustomerManager", "CustomerDirector"];
+const managerRoles: UserRole[] = ["CustomerManager", "CustomerDirector"];
+const directorRoles: UserRole[] = ["CustomerDirector"];
 
 export const navigationConfig: NavigationItem[] = [
   { id: "dashboard", label: "Dashboard", path: "/dashboard", icon: LayoutDashboard, group: "main", feature: "dashboard", exactMatch: true, minimumPlan: "Solo", requiredRoles: employeeRoles },

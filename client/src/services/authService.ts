@@ -71,6 +71,28 @@ export interface LoginResponse {
   user: AuthUser;
 }
 
+export function normalizeUserRole(role: UserRole | string | null | undefined): UserRole {
+  const normalized = String(role ?? "").trim().toLowerCase();
+
+  switch (normalized) {
+    case "customerdirector":
+    case "customer director":
+    case "director":
+    case "customer":
+      return "CustomerDirector";
+    case "customermanager":
+    case "customer manager":
+      return "CustomerManager";
+    case "customeremployee":
+    case "customer employee":
+      return "CustomerEmployee";
+    case "staff":
+      return "Staff";
+    default:
+      return role ? (role as UserRole) : "CustomerEmployee";
+  }
+}
+
 function saveSession(response: LoginResponse) {
   localStorage.setItem("tradelike_token", response.token);
   localStorage.setItem("tradelike_user", JSON.stringify(response.user));
@@ -174,15 +196,16 @@ export const authService = {
       return false;
     }
 
-    return !["Customer", "CustomerDirector", "CustomerManager", "CustomerEmployee"].includes(user.role);
+    return !["CustomerDirector", "CustomerManager", "CustomerEmployee"].includes(normalizeUserRole(user.role));
   },
 
   isDirector(user = readStoredUser()) {
-    return user?.role === "CustomerDirector" || user?.role === "Director";
+    return normalizeUserRole(user?.role) === "CustomerDirector";
   },
 
   isManagerOrDirector(user = readStoredUser()) {
-    return user?.role === "CustomerManager" || user?.role === "CustomerDirector" || user?.role === "Customer" || user?.role === "Director";
+    const role = normalizeUserRole(user?.role);
+    return role === "CustomerManager" || role === "CustomerDirector";
   },
 
   hasPermission(permission: keyof AuthUser, user = readStoredUser()) {
@@ -190,7 +213,7 @@ export const authService = {
       return false;
     }
 
-    if (user.role === "Director" || user.role === "CustomerDirector") {
+    if (normalizeUserRole(user.role) === "CustomerDirector") {
       return true;
     }
 

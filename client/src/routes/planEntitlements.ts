@@ -1,4 +1,4 @@
-import type { AuthUser, UserRole } from "../services/authService";
+import { normalizeUserRole, type AuthUser, type UserRole } from "../services/authService";
 
 export type PlanName = "Solo" | "Team" | "Business" | "Enterprise";
 
@@ -93,18 +93,14 @@ const customerEmployeeRoles: UserRole[] = [
   "CustomerEmployee",
   "CustomerManager",
   "CustomerDirector",
-  "Customer",
-  "Director",
 ];
 
 const customerManagerRoles: UserRole[] = [
   "CustomerManager",
   "CustomerDirector",
-  "Customer",
-  "Director",
 ];
 
-const customerDirectorRoles: UserRole[] = ["CustomerDirector", "Director"];
+const customerDirectorRoles: UserRole[] = ["CustomerDirector"];
 
 const featureRoles: Record<PlanFeature, UserRole[]> = {
   dashboard: customerEmployeeRoles,
@@ -193,6 +189,5 @@ export function canAccessRoute(user: AuthUser | null, routeConfig: EntitlementRo
 }
 
 function resolveRole(role: UserRole | null | undefined): UserRole {
-  // TODO: Replace this defensive fallback with /api/auth/me when available.
-  return role ?? "CustomerEmployee";
+  return normalizeUserRole(role);
 }
