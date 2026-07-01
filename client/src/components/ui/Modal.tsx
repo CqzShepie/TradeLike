@@ -1,26 +1,33 @@
+import type { ReactNode } from "react";
+
 type ModalProps = {
   title: string;
-  children: React.ReactNode;
+  children: ReactNode;
   onClose: () => void;
 };
 
 function Modal({ title, children, onClose }: ModalProps) {
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-black/40">
-      <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold">{title}</h2>
-
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4">
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modal-title"
+        className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 shadow-xl"
+      >
+        <div className="mb-4 flex items-center justify-between gap-4">
+          <h2 id="modal-title" className="text-lg font-bold text-slate-950">{title}</h2>
           <button
+            type="button"
             onClick={onClose}
-            className="text-slate-500 hover:text-slate-800"
+            aria-label="Close modal"
+            className="rounded-md px-2 py-1 text-sm font-bold text-slate-500 hover:bg-slate-100 hover:text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
           >
-            ✕
+            x
           </button>
         </div>
-
         {children}
-      </div>
+      </section>
     </div>
   );
 }

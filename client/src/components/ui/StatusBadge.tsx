@@ -1,18 +1,31 @@
 import type { ReactNode } from "react";
+import Badge from "./Badge";
 
 type StatusBadgeProps = {
   children?: ReactNode;
   status?: string;
 };
 
-export default function StatusBadge({ children, status }: StatusBadgeProps) {
-  const value = children ?? formatStatus(status ?? "");
+const toneByStatus: Record<string, "neutral" | "blue" | "green" | "amber" | "red"> = {
+  active: "green",
+  accepted: "green",
+  completed: "green",
+  scheduled: "blue",
+  sent: "blue",
+  draft: "neutral",
+  trial: "blue",
+  pastdue: "amber",
+  suspended: "amber",
+  urgent: "red",
+  cancelled: "red",
+  rejected: "red",
+};
 
-  return (
-    <span className="inline-flex h-fit w-fit rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
-      {value}
-    </span>
-  );
+export default function StatusBadge({ children, status }: StatusBadgeProps) {
+  const rawValue = String(children ?? status ?? "");
+  const tone = toneByStatus[rawValue.replace(/\s/g, "").toLowerCase()] ?? "neutral";
+
+  return <Badge tone={tone}>{formatStatus(rawValue)}</Badge>;
 }
 
 function formatStatus(value: string) {
