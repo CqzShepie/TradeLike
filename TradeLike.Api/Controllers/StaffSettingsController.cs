@@ -17,7 +17,8 @@ public class StaffSettingsController : ControllerBase
     [
         "Full access",
         "Customer records",
-        "Customer notes",
+        "Add/View Customer Notes",
+        "Manage Customer Notes",
         "Jobs and scheduling",
         "Quotes and invoices",
         "Payments",
@@ -34,6 +35,7 @@ public class StaffSettingsController : ControllerBase
     private static readonly Dictionary<string, string?> LegacyPermissionLabels = new(StringComparer.OrdinalIgnoreCase)
     {
         ["Customer accounts"] = "Customer records",
+        ["Add/View Customer Notes"] = "Add/View Customer Notes",
         ["Billing and subscriptions"] = "Payments",
         ["Discounts and free months"] = "Offers and promotions",
         ["Password resets"] = "Staff password resets",
@@ -63,15 +65,18 @@ public class StaffSettingsController : ControllerBase
     [
         ("Director / Owner", "Leadership", ["Full access"]),
         ("Office Manager", "Admin & Operations", ["Customer records", "Jobs and scheduling", "Quotes and invoices", "Payments", "Staff invites", "Business settings"]),
-        ("Operations Coordinator", "Admin & Operations", ["Customer records", "Jobs and scheduling", "Customer notes"]),
-        ("Scheduler / Dispatcher", "Scheduling & Dispatch", ["Jobs and scheduling", "Customer records", "Customer notes"]),
-        ("Customer Support", "Customer Support", ["Customer records", "Customer notes", "Staff password resets", "Email customers"]),
-        ("Lead Engineer", "Field Supervisors", ["Jobs and scheduling", "Customer notes", "Quotes and invoices"]),
-        ("Engineer", "Engineers", ["Jobs and scheduling", "Customer notes"]),
+        ("Operations Coordinator", "Admin & Operations", ["Customer records", "Jobs and scheduling", "Add/View Customer Notes"]),
+        ("Scheduler / Dispatcher", "Scheduling & Dispatch", ["Jobs and scheduling", "Customer records", "Add/View Customer Notes"]),
+        ("Customer Support", "Customer Support", ["Customer records", "Add/View Customer Notes",
+        "Manage Customer Notes", "Staff password resets", "Email customers"]),
+        ("Lead Engineer", "Field Supervisors", ["Jobs and scheduling", "Add/View Customer Notes",
+        "Manage Customer Notes", "Quotes and invoices"]),
+        ("Engineer", "Engineers", ["Jobs and scheduling", "Add/View Customer Notes"]),
         ("Apprentice / Junior Engineer", "Engineers", ["Jobs and scheduling"]),
         ("Accounts / Payments", "Accounts & Payments", ["Quotes and invoices", "Payments", "Reports and exports"]),
-        ("Marketing", "Marketing", ["Offers and promotions", "Email customers", "Customer notes"]),
-        ("Personal Assistant", "Personal Assistants", ["Customer records", "Customer notes", "Jobs and scheduling"]),
+        ("Marketing", "Marketing", ["Offers and promotions", "Email customers", "Add/View Customer Notes"]),
+        ("Personal Assistant", "Personal Assistants", ["Customer records", "Add/View Customer Notes",
+        "Manage Customer Notes", "Jobs and scheduling"]),
         ("Subcontractor", "Subcontractors", ["Jobs and scheduling"])
     ];
 
@@ -567,3 +572,4 @@ public class StaffSettingsController : ControllerBase
         DateTime? UpdatedAt,
         List<string> Permissions);
 }
+

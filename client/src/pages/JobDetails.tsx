@@ -1,9 +1,8 @@
 import { Link, useParams } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
-import type { FormEvent, ReactNode } from "react";
+import type { FormEvent } from "react";
 import Sidebar from "../components/layout/Sidebar";
 import JobDetailsAssignmentPanel from "../components/jobs/JobDetailsAssignmentPanel";
-import { authService } from "../services/authService";
 import type { Job, JobPriority, JobStatus } from "../types/job";
 import { jobsService } from "../services/jobsService";
 
@@ -74,9 +73,7 @@ export default function JobDetails() {
   async function addNote() {
     const value = newNote.trim();
     if (!value) return;
-    const user = authService.getUser();
-    const staffName = user?.name || user?.email || "Unknown employee";
-    await saveNotes([createStoredNote(staffName, value), ...notes]);
+    await saveNotes([`${new Date().toLocaleString("en-GB")} — ${value}`, ...notes]);
     setNewNote("");
     setMessage("Note added.");
   }
@@ -93,19 +90,19 @@ function NoteCard({ note, onRemove }: { note: string; onRemove: () => void }) {
   const parsed = parseStoredNote(note);
   return <div className="relative rounded-lg border border-slate-200 bg-white p-4 pr-24 text-sm text-slate-700"><button type="button" onClick={onRemove} className="absolute right-3 top-3 rounded border border-red-200 px-2 py-1 text-xs font-semibold text-red-600 hover:bg-red-50">Remove</button><p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{parsed.author}</p><p className="mt-1 text-sm font-bold text-slate-900">{parsed.dateLabel}</p><p className="mt-3 whitespace-pre-wrap leading-6 text-slate-700">{parsed.body}</p></div>;
 }
-
 function JobEditForm({ form, setForm, onSubmit }: { form: Job; setForm: (job: Job) => void; onSubmit: (event: FormEvent) => void }) {
-  return <form onSubmit={onSubmit} className="mt-6 grid gap-4 md:grid-cols-2"><Field label="Job title"><Input value={form.jobTitle} onChange={value => setForm({ ...form, jobTitle: value })} /></Field><Field label="Customer"><Input value={form.customer} onChange={value => setForm({ ...form, customer: value })} /></Field><Field label="Phone"><Input value={form.phone} onChange={value => setForm({ ...form, phone: value })} /></Field><Field label="Scheduled"><input type="datetime-local" value={toDateTimeLocalValue(form.scheduledDate)} onChange={event => setForm({ ...form, scheduledDate: event.target.value })} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" /></Field><Field label="Status"><select value={form.status} onChange={event => setForm({ ...form, status: event.target.value as JobStatus })} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">{statuses.map(status => <option key={status} value={status}>{status === "InProgress" ? "In Progress" : status}</option>)}</select></Field><Field label="Priority"><select value={form.priority} onChange={event => setForm({ ...form, priority: event.target.value as JobPriority })} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">{priorities.map(priority => <option key={priority} value={priority}>{priority}</option>)}</select></Field><div className="md:col-span-2"><Field label="Address"><Input value={form.address} onChange={value => setForm({ ...form, address: value })} /></Field></div><div className="md:col-span-2"><button type="submit" className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white">Save job</button></div></form>;
+  return <form onSubmit={onSubmit} className="mt-6 grid gap-4 md:grid-cols-2"><Field label="Job title"><Input value={form.jobTitle} onChange={value => setForm({ ...form, jobTitle: value })} /></Field><Field label="Customer"><Input value={form.customer} onChange={value => setForm({ ...form, customer: value })} /></Field><Field label="Phone"><Input value={form.phone} onChange={value => setForm({ ...form, phone: formatPhone(value) })} /></Field><Field label="Scheduled"><input type="datetime-local" value={toDateTimeLocalValue(form.scheduledDate)} onChange={event => setForm({ ...form, scheduledDate: event.target.value })} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" /></Field><Field label="Status"><select value={form.status} onChange={event => setForm({ ...form, status: event.target.value as JobStatus })} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">{statuses.map(status => <option key={status} value={status}>{status === "InProgress" ? "In Progress" : status}</option>)}</select></Field><Field label="Priority"><select value={form.priority} onChange={event => setForm({ ...form, priority: event.target.value as JobPriority })} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">{priorities.map(priority => <option key={priority} value={priority}>{priority}</option>)}</select></Field><div className="md:col-span-2"><Field label="Address"><Input value={form.address} onChange={value => setForm({ ...form, address: value })} /></Field></div><div className="md:col-span-2"><button type="submit" className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white">Save job</button></div></form>;
 }
 
-function Field({ label, children }: { label: string; children: ReactNode }) { return <label className="block"><span className="mb-1 block text-sm font-medium text-slate-700">{label}</span>{children}</label>; }
+function Field({ label, children }: { label: string; children: React.ReactNode }) { return <label className="block"><span className="mb-1 block text-sm font-medium text-slate-700">{label}</span>{children}</label>; }
 function Input({ value, onChange }: { value: string; onChange: (value: string) => void }) { return <input value={value} onChange={event => onChange(event.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />; }
 function Info({ label, value }: { label: string; value: string }) { return <div><p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{label}</p><p className="mt-1 text-sm font-medium text-slate-900">{value}</p></div>; }
-function Alert({ tone, children, onClose }: { tone: "error" | "success"; children: ReactNode; onClose: () => void }) { return <div className={`mt-6 flex items-start justify-between gap-4 rounded-xl border p-4 text-sm font-semibold ${tone === "error" ? "border-red-200 bg-red-50 text-red-700" : "border-green-200 bg-green-50 text-green-700"}`}><span>{children}</span><button type="button" onClick={onClose} className="rounded px-2 text-lg leading-none hover:bg-white/70">×</button></div>; }
+function Alert({ tone, children, onClose }: { tone: "error" | "success"; children: React.ReactNode; onClose: () => void }) { return <div className={`mt-6 flex items-start justify-between gap-4 rounded-xl border p-4 text-sm font-semibold ${tone === "error" ? "border-red-200 bg-red-50 text-red-700" : "border-green-200 bg-green-50 text-green-700"}`}><span>{children}</span><button type="button" onClick={onClose} className="rounded px-2 text-lg leading-none hover:bg-white/70">×</button></div>; }
 function splitNotes(value?: string | null) { return (value ?? "").split(/\n+/).map(note => note.trim()).filter(Boolean); }
-function createStoredNote(author: string, body: string) { return `[note:${new Date().toISOString()}:${author.replace(/\]/g, "")}] ${body.replace(/\s+/g, " ")}`; }
-function parseStoredNote(note: string) { const stored = /^\[note:(.*?):(.*?)\]\s*(.*)$/.exec(note); if (stored) return { author: stored[2] || "Unknown employee", dateLabel: formatLongDate(stored[1]), body: stored[3] || "" }; const legacy = /^(.*?)\s+—\s+(.*)$/.exec(note); if (legacy) return { author: "Unknown employee", dateLabel: formatLongDate(parseLegacyDate(legacy[1])), body: legacy[2] || "" }; return { author: "Unknown employee", dateLabel: "Date not recorded", body: note }; }
+function parseStoredNote(note: string) { const stored = /^\[note:(.*?):(.*?)\]\s*(.*)$/.exec(note); if (stored) return { author: stored[2] || "Unknown employee", dateLabel: formatLongDate(stored[1]), body: stored[3] || "" }; const legacy = /^(.*?)\s+�\s+(.*)$/.exec(note); if (legacy) return { author: "Unknown employee", dateLabel: formatLongDate(parseLegacyDate(legacy[1])), body: legacy[2] || "" }; return { author: "Unknown employee", dateLabel: "Date not recorded", body: note }; }
 function parseLegacyDate(value: string) { const match = /^(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(value.trim()); if (!match) return value; return `${match[3]}-${match[2].padStart(2, "0")}-${match[1].padStart(2, "0")}`; }
 function formatLongDate(value: string) { const date = new Date(value); if (Number.isNaN(date.getTime())) return "Date not recorded"; return date.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }); }
+function formatPhone(value: string) { const digits = value.replace(/\D/g, "").slice(0, 11); return digits.length > 5 ? `${digits.slice(0, 5)} ${digits.slice(5)}` : digits; }
 function formatDate(value: string) { const date = new Date(value); return Number.isNaN(date.getTime()) ? "Not set" : date.toLocaleString("en-GB"); }
 function toDateTimeLocalValue(value: string) { const date = new Date(value); if (Number.isNaN(date.getTime())) return ""; const pad = (number: number) => String(number).padStart(2, "0"); return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`; }
+

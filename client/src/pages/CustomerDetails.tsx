@@ -156,7 +156,7 @@ export default function CustomerDetails() {
   }
 
   function deleteAuditEntry(entryId: number) {
-    if (!customer || !window.confirm("Delete this audit history entry? It cannot be edited.")) return;
+    if (!customer || !window.confirm("Permanently delete this audit history entry?")) return;
     customerAuditService.deleteForCustomer(customer.id, entryId);
     setSelectedAuditId(null);
     setAuditVersion(value => value + 1);
@@ -233,3 +233,4 @@ function Badge({ children }: { children: ReactNode }) { return <span className="
 function EmptyState({ children }: { children: ReactNode }) { return <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-6 text-sm text-slate-600">{children}</div>; }
 function Alert({ tone, children, onClose }: { tone: "success" | "error"; children: ReactNode; onClose: () => void }) { return <div className={`flex items-start justify-between gap-4 rounded-xl border p-4 text-sm font-medium ${tone === "success" ? "border-green-200 bg-green-50 text-green-700" : "border-red-200 bg-red-50 text-red-700"}`}><span>{children}</span><button type="button" onClick={onClose} className="rounded px-2 text-lg leading-none hover:bg-white/70">×</button></div>; }
 function formatDate(value: string) { const date = new Date(value); if (Number.isNaN(date.getTime())) return "Not set"; return date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }); }
+

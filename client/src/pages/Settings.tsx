@@ -4,8 +4,6 @@ import Sidebar from "../components/layout/Sidebar";
 import PlanLimitsPanel from "../components/settings/PlanLimitsPanel";
 import { businessSettingsService } from "../services/businessSettingsService";
 import { staffSettingsService } from "../services/staffSettingsService";
-import { terminologyService } from "../services/terminologyService";
-import type { CustomerTerminology } from "../services/terminologyService";
 import type { StaffCategory, StaffRolePreset, StaffSettings } from "../services/staffSettingsService";
 import type { UpdateBusinessSettingsRequest } from "../types/businessSettings";
 
@@ -14,12 +12,12 @@ type StaffSettingsTab = "categories" | "roles" | "permissions";
 
 const tabs: Array<{ id: SettingsTab; label: string; description: string }> = [
   { id: "business", label: "Business", description: "Profile, logo, contact details" },
-  { id: "documents", label: "Documents", description: "VAT, quote and invoice defaults" },
+  { id: "documents", label: "Documents & VAT", description: "VAT and document defaults" },
   { id: "payments", label: "Payments", description: "Bank details and payment terms" },
   { id: "email", label: "Email", description: "Email footer and templates" },
   { id: "staff", label: "Staff", description: "Categories, roles and permissions" },
   { id: "security", label: "Security", description: "Login, 2FA and audit safety" },
-  { id: "billing", label: "Billing", description: "Plans, limits and terminology" },
+  { id: "billing", label: "Billing", description: "Plans and limits" },
   { id: "exports", label: "Exports", description: "Reports and data downloads" },
 ];
 
@@ -32,7 +30,8 @@ const staffSettingsTabs: Array<{ id: StaffSettingsTab; label: string; descriptio
 const permissionDescriptions: Record<string, string> = {
   "Full access": "Allows the role to use every staff setting, role preset, customer record, job, quote, invoice, payment, report, and business setting.",
   "Customer records": "View and update customer contact details, customer account information, and customer history.",
-  "Customer notes": "View and add notes for customer support, job follow-ups, engineer handovers, and internal updates.",
+  "Add/View Customer Notes": "View and add customer notes for support, job follow-ups, engineer handovers, and internal updates.",
+  "Manage Customer Notes": "Delete customer notes and manage note history where staff permissions allow it.",
   "Jobs and scheduling": "Manage jobs, appointments, calendars, engineer allocation, site visits, and daily work schedules.",
   "Quotes and invoices": "Create, edit, send, and manage customer quotes, invoices, and related document details.",
   "Payments": "View and manage payment details, payment terms, paid/unpaid status, and finance-related customer information.",
@@ -77,7 +76,6 @@ export default function Settings() {
   const [activeTab, setActiveTab] = useState<SettingsTab>("business");
   const [activeStaffSettingsTab, setActiveStaffSettingsTab] = useState<StaffSettingsTab>("categories");
   const [form, setForm] = useState<UpdateBusinessSettingsRequest>(blankSettings);
-  const [customerTerminology, setCustomerTerminology] = useState<CustomerTerminology>(() => terminologyService.getCustomerLabel());
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -91,7 +89,7 @@ export default function Settings() {
   useEffect(() => {
     loadSettings();
     loadStaffSettings();
-    return terminologyService.subscribe(() => setCustomerTerminology(terminologyService.getCustomerLabel()));
+
   }, []);
 
   async function loadSettings() {
@@ -145,9 +143,7 @@ export default function Settings() {
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     if (form.businessName.trim() === "") { setError("Business name is required."); setMessage(""); return; }
-    if (form.quotePrefix.trim() === "") { setError("Quote prefix is required."); setMessage(""); return; }
-    if (form.invoicePrefix.trim() === "") { setError("Invoice prefix is required."); setMessage(""); return; }
-    try {
+            try {
       setSaving(true);
       setError("");
       setMessage("");
@@ -209,14 +205,6 @@ export default function Settings() {
     catch (err) { setStaffError(getErrorMessage(err, "Unable to delete role preset.")); }
     finally { setStaffSaving(false); }
   }
-
-  function updateTerminology(value: CustomerTerminology) {
-    setCustomerTerminology(value);
-    terminologyService.setCustomerLabel(value);
-    setMessage(`Terminology updated to ${value}.`);
-    setError("");
-  }
-
   return (
     <main className="flex min-h-screen bg-slate-50">
       <Sidebar />
@@ -237,13 +225,13 @@ export default function Settings() {
                   {error && activeTab !== "staff" && <Alert tone="error" onClose={() => setError("")}>{error}</Alert>}
                   {message && activeTab !== "staff" && <Alert tone="success" onClose={() => setMessage("")}>{message}</Alert>}
 
-                  {activeTab === "business" && <><SettingsPanel title="Business profile"><div className="grid gap-4 md:grid-cols-2"><Field label="Business name"><Input value={form.businessName} onChange={value => setField("businessName", value)} /></Field><Field label="Legal name"><Input value={form.legalName ?? ""} onChange={value => setField("legalName", value)} /></Field><Field label="Logo URL"><Input value={form.logoUrl ?? ""} onChange={value => setField("logoUrl", value)} /></Field><Field label="VAT number"><Input value={form.vatNumber ?? ""} onChange={value => setField("vatNumber", value)} /></Field></div></SettingsPanel><SettingsPanel title="Contact and address"><div className="grid gap-4 md:grid-cols-2"><Field label="Email"><Input value={form.email ?? ""} onChange={value => setField("email", value)} /></Field><Field label="Phone"><Input value={form.phone ?? ""} onChange={value => setField("phone", value)} /></Field><Field label="Website"><Input value={form.website ?? ""} onChange={value => setField("website", value)} /></Field><Field label="Country"><Input value={form.country ?? ""} onChange={value => setField("country", value)} /></Field><Field label="Address line 1"><Input value={form.addressLine1 ?? ""} onChange={value => setField("addressLine1", value)} /></Field><Field label="Address line 2"><Input value={form.addressLine2 ?? ""} onChange={value => setField("addressLine2", value)} /></Field><Field label="Town / city"><Input value={form.town ?? ""} onChange={value => setField("town", value)} /></Field><Field label="County"><Input value={form.county ?? ""} onChange={value => setField("county", value)} /></Field><Field label="Postcode"><Input value={form.postcode ?? ""} onChange={value => setField("postcode", value)} /></Field></div></SettingsPanel></>}
-                  {activeTab === "documents" && <SettingsPanel title="Documents and VAT"><div className="grid gap-4 md:grid-cols-3"><Field label="Default VAT rate (%)"><Input value={String(form.defaultVatRate)} type="number" min="0" max="100" step="1" onChange={value => setField("defaultVatRate", Number(value || 0))} /></Field><Field label="Quote prefix"><Input value={form.quotePrefix} onChange={value => setField("quotePrefix", value)} /></Field><Field label="Invoice prefix"><Input value={form.invoicePrefix} onChange={value => setField("invoicePrefix", value)} /></Field></div><div className="mt-4"><Field label="Payment terms"><Textarea value={form.paymentTerms ?? ""} onChange={value => setField("paymentTerms", value)} rows={4} /></Field></div></SettingsPanel>}
-                  {activeTab === "payments" && <SettingsPanel title="Payment details"><div className="grid gap-4 md:grid-cols-2"><Field label="Bank name"><Input value={form.bankName ?? ""} onChange={value => setField("bankName", value)} /></Field><Field label="Account name"><Input value={form.bankAccountName ?? ""} onChange={value => setField("bankAccountName", value)} /></Field><Field label="Sort code"><Input value={form.bankSortCode ?? ""} onChange={value => setField("bankSortCode", value)} /></Field><Field label="Account number"><Input value={form.bankAccountNumber ?? ""} onChange={value => setField("bankAccountNumber", value)} /></Field></div></SettingsPanel>}
+                  {activeTab === "business" && <><SettingsPanel title="Business Profile"><div className="grid gap-4 md:grid-cols-2"><Field label="Business Name"><Input value={form.businessName} onChange={value => setField("businessName", value)} /></Field><Field label="Full Legal Name"><Input value={form.legalName ?? ""} onChange={value => setField("legalName", value)} /></Field><Field label="Logo URL"><Input value={form.logoUrl ?? ""} onChange={value => setField("logoUrl", value)} /></Field><Field label="Company VAT Number"><Input value={form.vatNumber ?? ""} onChange={value => setField("vatNumber", value)} /></Field></div></SettingsPanel><SettingsPanel title="Contact and Address"><div className="grid gap-4 md:grid-cols-2"><Field label="Email"><Input value={form.email ?? ""} onChange={value => setField("email", value)} /></Field><Field label="Phone"><Input value={form.phone ?? ""} onChange={value => setField("phone", value)} /></Field><Field label="Website"><Input value={form.website ?? ""} onChange={value => setField("website", value)} /></Field><Field label="Country"><Input value={form.country ?? ""} onChange={value => setField("country", value)} /></Field><Field label="Address line 1"><Input value={form.addressLine1 ?? ""} onChange={value => setField("addressLine1", value)} /></Field><Field label="Address line 2"><Input value={form.addressLine2 ?? ""} onChange={value => setField("addressLine2", value)} /></Field><Field label="Town / City"><Input value={form.town ?? ""} onChange={value => setField("town", value)} /></Field><Field label="County"><Input value={form.county ?? ""} onChange={value => setField("county", value)} /></Field><Field label="Postcode"><Input value={form.postcode ?? ""} onChange={value => setField("postcode", value)} /></Field></div></SettingsPanel></>}
+                  {activeTab === "documents" && <SettingsPanel title="Documents & VAT"><div className="grid gap-4 md:grid-cols-2"><Field label="Default VAT rate (%)"><Input value={String(form.defaultVatRate)} type="number" min="0" max="100" step="1" onChange={value => setField("defaultVatRate", Number(value || 0))} /></Field><Field label="Document prefix"><Input value={form.quotePrefix} onChange={value => setForm(previous => ({ ...previous, quotePrefix: value, invoicePrefix: value }))} /></Field></div><div className="mt-4"><Field label="Payment terms"><Textarea value={form.paymentTerms ?? ""} onChange={value => setField("paymentTerms", value)} rows={4} /></Field></div></SettingsPanel>}
+                  {activeTab === "payments" && <SettingsPanel title="Payment Details"><div className="grid gap-4 md:grid-cols-2"><Field label="Bank Name"><Input value={form.bankName ?? ""} onChange={value => setField("bankName", value)} /></Field><Field label="Account Name"><Input value={form.bankAccountName ?? ""} onChange={value => setField("bankAccountName", value)} /></Field><Field label="Sort Code"><Input value={form.bankSortCode ?? ""} onChange={value => setField("bankSortCode", formatSortCode(value))} /></Field><Field label="Account Number"><Input value={form.bankAccountNumber ?? ""} onChange={value => setField("bankAccountNumber", value)} /></Field></div></SettingsPanel>}
                   {activeTab === "email" && <EmailSettingsPanel footer={form.emailFooter ?? ""} onFooterChange={value => setField("emailFooter", value)} />}
                   {activeTab === "staff" && <StaffSettingsPanel activeTab={activeStaffSettingsTab} setActiveTab={setActiveStaffSettingsTab} settings={staffSettings} loading={staffLoading} saving={staffSaving} error={staffError} message={staffMessage} onClearError={() => setStaffError("")} onClearMessage={() => setStaffMessage("")} onCreateCategory={createStaffCategory} onDeleteCategory={deleteStaffCategory} onCreateRolePreset={createStaffRolePreset} onDeleteRolePreset={deleteStaffRolePreset} />}
                   {activeTab === "security" && <SecuritySettingsPanel />}
-                  {activeTab === "billing" && <BillingSettingsPanel terminology={customerTerminology} onTerminologyChange={updateTerminology} />}
+                  {activeTab === "billing" && <BillingSettingsPanel />}
                   {activeTab === "exports" && <ExportSettingsPanel />}
 
                   {["business", "documents", "payments", "email"].includes(activeTab) && <button type="submit" disabled={saving} className="rounded-lg bg-blue-600 px-5 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-400">{saving ? "Saving..." : "Save Settings"}</button>}
@@ -267,9 +255,10 @@ function EmailSettingsPanel({ footer, onFooterChange }: { footer: string; onFoot
   return <><SettingsPanel title="Email footer"><Field label="Default email footer"><Textarea value={footer} onChange={onFooterChange} rows={6} /></Field></SettingsPanel><SettingsPanel title="Email sending defaults"><div className="grid gap-3 md:grid-cols-2"><SettingCard title="Quote emails" body="Quote cards open a pre-filled customer email draft." /><SettingCard title="Invoice emails" body="Invoice cards are prepared for the same quick-send flow." /><SettingCard title="Sent history" body="Customer email history is reserved under Customer 360 → Emails sent." /><SettingCard title="Next backend step" body="Send + log emails through the API when production email is connected." /></div></SettingsPanel></>;
 }
 
-function BillingSettingsPanel({ terminology, onTerminologyChange }: { terminology: CustomerTerminology; onTerminologyChange: (value: CustomerTerminology) => void }) {
-  return <div className="space-y-6"><PlanLimitsPanel /><SettingsPanel title="Terminology"><p className="mb-4 text-sm text-slate-600">Choose whether the customer side calls records Customers or Clients. The sidebar updates instantly.</p><Field label="Customer record label"><select value={terminology} onChange={event => onTerminologyChange(event.target.value as CustomerTerminology)} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600"><option value="Customers">Customers</option><option value="Clients">Clients</option></select></Field></SettingsPanel><SettingsPanel title="Billing controls"><div className="grid gap-3 md:grid-cols-2"><SettingCard title="User limits" body="Solo 1, Team 2-10, Business 11-25, Enterprise unlimited." /><SettingCard title="Team management" body="Controlled by plan, with flexible team sizes inside the total user count." /><SettingCard title="Reporting" body="Basic on Solo, advanced on Team, custom reporting on Business and Enterprise." /><SettingCard title="API access" body="Reserved for Business and Enterprise plans." /></div></SettingsPanel></div>;
+function BillingSettingsPanel() {
+  return <div className="space-y-6"><PlanLimitsPanel /><SettingsPanel title="Billing controls"><div className="grid gap-3 md:grid-cols-2"><SettingCard title="User limits" body="Solo 1, Team 2-10, Business 11-25, Enterprise unlimited." /><SettingCard title="Team management" body="Controlled by plan, with flexible team sizes inside the total user count." /><SettingCard title="Reporting" body="Basic on Solo, advanced on Team, custom reporting on Business and Enterprise." /><SettingCard title="API access" body="Reserved for Business and Enterprise plans." /></div></SettingsPanel></div>;
 }
+
 
 function SecuritySettingsPanel() {
   return <div className="space-y-6"><SettingsPanel title="Security settings"><div className="grid gap-3 md:grid-cols-2"><SettingCard title="Password resets" body="Company directors can request staff password resets from Staff & Teams." /><SettingCard title="Two-factor authentication" body="Prepared as a future staff/company setting. Not forced yet." /><SettingCard title="Session safety" body="JWT/session expiry remains controlled by API configuration." /><SettingCard title="Audit history" body="Customer activity now records staff name, email, action, details and date where available." /></div></SettingsPanel><SettingsPanel title="Recommended future security"><div className="grid gap-3 md:grid-cols-2"><SettingCard title="Require 2FA for directors" body="Best for owners, directors and office managers." /><SettingCard title="Sensitive action confirmation" body="Use confirmations for deletes, staff changes, billing updates and exports." /></div></SettingsPanel></div>;
@@ -308,4 +297,8 @@ function Alert({ tone, children, onClose }: { tone: "error" | "success"; childre
 function Field({ label, children }: { label: string; children: React.ReactNode }) { return <label className="block"><span className="mb-2 block text-sm font-medium text-slate-700">{label}</span>{children}</label>; }
 function Input({ value, onChange, type = "text", min, max, step }: { value: string; onChange: (value: string) => void; type?: string; min?: string; max?: string; step?: string }) { return <input value={value} type={type} min={min} max={max} step={step} onChange={event => onChange(event.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600" />; }
 function Textarea({ value, onChange, rows }: { value: string; onChange: (value: string) => void; rows: number }) { return <textarea value={value} rows={rows} onChange={event => onChange(event.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600" />; }
+function formatSortCode(value: string) { const digits = value.replace(/\D/g, "").slice(0, 6); return digits.replace(/(\d{2})(?=\d)/g, "$1-").replace(/-$/, ""); }
 function getErrorMessage(error: unknown, fallback: string) { return error instanceof Error && error.message.trim() !== "" ? error.message : fallback; }
+
+
+
