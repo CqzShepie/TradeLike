@@ -37,6 +37,7 @@ export type CreateStaffRolePresetRequest = {
 
 const legacyPermissionLabels: Record<string, string | null> = {
   "Customer accounts": "Customer records",
+  "Customer notes": "Add/View Customer Notes",
   "Billing and subscriptions": "Payments",
   "Discounts and free months": "Offers and promotions",
   "Password resets": "Staff password resets",
@@ -49,7 +50,8 @@ const legacyPermissionLabels: Record<string, string | null> = {
 const allowedPermissions = [
   "Full access",
   "Customer records",
-  "Customer notes",
+  "Add/View Customer Notes",
+  "Manage Customer Notes",
   "Jobs and scheduling",
   "Quotes and invoices",
   "Payments",
