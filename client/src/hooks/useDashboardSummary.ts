@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { dashboardService } from "../services/dashboardService";
 import type { DashboardSummary } from "../types/dashboard";
 
@@ -14,7 +14,7 @@ export function useDashboardSummary(): UseDashboardSummaryResult {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    async function loadSummary() {
+    const loadSummary = useCallback(async () => {
         try {
             setLoading(true);
             setError(null);
@@ -28,10 +28,32 @@ export function useDashboardSummary(): UseDashboardSummaryResult {
         } finally {
             setLoading(false);
         }
-    }
+    }, []);
 
     useEffect(() => {
-        loadSummary();
+        let isMounted = true;
+
+        dashboardService.getSummary()
+            .then(data => {
+                if (isMounted) {
+                    setSummary(data);
+                }
+            })
+            .catch(() => {
+                if (isMounted) {
+                    setError("Unable to load dashboard.");
+                    setSummary(null);
+                }
+            })
+            .finally(() => {
+                if (isMounted) {
+                    setLoading(false);
+                }
+            });
+
+        return () => {
+            isMounted = false;
+        };
     }, []);
 
     return {

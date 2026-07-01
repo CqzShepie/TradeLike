@@ -11,3 +11,5 @@ client/dist/
 Thumbs.db
 *.user
 *.suo
+
+client/.npm-cache/
