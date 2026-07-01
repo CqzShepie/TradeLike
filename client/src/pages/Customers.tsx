@@ -1,48 +1,266 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { Mail, NotebookText, Phone, Plus, Users } from "lucide-react";
 
-import Sidebar from "../components/layout/Sidebar";
-import SectionHeader from "../components/ui/SectionHeader";
-import StatsGrid from "../components/ui/StatsGrid";
 import CustomerList from "../components/customers/CustomerList";
 import NewCustomerForm from "../components/customers/NewCustomerForm";
-
-import Button from "../components/ui/Button";
-import Input from "../components/ui/Input";
-
+import {
+  Badge,
+  Card,
+  ErrorState,
+  FormField,
+  LoadingState,
+  PageLayout,
+  PrimaryButton,
+  SecondaryButton,
+  StatCard,
+  TextInput,
+} from "../components/ui";
 import { useCustomers } from "../hooks/useCustomers";
 
 function Customers() {
-    const { customers, loading, editingCustomer, addCustomer, deleteCustomer, updateCustomer, startEdit, cancelEdit } = useCustomers();
-    const [search, setSearch] = useState("");
-    const [showForm, setShowForm] = useState(false);
+  const {
+    customers,
+    loading,
+    error,
+    reloadCustomers,
+    editingCustomer,
+    addCustomer,
+    deleteCustomer,
+    updateCustomer,
+    startEdit,
+    cancelEdit,
+  } = useCustomers();
+  const [search, setSearch] = useState("");
+  const [showForm, setShowForm] = useState(false);
 
-    const filteredCustomers = customers.filter(customer => {
-        const query = search.toLowerCase();
-        return customer.name.toLowerCase().includes(query) || customer.phone.toLowerCase().includes(query) || customer.email.toLowerCase().includes(query) || customer.address.toLowerCase().includes(query) || String(customer.id).includes(query);
-    });
+  const filteredCustomers = useMemo(() => {
+    const query = search.trim().toLowerCase();
 
-    const stats = [
-        { title: "Total Clients", value: customers.length },
-        { title: "Has Email", value: customers.filter(customer => customer.email.trim() !== "").length },
-        { title: "Has Phone Number", value: customers.filter(customer => customer.phone.trim() !== "").length },
-    ];
+    if (!query) {
+      return customers;
+    }
 
-    return (
-        <main className="flex min-h-screen bg-slate-50">
-            <Sidebar />
-            <section className="flex-1 p-10">
-                <SectionHeader title="Clients" subtitle="View clients, contact details, important information, and service history." />
-                {loading ? <p className="text-slate-500">Loading clients...</p> : <>
-                    <StatsGrid stats={stats} />
-                    {editingCustomer && <p className="mb-4 text-sm font-medium text-blue-600">Editing: {editingCustomer.name}</p>}
-                    <div className="mb-8"><Button onClick={() => { if (editingCustomer) cancelEdit(); setShowForm(previous => !previous); }}>{showForm || editingCustomer ? "Close Form" : "+ New Client"}</Button></div>
-                    {(showForm || editingCustomer) && <NewCustomerForm onAddCustomer={async customer => { await addCustomer(customer); setShowForm(false); }} onUpdateCustomer={async customer => { await updateCustomer(customer); setShowForm(false); }} editingCustomer={editingCustomer} onCancelEdit={() => { cancelEdit(); setShowForm(false); }} />}
-                    <div className="my-8"><Input type="text" placeholder="🔍 Search ID, client, phone, email or address..." value={search} onChange={event => setSearch(event.target.value)} /></div>
-                    <CustomerList customers={filteredCustomers} onDeleteCustomer={deleteCustomer} onEditCustomer={customer => { startEdit(customer); setShowForm(true); }} />
-                </>}
-            </section>
-        </main>
+    return customers.filter(customer =>
+      [
+        customer.name,
+        customer.phone,
+        customer.email,
+        customer.address,
+        customer.notes ?? "",
+        String(customer.id),
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(query)
     );
+  }, [customers, search]);
+
+  const stats = useMemo(
+    () => [
+      {
+        title: "Total customers",
+        value: customers.length,
+        description: "records in the directory",
+        icon: <Users className="h-5 w-5" />,
+      },
+      {
+        title: "Has email",
+        value: customers.filter(customer => customer.email.trim() !== "").length,
+        description: "contacts with email saved",
+        icon: <Mail className="h-5 w-5" />,
+      },
+      {
+        title: "Has phone",
+        value: customers.filter(customer => customer.phone.trim() !== "").length,
+        description: "contacts with phone saved",
+        icon: <Phone className="h-5 w-5" />,
+      },
+      {
+        title: "Has notes",
+        value: customers.filter(customer => customer.notes?.trim()).length,
+        description: "records with helpful notes",
+        icon: <NotebookText className="h-5 w-5" />,
+      },
+    ],
+    [customers]
+  );
+
+  const showCustomerForm = showForm || Boolean(editingCustomer);
+
+  function handleAddCustomerClick() {
+    if (showCustomerForm) {
+      handleCloseForm();
+      return;
+    }
+
+    setShowForm(true);
+  }
+
+  function handleCloseForm() {
+    cancelEdit();
+    setShowForm(false);
+  }
+
+  return (
+    <PageLayout className="bg-slate-950 text-slate-100" contentClassName="px-5 py-6 sm:px-8 lg:px-10 lg:py-8">
+      <div className="space-y-6">
+        <header className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+          <div className="max-w-3xl">
+            <p className="text-sm font-semibold uppercase tracking-wide text-blue-400">
+              Customer records
+            </p>
+            <h1 className="mt-2 text-3xl font-bold tracking-tight text-white sm:text-4xl">
+              Customers
+            </h1>
+            <p className="mt-3 text-sm leading-6 text-slate-300 sm:text-base">
+              Manage customer records, contact details and job history.
+            </p>
+          </div>
+
+          <PrimaryButton type="button" onClick={handleAddCustomerClick}>
+            <span className="inline-flex items-center gap-2">
+              <Plus className="h-4 w-4" />
+              {showCustomerForm ? "Close form" : "Add customer"}
+            </span>
+          </PrimaryButton>
+        </header>
+
+        <Card tone="dark" padding="lg" className="border-slate-800">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+            <div className="flex items-start gap-4">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-500/15 text-blue-300">
+                <Users className="h-7 w-7" />
+              </div>
+
+              <div className="max-w-2xl">
+                <Badge tone="slate">Live directory</Badge>
+                <h2 className="mt-4 text-2xl font-bold tracking-tight text-white sm:text-3xl">
+                  Keep contact details, notes and history in one polished workspace.
+                </h2>
+                <p className="mt-3 text-sm leading-6 text-slate-300">
+                  Search quickly, open customer records, and keep the day moving without losing important context.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2 lg:max-w-md">
+              <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                  Visible records
+                </p>
+                <p className="mt-2 text-2xl font-bold text-white">{customers.length}</p>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                  Matching search
+                </p>
+                <p className="mt-2 text-2xl font-bold text-white">{filteredCustomers.length}</p>
+              </div>
+            </div>
+          </div>
+        </Card>
+
+        {loading && (
+          <LoadingState
+            title="Loading customers"
+            description="Fetching the latest customer records and contact details."
+          />
+        )}
+
+        {!loading && error && (
+          <ErrorState
+            title="Unable to load customers"
+            description={error}
+            action={
+              <SecondaryButton type="button" onClick={reloadCustomers}>
+                Try again
+              </SecondaryButton>
+            }
+          />
+        )}
+
+        {!loading && !error && (
+          <>
+            <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              {stats.map(stat => (
+                <StatCard
+                  key={stat.title}
+                  tone="dark"
+                  title={stat.title}
+                  value={String(stat.value)}
+                  description={stat.description}
+                  icon={stat.icon}
+                />
+              ))}
+            </section>
+
+            <div className={showCustomerForm ? "grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]" : "space-y-6"}>
+              <Card tone="dark" padding="lg" className="border-slate-800">
+                <div className="flex flex-col gap-4 border-b border-white/10 pb-5 lg:flex-row lg:items-end lg:justify-between">
+                  <div>
+                    <p className="text-sm font-semibold uppercase tracking-wide text-blue-400">
+                      Directory
+                    </p>
+                    <h2 className="mt-2 text-xl font-bold text-white">
+                      Customer list
+                    </h2>
+                    <p className="mt-2 text-sm leading-6 text-slate-300">
+                      Search by name, phone, email, address or notes.
+                    </p>
+                  </div>
+
+                  <div className="w-full max-w-md">
+                    <FormField label="Search customers" htmlFor="customer-search">
+                      <TextInput
+                        id="customer-search"
+                        value={search}
+                        onChange={event => setSearch(event.target.value)}
+                        placeholder="Search name, phone, email, address or notes"
+                        className="placeholder:text-slate-400"
+                      />
+                    </FormField>
+                  </div>
+                </div>
+
+                <div className="mt-6">
+                  <CustomerList
+                    customers={filteredCustomers}
+                    onDeleteCustomer={deleteCustomer}
+                    onEditCustomer={customer => {
+                      startEdit(customer);
+                      setShowForm(true);
+                    }}
+                  />
+                </div>
+              </Card>
+
+              {showCustomerForm ? (
+                <NewCustomerForm
+                  onAddCustomer={async customer => {
+                    await addCustomer(customer);
+                    setShowForm(false);
+                  }}
+                  onUpdateCustomer={async customer => {
+                    await updateCustomer(customer);
+                    setShowForm(false);
+                  }}
+                  editingCustomer={editingCustomer}
+                  onCancelEdit={handleCloseForm}
+                />
+              ) : (
+                <Card tone="dark" padding="lg" className="border-slate-800">
+                  <h2 className="text-xl font-bold text-white">Quick start</h2>
+                  <p className="mt-2 text-sm leading-6 text-slate-300">
+                    Add a customer to capture contact details, job notes and follow-up information. Use the list on the left to search and manage records.
+                  </p>
+                </Card>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+    </PageLayout>
+  );
 }
 
 export default Customers;

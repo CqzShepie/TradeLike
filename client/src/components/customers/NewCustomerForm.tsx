@@ -1,58 +1,220 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
+
+import {
+  ActionBar,
+  Card,
+  FormField,
+  InlineAlert,
+  PrimaryButton,
+  SecondaryButton,
+  TextArea,
+  TextInput,
+} from "../ui";
+
 import type { Customer } from "../../types/customer";
 import type { NewCustomer } from "../../types/newCustomer";
 
 interface NewCustomerFormProps {
-    onAddCustomer: (customer: NewCustomer) => Promise<void>;
-    onUpdateCustomer: (customer: Customer) => Promise<void>;
-    editingCustomer: Customer | null;
-    onCancelEdit: () => void;
+  onAddCustomer: (customer: NewCustomer) => Promise<void>;
+  onUpdateCustomer: (customer: Customer) => Promise<void>;
+  editingCustomer: Customer | null;
+  onCancelEdit: () => void;
 }
 
-export default function NewCustomerForm({ onAddCustomer, onUpdateCustomer, editingCustomer, onCancelEdit }: NewCustomerFormProps) {
-    const [name, setName] = useState("");
-    const [phone, setPhone] = useState("");
-    const [email, setEmail] = useState("");
-    const [address, setAddress] = useState("");
-    const [notes, setNotes] = useState("");
-    const [error, setError] = useState("");
-    const [saving, setSaving] = useState(false);
+export default function NewCustomerForm({
+  onAddCustomer,
+  onUpdateCustomer,
+  editingCustomer,
+  onCancelEdit,
+}: NewCustomerFormProps) {
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
+  const [address, setAddress] = useState("");
+  const [notes, setNotes] = useState("");
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
 
-    useEffect(() => {
-        if (!editingCustomer) {
-            setName(""); setPhone(""); setEmail(""); setAddress(""); setNotes(""); setError(""); return;
-        }
-        setName(editingCustomer.name);
-        setPhone(formatPhone(editingCustomer.phone));
-        setEmail(editingCustomer.email);
-        setAddress(editingCustomer.address);
-        setNotes(editingCustomer.notes ?? "");
+  useEffect(() => {
+    let cancelled = false;
+
+    queueMicrotask(() => {
+      if (cancelled) {
+        return;
+      }
+
+      if (!editingCustomer) {
+        setName("");
+        setPhone("");
+        setEmail("");
+        setAddress("");
+        setNotes("");
         setError("");
-    }, [editingCustomer]);
+        return;
+      }
 
-    async function handleSubmit(event: React.FormEvent) {
-        event.preventDefault();
-        if (name.trim() === "") { setError("Client name is required."); return; }
-        const phoneDigits = phone.replace(/\D/g, "");
-        if (phoneDigits && phoneDigits.length !== 11) { setError("Client phone number must be 11 digits, for example 07981 125031."); return; }
-        try {
-            setSaving(true); setError("");
-            const formattedPhone = formatPhone(phone);
-            if (editingCustomer) {
-                await onUpdateCustomer({ ...editingCustomer, name: name.trim(), phone: formattedPhone, email: email.trim(), address: address.trim(), notes: notes.trim() || null });
-                return;
-            }
-            await onAddCustomer({ name: name.trim(), phone: formattedPhone, email: email.trim(), address: address.trim(), notes: notes.trim() || null });
-            setName(""); setPhone(""); setEmail(""); setAddress(""); setNotes("");
-        } catch {
-            setError("Unable to save client.");
-        } finally {
-            setSaving(false);
-        }
+      setName(editingCustomer.name);
+      setPhone(formatPhone(editingCustomer.phone));
+      setEmail(editingCustomer.email);
+      setAddress(editingCustomer.address);
+      setNotes(editingCustomer.notes ?? "");
+      setError("");
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [editingCustomer]);
+
+  async function handleSubmit(event: FormEvent) {
+    event.preventDefault();
+
+    if (name.trim() === "") {
+      setError("Customer name is required.");
+      return;
     }
 
-    return <form onSubmit={handleSubmit} className="mb-8 rounded-xl border border-slate-200 bg-white p-6 shadow-sm"><div className="mb-5"><h2 className="text-lg font-bold text-slate-900">{editingCustomer ? "Update Client" : "New Client"}</h2><p className="mt-1 text-sm text-slate-500">Add contact details, address, and important information.</p></div>{error && <div className="mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-600">{error}</div>}<div className="grid gap-4 md:grid-cols-2"><Field label="Name"><input value={name} onChange={event => setName(event.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600" /></Field><Field label="Phone"><input value={phone} onChange={event => setPhone(formatPhone(event.target.value))} placeholder="07981 125031" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600" /></Field><Field label="Email"><input type="email" value={email} onChange={event => setEmail(event.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600" /></Field><Field label="Address"><input value={address} onChange={event => setAddress(event.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600" /></Field><div className="md:col-span-2"><Field label="Important Information"><textarea value={notes} onChange={event => setNotes(event.target.value)} rows={4} placeholder="Access notes, preferences and reminders." className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600" /></Field></div></div><div className="mt-5 flex justify-end gap-3">{editingCustomer && <button type="button" onClick={onCancelEdit} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Cancel</button>}<button type="submit" disabled={saving} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-400">{saving ? "Saving..." : editingCustomer ? "Update Client" : "Create Client"}</button></div></form>;
+    const phoneDigits = phone.replace(/\D/g, "");
+    if (phoneDigits && phoneDigits.length !== 11) {
+      setError("Customer phone number must be 11 digits, for example 07981 125031.");
+      return;
+    }
+
+    try {
+      setSaving(true);
+      setError("");
+
+      const formattedPhone = formatPhone(phone);
+
+      if (editingCustomer) {
+        await onUpdateCustomer({
+          ...editingCustomer,
+          name: name.trim(),
+          phone: formattedPhone,
+          email: email.trim(),
+          address: address.trim(),
+          notes: notes.trim() || null,
+        });
+        return;
+      }
+
+      await onAddCustomer({
+        name: name.trim(),
+        phone: formattedPhone,
+        email: email.trim(),
+        address: address.trim(),
+        notes: notes.trim() || null,
+      });
+
+      setName("");
+      setPhone("");
+      setEmail("");
+      setAddress("");
+      setNotes("");
+    } catch {
+      setError("Unable to save customer.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Card as="section" padding="lg" className="border-slate-200 bg-white shadow-sm">
+      <div className="mb-6">
+        <p className="text-sm font-semibold uppercase tracking-wide text-blue-700">
+          {editingCustomer ? "Edit customer" : "New customer"}
+        </p>
+        <h2 className="mt-2 text-2xl font-bold tracking-tight text-slate-950">
+          {editingCustomer ? editingCustomer.name : "Add customer"}
+        </h2>
+        <p className="mt-2 text-sm leading-6 text-slate-500">
+          Add contact details, address and notes in one place.
+        </p>
+      </div>
+
+      {error && (
+        <InlineAlert tone="error" title="Unable to save">
+          {error}
+        </InlineAlert>
+      )}
+
+      <form onSubmit={handleSubmit} className="mt-6 space-y-5">
+        <div className="grid gap-4 md:grid-cols-2">
+          <FormField label="Customer name" htmlFor="customer-name" required>
+            <TextInput
+              id="customer-name"
+              value={name}
+              hasError={Boolean(error)}
+              onChange={event => setName(event.target.value)}
+            />
+          </FormField>
+
+          <FormField
+            label="Phone"
+            htmlFor="customer-phone"
+            helperText="Use a UK mobile or landline number."
+          >
+            <TextInput
+              id="customer-phone"
+              value={phone}
+              placeholder="07981 125031"
+              hasError={Boolean(error)}
+              onChange={event => setPhone(formatPhone(event.target.value))}
+            />
+          </FormField>
+
+          <FormField label="Email" htmlFor="customer-email">
+            <TextInput
+              id="customer-email"
+              type="email"
+              value={email}
+              hasError={Boolean(error)}
+              onChange={event => setEmail(event.target.value)}
+            />
+          </FormField>
+
+          <FormField label="Address" htmlFor="customer-address">
+            <TextInput
+              id="customer-address"
+              value={address}
+              hasError={Boolean(error)}
+              onChange={event => setAddress(event.target.value)}
+            />
+          </FormField>
+
+          <div className="md:col-span-2">
+            <FormField
+              label="Notes"
+              htmlFor="customer-notes"
+              helperText="Access notes, preferences and reminders."
+            >
+              <TextArea
+                id="customer-notes"
+                rows={5}
+                value={notes}
+                hasError={Boolean(error)}
+                onChange={event => setNotes(event.target.value)}
+              />
+            </FormField>
+          </div>
+        </div>
+
+        <ActionBar>
+          {editingCustomer && (
+            <SecondaryButton type="button" onClick={onCancelEdit}>
+              Cancel
+            </SecondaryButton>
+          )}
+          <PrimaryButton type="submit" loading={saving}>
+            {editingCustomer ? "Save customer" : "Create customer"}
+          </PrimaryButton>
+        </ActionBar>
+      </form>
+    </Card>
+  );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) { return <label className="block"><span className="mb-1 block text-sm font-medium text-slate-700">{label}</span>{children}</label>; }
-function formatPhone(value: string) { const digits = value.replace(/\D/g, "").slice(0, 11); return digits.length > 5 ? `${digits.slice(0, 5)} ${digits.slice(5)}` : digits; }
+function formatPhone(value: string) {
+  const digits = value.replace(/\D/g, "").slice(0, 11);
+  return digits.length > 5 ? `${digits.slice(0, 5)} ${digits.slice(5)}` : digits;
+}

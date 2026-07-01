@@ -1,48 +1,118 @@
 import { Link } from "react-router-dom";
+
+import CustomerCard from "./CustomerCard";
+import { Badge, DangerButton, EmptyState, SecondaryButton, TableShell } from "../ui";
+
 import type { Customer } from "../../types/customer";
 
 interface CustomerListProps {
-    customers: Customer[];
-    onDeleteCustomer: (id: number) => void;
-    onEditCustomer: (customer: Customer) => void;
+  customers: Customer[];
+  onDeleteCustomer: (id: number) => void;
+  onEditCustomer: (customer: Customer) => void;
 }
 
-export default function CustomerList({ customers, onDeleteCustomer, onEditCustomer }: CustomerListProps) {
-    if (customers.length === 0) {
-        return <div className="rounded-xl border border-slate-200 bg-white p-6 text-center text-sm text-slate-500">No clients found.</div>;
-    }
-
+export default function CustomerList({
+  customers,
+  onDeleteCustomer,
+  onEditCustomer,
+}: CustomerListProps) {
+  if (customers.length === 0) {
     return (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {customers.map(customer => (
-                <article key={customer.id} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-blue-300 hover:shadow-md">
-                    <Link to={`/customers/${customer.id}`} className="block">
-                        <div className="mb-3 flex items-start justify-between gap-4">
-                            <div>
-                                <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">Client #{customer.id}</p>
-                                <h3 className="mt-1 text-lg font-bold text-slate-900">{customer.name}</h3>
-                            </div>
-                            <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600">View</span>
-                        </div>
-
-                        <div className="flex flex-wrap gap-2 text-xs font-semibold">
-                            <span className={`rounded-full px-3 py-1 ${customer.email ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-500"}`}>{customer.email ? "Has Email" : "No Email"}</span>
-                            <span className={`rounded-full px-3 py-1 ${customer.phone ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-500"}`}>{customer.phone ? "Has Phone Number" : "No Phone Number"}</span>
-                        </div>
-
-                        <div className="mt-4 space-y-2 text-sm text-slate-600">
-                            <p><span className="font-medium text-slate-800">Phone:</span> {customer.phone || "Not added"}</p>
-                            <p><span className="font-medium text-slate-800">Email:</span> {customer.email || "Not added"}</p>
-                            <p><span className="font-medium text-slate-800">Address:</span> {customer.address || "Not added"}</p>
-                        </div>
-                    </Link>
-
-                    <div className="mt-5 flex justify-end gap-2 border-t border-slate-100 pt-4">
-                        <button type="button" onClick={() => onEditCustomer(customer)} className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">Edit</button>
-                        <button type="button" onClick={() => onDeleteCustomer(customer.id)} className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50">Delete</button>
-                    </div>
-                </article>
-            ))}
-        </div>
+      <EmptyState
+        title="No customers found"
+        description="Try widening your search or add a new customer record to get started."
+      />
     );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-4 md:hidden">
+        {customers.map(customer => (
+          <CustomerCard
+            key={customer.id}
+            customer={customer}
+            onDeleteCustomer={onDeleteCustomer}
+            onEditCustomer={onEditCustomer}
+          />
+        ))}
+      </div>
+
+      <TableShell className="hidden md:block">
+        <table className="min-w-full divide-y divide-slate-200">
+          <thead className="bg-slate-50">
+            <tr>
+              <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Customer
+              </th>
+              <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Contact
+              </th>
+              <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Address
+              </th>
+              <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Notes
+              </th>
+              <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Actions
+              </th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-200 bg-white">
+            {customers.map(customer => (
+              <tr key={customer.id} className="transition hover:bg-blue-50/40">
+                <td className="px-5 py-4 align-top">
+                  <Link
+                    to={`/customers/${customer.id}`}
+                    className="block font-semibold text-slate-950 transition hover:text-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+                  >
+                    {customer.name}
+                  </Link>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Customer #{customer.id}
+                  </p>
+                </td>
+                <td className="px-5 py-4 align-top">
+                  <div className="space-y-2 text-sm leading-6 text-slate-600">
+                    <p>{customer.phone || "No phone"}</p>
+                    <p>{customer.email || "No email"}</p>
+                  </div>
+                </td>
+                <td className="px-5 py-4 align-top text-sm leading-6 text-slate-600">
+                  {customer.address || "No address"}
+                </td>
+                <td className="px-5 py-4 align-top">
+                  <Badge tone={customer.notes ? "green" : "neutral"}>
+                    {customer.notes ? "Has notes" : "No notes"}
+                  </Badge>
+                  <p className="mt-2 max-w-md text-sm leading-6 text-slate-600">
+                    {customer.notes?.trim() || "Nothing recorded yet."}
+                  </p>
+                </td>
+                <td className="px-5 py-4 align-top">
+                  <div className="flex justify-end gap-2">
+                    <SecondaryButton
+                      type="button"
+                      size="sm"
+                      onClick={() => onEditCustomer(customer)}
+                    >
+                      Edit
+                    </SecondaryButton>
+                    <DangerButton
+                      type="button"
+                      size="sm"
+                      onClick={() => onDeleteCustomer(customer.id)}
+                    >
+                      Delete
+                    </DangerButton>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </TableShell>
+    </div>
+  );
 }

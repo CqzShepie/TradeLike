@@ -1,7 +1,7 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 
-import Card from "../ui/Card";
-import Modal from "../ui/Modal";
+import { Badge, Card, DangerButton, Modal, SecondaryButton } from "../ui";
 
 import type { Customer } from "../../types/customer";
 
@@ -26,69 +26,77 @@ function CustomerCard({
   }
 
   return (
-    <Card className="hover:-translate-y-1 hover:shadow-md">
-      <div className="flex items-start justify-between">
-        <div>
-          <h3 className="text-lg font-semibold text-slate-900">
+    <Card as="article" className="h-full border-slate-200 bg-white shadow-sm transition hover:border-blue-300 hover:shadow-md">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <Badge tone="blue">Customer #{customer.id}</Badge>
+
+          <Link
+            to={`/customers/${customer.id}`}
+            className="mt-3 block text-lg font-bold text-slate-950 transition hover:text-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+          >
             {customer.name}
-          </h3>
+          </Link>
 
-          <p className="mt-1 text-slate-600">
-            📞 {customer.phone}
-          </p>
-
-          <p className="mt-1 text-slate-600">
-            ✉️ {customer.email}
-          </p>
-
-          <p className="mt-2 text-sm text-slate-500">
-            📍 {customer.address}
-          </p>
+          <div className="mt-4 space-y-2 text-sm leading-6 text-slate-600">
+            <p>
+              <span className="font-semibold text-slate-900">Phone:</span>{" "}
+              {customer.phone || "Not added"}
+            </p>
+            <p>
+              <span className="font-semibold text-slate-900">Email:</span>{" "}
+              {customer.email || "Not added"}
+            </p>
+            <p>
+              <span className="font-semibold text-slate-900">Address:</span>{" "}
+              {customer.address || "Not added"}
+            </p>
+            <p className="line-clamp-3">
+              <span className="font-semibold text-slate-900">Notes:</span>{" "}
+              {customer.notes?.trim() || "No notes"}
+            </p>
+          </div>
         </div>
 
-        <div className="flex gap-2">
-          <button
+        <div className="flex flex-col gap-2">
+          <SecondaryButton
+            type="button"
+            size="sm"
             onClick={() => onEditCustomer?.(customer)}
-            className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100"
           >
             Edit
-          </button>
+          </SecondaryButton>
 
           {onDeleteCustomer && (
-            <button
+            <DangerButton
+              type="button"
+              size="sm"
               onClick={() => setShowConfirm(true)}
-              className="rounded-lg bg-red-50 px-3 py-1.5 text-sm font-medium text-red-600 transition-colors hover:bg-red-100"
             >
               Delete
-            </button>
+            </DangerButton>
           )}
         </div>
       </div>
 
       {showConfirm && (
         <Modal
-          title="Confirm Delete"
+          title="Delete customer?"
           onClose={() => setShowConfirm(false)}
         >
-          <p className="mb-6 text-slate-600">
+          <p className="text-sm leading-6 text-slate-600">
             Are you sure you want to delete{" "}
-            <span className="font-semibold">{customer.name}</span>?
+            <span className="font-semibold text-slate-950">{customer.name}</span>
+            ?
           </p>
 
-          <div className="flex justify-end gap-2">
-            <button
-              onClick={() => setShowConfirm(false)}
-              className="rounded-lg border px-4 py-2 text-sm"
-            >
+          <div className="mt-6 flex justify-end gap-3">
+            <SecondaryButton type="button" onClick={() => setShowConfirm(false)}>
               Cancel
-            </button>
-
-            <button
-              onClick={handleDelete}
-              className="rounded-lg bg-red-600 px-4 py-2 text-sm text-white transition-colors hover:bg-red-700"
-            >
+            </SecondaryButton>
+            <DangerButton type="button" onClick={handleDelete}>
               Delete
-            </button>
+            </DangerButton>
           </div>
         </Modal>
       )}

@@ -21,7 +21,7 @@ export default function AuthShell({
     <main className="min-h-screen bg-slate-950 text-white">
       <div className="grid min-h-screen lg:grid-cols-[1.05fr_0.95fr]">
         <section className="flex flex-col justify-between px-6 py-6 sm:px-10 lg:px-12">
-          <Logo />
+          <Logo tone="dark" />
 
           <div className="max-w-xl py-12 sm:py-16 lg:py-0">
             <Badge tone="blue">Built for UK trade businesses</Badge>
