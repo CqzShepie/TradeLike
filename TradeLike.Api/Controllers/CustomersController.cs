@@ -1,6 +1,7 @@
+using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using TradeLike.Api.Models;
+using TradeLike.Api.Contracts.Customers;
 using TradeLike.Api.Security;
 using TradeLike.Api.Services;
 
@@ -40,27 +41,41 @@ public class CustomersController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<IActionResult> CreateCustomer([FromBody] Customer customer)
+    public async Task<IActionResult> CreateCustomer([FromBody] CreateCustomerRequest request)
     {
-        var createdCustomer = await _customerService.CreateAsync(customer, TenantHelpers.GetTenantId(HttpContext));
+        try
+        {
+            var createdCustomer = await _customerService.CreateAsync(request, TenantHelpers.GetTenantId(HttpContext));
 
-        return CreatedAtAction(
-            nameof(GetCustomer),
-            new { id = createdCustomer.Id },
-            createdCustomer);
+            return CreatedAtAction(
+                nameof(GetCustomer),
+                new { id = createdCustomer.Id },
+                createdCustomer);
+        }
+        catch (ValidationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
     }
 
     [HttpPut("{id:int}")]
-    public async Task<IActionResult> UpdateCustomer(int id, [FromBody] Customer customer)
+    public async Task<IActionResult> UpdateCustomer(int id, [FromBody] UpdateCustomerRequest request)
     {
-        var updatedCustomer = await _customerService.UpdateAsync(id, customer, TenantHelpers.GetTenantId(HttpContext));
-
-        if (updatedCustomer is null)
+        try
         {
-            return NotFound();
-        }
+            var updatedCustomer = await _customerService.UpdateAsync(id, request, TenantHelpers.GetTenantId(HttpContext));
 
-        return Ok(updatedCustomer);
+            if (updatedCustomer is null)
+            {
+                return NotFound();
+            }
+
+            return Ok(updatedCustomer);
+        }
+        catch (ValidationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
     }
 
     [HttpDelete("{id:int}")]

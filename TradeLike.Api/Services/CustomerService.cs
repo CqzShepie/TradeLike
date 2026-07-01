@@ -1,4 +1,6 @@
+using System.ComponentModel.DataAnnotations;
 using Microsoft.EntityFrameworkCore;
+using TradeLike.Api.Contracts.Customers;
 using TradeLike.Api.Data;
 using TradeLike.Api.Models;
 
@@ -29,10 +31,17 @@ public class CustomerService : ICustomerService
             .FirstOrDefaultAsync(c => c.Id == id && c.TenantId == tenantId);
     }
 
-    public async Task<Customer> CreateAsync(Customer customer, int tenantId)
+    public async Task<Customer> CreateAsync(CreateCustomerRequest request, int tenantId)
     {
-        NormaliseCustomer(customer);
-        customer.TenantId = tenantId;
+        var customer = new Customer
+        {
+            TenantId = tenantId,
+            Name = CleanRequired(request.Name, "Customer name"),
+            Phone = CleanRequired(request.Phone, "Phone number"),
+            Email = CleanRequired(request.Email, "Email address").ToLowerInvariant(),
+            Address = CleanRequired(request.Address, "Address"),
+            Notes = CleanOptional(request.Notes)
+        };
 
         await _context.Customers.AddAsync(customer);
         await _context.SaveChangesAsync();
@@ -40,10 +49,8 @@ public class CustomerService : ICustomerService
         return customer;
     }
 
-    public async Task<Customer?> UpdateAsync(int id, Customer updatedCustomer, int tenantId)
+    public async Task<Customer?> UpdateAsync(int id, UpdateCustomerRequest request, int tenantId)
     {
-        NormaliseCustomer(updatedCustomer);
-
         var customer = await _context.Customers
             .FirstOrDefaultAsync(existingCustomer =>
                 existingCustomer.Id == id &&
@@ -54,11 +61,27 @@ public class CustomerService : ICustomerService
             return null;
         }
 
-        customer.Name = updatedCustomer.Name;
-        customer.Phone = updatedCustomer.Phone;
-        customer.Email = updatedCustomer.Email;
-        customer.Address = updatedCustomer.Address;
-        customer.Notes = updatedCustomer.Notes;
+        if (request.Name is not null)
+        {
+            customer.Name = CleanRequired(request.Name, "Customer name");
+        }
+
+        if (request.Phone is not null)
+        {
+            customer.Phone = CleanRequired(request.Phone, "Phone number");
+        }
+
+        if (request.Email is not null)
+        {
+            customer.Email = CleanRequired(request.Email, "Email address").ToLowerInvariant();
+        }
+
+        if (request.Address is not null)
+        {
+            customer.Address = CleanRequired(request.Address, "Address");
+        }
+
+        customer.Notes = CleanOptional(request.Notes);
 
         await _context.SaveChangesAsync();
 
@@ -83,14 +106,20 @@ public class CustomerService : ICustomerService
         return customer;
     }
 
-    private static void NormaliseCustomer(Customer customer)
+    private static string CleanRequired(string value, string label)
     {
-        customer.Name = customer.Name.Trim();
-        customer.Phone = customer.Phone.Trim();
-        customer.Email = customer.Email.Trim();
-        customer.Address = customer.Address.Trim();
-        customer.Notes = string.IsNullOrWhiteSpace(customer.Notes)
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            throw new ValidationException($"{label} is required.");
+        }
+
+        return value.Trim();
+    }
+
+    private static string? CleanOptional(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value)
             ? null
-            : customer.Notes.Trim();
+            : value.Trim();
     }
 }

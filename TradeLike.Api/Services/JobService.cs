@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using Microsoft.EntityFrameworkCore;
+using TradeLike.Api.Contracts.Jobs;
 using TradeLike.Api.Data;
 using TradeLike.Api.Models;
 
@@ -50,14 +51,27 @@ public class JobService : IJobService
             .FirstOrDefaultAsync(job => job.Id == id && job.TenantId == tenantId);
     }
 
-    public async Task<Job> CreateAsync(Job job, int tenantId)
+    public async Task<Job> CreateAsync(CreateJobRequest request, int tenantId)
     {
-        NormaliseJob(job);
-        ValidateJob(job);
-        await EnsureEngineerBelongsToTenantAsync(job.EngineerId, tenantId);
+        await EnsureCustomerBelongsToTenantAsync(request.CustomerId, tenantId);
+        await EnsureEngineerBelongsToTenantAsync(request.EngineerId, tenantId);
 
-        job.TenantId = tenantId;
-        job.QuoteId = null;
+        var job = new Job
+        {
+            TenantId = tenantId,
+            Customer = CleanRequired(request.Customer, "Customer"),
+            Phone = CleanRequired(request.Phone, "Phone number"),
+            JobTitle = CleanRequired(request.JobTitle, "Job title"),
+            Address = CleanRequired(request.Address, "Address"),
+            ScheduledDate = request.ScheduledDate,
+            Status = Canonicalise(request.Status ?? "Scheduled", AllowedStatuses),
+            Priority = Canonicalise(request.Priority ?? "Normal", AllowedPriorities),
+            Notes = CleanOptional(request.Notes),
+            EngineerId = request.EngineerId,
+            QuoteId = null
+        };
+
+        ValidateJob(job);
 
         await _context.Jobs.AddAsync(job);
         await _context.SaveChangesAsync();
@@ -65,12 +79,8 @@ public class JobService : IJobService
         return job;
     }
 
-    public async Task<Job?> UpdateAsync(int id, Job updatedJob, int tenantId)
+    public async Task<Job?> UpdateAsync(int id, UpdateJobRequest request, int tenantId)
     {
-        NormaliseJob(updatedJob);
-        ValidateJob(updatedJob);
-        await EnsureEngineerBelongsToTenantAsync(updatedJob.EngineerId, tenantId);
-
         var job = await _context.Jobs
             .FirstOrDefaultAsync(existingJob =>
                 existingJob.Id == id &&
@@ -81,15 +91,48 @@ public class JobService : IJobService
             return null;
         }
 
-        job.Customer = updatedJob.Customer;
-        job.Phone = updatedJob.Phone;
-        job.JobTitle = updatedJob.JobTitle;
-        job.Address = updatedJob.Address;
-        job.ScheduledDate = updatedJob.ScheduledDate;
-        job.Status = updatedJob.Status;
-        job.Priority = updatedJob.Priority;
-        job.Notes = updatedJob.Notes;
-        job.EngineerId = updatedJob.EngineerId;
+        await EnsureCustomerBelongsToTenantAsync(request.CustomerId, tenantId);
+        await EnsureEngineerBelongsToTenantAsync(request.EngineerId, tenantId);
+
+        if (request.Customer is not null)
+        {
+            job.Customer = CleanRequired(request.Customer, "Customer");
+        }
+
+        if (request.Phone is not null)
+        {
+            job.Phone = CleanRequired(request.Phone, "Phone number");
+        }
+
+        if (request.JobTitle is not null)
+        {
+            job.JobTitle = CleanRequired(request.JobTitle, "Job title");
+        }
+
+        if (request.Address is not null)
+        {
+            job.Address = CleanRequired(request.Address, "Address");
+        }
+
+        if (request.ScheduledDate.HasValue)
+        {
+            job.ScheduledDate = request.ScheduledDate.Value;
+        }
+
+        if (request.Status is not null)
+        {
+            job.Status = Canonicalise(request.Status, AllowedStatuses);
+        }
+
+        if (request.Priority is not null)
+        {
+            job.Priority = Canonicalise(request.Priority, AllowedPriorities);
+        }
+
+        job.Notes = CleanOptional(request.Notes);
+        job.EngineerId = request.EngineerId;
+
+        ValidateJob(job);
 
         await _context.SaveChangesAsync();
 
@@ -241,18 +284,23 @@ public class JobService : IJobService
         }
     }
 
-    private static void NormaliseJob(Job job)
+    private async Task EnsureCustomerBelongsToTenantAsync(int? customerId, int tenantId)
     {
-        job.Customer = job.Customer.Trim();
-        job.Phone = job.Phone.Trim();
-        job.JobTitle = job.JobTitle.Trim();
-        job.Address = job.Address.Trim();
-        job.Status = Canonicalise(job.Status, AllowedStatuses);
-        job.Priority = Canonicalise(job.Priority, AllowedPriorities);
+        if (customerId is null)
+        {
+            return;
+        }
 
-        job.Notes = string.IsNullOrWhiteSpace(job.Notes)
-            ? null
-            : job.Notes.Trim();
+        var customerExists = await _context.Customers
+            .AsNoTracking()
+            .AnyAsync(customer =>
+                customer.Id == customerId &&
+                customer.TenantId == tenantId);
+
+        if (!customerExists)
+        {
+            throw new ValidationException("Customer was not found.");
+        }
     }
 
     private static void ValidateJob(Job job)
@@ -260,6 +308,11 @@ public class JobService : IJobService
         if (job.ScheduledDate.Year < 2024 || job.ScheduledDate.Year > 2099)
         {
             throw new ValidationException("Scheduled date must be between 2024 and 2099.");
+        }
+
+        if (job.ScheduledDate.Date < DateTime.Today)
+        {
+            throw new ValidationException("Scheduled date cannot be in the past.");
         }
 
         if (string.IsNullOrWhiteSpace(job.Customer))
@@ -307,5 +360,22 @@ public class JobService : IJobService
         return allowedValues.FirstOrDefault(
             allowed => string.Equals(allowed, trimmed, StringComparison.OrdinalIgnoreCase))
             ?? trimmed;
+    }
+
+    private static string CleanRequired(string value, string label)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            throw new ValidationException($"{label} is required.");
+        }
+
+        return value.Trim();
+    }
+
+    private static string? CleanOptional(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value)
+            ? null
+            : value.Trim();
     }
 }

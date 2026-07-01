@@ -1,6 +1,7 @@
 using System.Text;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -11,7 +12,21 @@ using TradeLike.Api.Services;
 var builder = WebApplication.CreateBuilder(args);
 
 // Controllers
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .ConfigureApiBehaviorOptions(options =>
+    {
+        options.InvalidModelStateResponseFactory = context =>
+        {
+            var message = context.ModelState
+                .SelectMany(entry => entry.Value?.Errors ?? [])
+                .Select(error => string.IsNullOrWhiteSpace(error.ErrorMessage)
+                    ? "The request is invalid."
+                    : error.ErrorMessage)
+                .FirstOrDefault() ?? "The request is invalid.";
+
+            return new BadRequestObjectResult(new { error = message });
+        };
+    });
 
 // Database
 builder.Services.AddDbContext<TradeLikeDbContext>(options =>

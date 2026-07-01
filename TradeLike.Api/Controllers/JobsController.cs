@@ -37,11 +37,11 @@ public class JobsController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<ActionResult<JobResponse>> CreateJob([FromBody] Job job)
+    public async Task<ActionResult<JobResponse>> CreateJob([FromBody] CreateJobRequest request)
     {
         try
         {
-            var created = await _jobService.CreateAsync(job, TenantHelpers.GetTenantId(HttpContext));
+            var created = await _jobService.CreateAsync(request, TenantHelpers.GetTenantId(HttpContext));
             var response = ToResponse(created);
             return CreatedAtAction(nameof(GetJob), new { id = response.Id }, response);
         }
@@ -52,11 +52,11 @@ public class JobsController : ControllerBase
     }
 
     [HttpPut("{id:int}")]
-    public async Task<ActionResult<JobResponse>> UpdateJob(int id, [FromBody] Job job)
+    public async Task<ActionResult<JobResponse>> UpdateJob(int id, [FromBody] UpdateJobRequest request)
     {
         try
         {
-            var updated = await _jobService.UpdateAsync(id, job, TenantHelpers.GetTenantId(HttpContext));
+            var updated = await _jobService.UpdateAsync(id, request, TenantHelpers.GetTenantId(HttpContext));
             if (updated is null) return NotFound();
             return Ok(ToResponse(updated));
         }

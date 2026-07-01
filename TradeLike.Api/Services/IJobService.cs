@@ -1,3 +1,4 @@
+using TradeLike.Api.Contracts.Jobs;
 using TradeLike.Api.Models;
 
 namespace TradeLike.Api.Services;
@@ -8,9 +9,9 @@ public interface IJobService
 
     Task<Job?> GetByIdAsync(int id, int tenantId);
 
-    Task<Job> CreateAsync(Job job, int tenantId);
+    Task<Job> CreateAsync(CreateJobRequest request, int tenantId);
 
-    Task<Job?> UpdateAsync(int id, Job updatedJob, int tenantId);
+    Task<Job?> UpdateAsync(int id, UpdateJobRequest request, int tenantId);
 
     Task<Job?> DeleteAsync(int id, int tenantId);
 
