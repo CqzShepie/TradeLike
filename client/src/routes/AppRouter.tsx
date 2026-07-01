@@ -23,6 +23,11 @@ import AcceptStaffInvite from "../pages/AcceptStaffInvite";
 import CustomerStaff from "../pages/CustomerStaff";
 import Reports from "../pages/Reports";
 import ReportsOverview from "../pages/ReportsOverview";
+import ExpensesList from "../pages/expenses/ExpensesList";
+import NewExpense from "../pages/expenses/NewExpense";
+import ExpensesSummary from "../pages/expenses/ExpensesSummary";
+import AutomationsPage from "../pages/settings/automations/AutomationsPage";
+import NotificationsSettings from "../pages/settings/notifications/NotificationsSettings";
 import SupportCenter from "../pages/SupportCenter";
 import ProtectedRoute from "./ProtectedRoute";
 import StaffRoute from "./StaffRoute";
@@ -55,6 +60,9 @@ function AppRouter() {
         <Route path="/leave" element={<ProtectedRoute><CustomerStaff /></ProtectedRoute>} />
         <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
         <Route path="/reports/overview" element={<ProtectedRoute><ReportsOverview /></ProtectedRoute>} />
+        <Route path="/expenses" element={<ProtectedRoute><ExpensesList /></ProtectedRoute>} />
+        <Route path="/expenses/new" element={<ProtectedRoute><NewExpense /></ProtectedRoute>} />
+        <Route path="/expenses/summary" element={<ProtectedRoute><ExpensesSummary /></ProtectedRoute>} />
         <Route path="/support" element={<SupportCenter />} />
 
         <Route path="/quotes" element={<ProtectedRoute><Quotes /></ProtectedRoute>} />
@@ -63,6 +71,8 @@ function AppRouter() {
         <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
         <Route path="/settings/billing" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
         <Route path="/settings/accessibility" element={<ProtectedRoute><A11ySettings /></ProtectedRoute>} />
+        <Route path="/settings/automations" element={<ProtectedRoute><AutomationsPage /></ProtectedRoute>} />
+        <Route path="/settings/notifications" element={<ProtectedRoute><NotificationsSettings /></ProtectedRoute>} />
 
         <Route
           path="/admin"

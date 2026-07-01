@@ -54,7 +54,7 @@ public sealed class PlanGuardAttribute : Attribute, IAsyncActionFilter
 
         return feature switch
         {
-            Feature.LeaveManagement or Feature.TeamManagement or Feature.Reports =>
+            Feature.LeaveManagement or Feature.TeamManagement or Feature.Reports or Feature.WorkflowAutomations =>
                 normalizedPlan is "team" or "business" or "enterprise",
             Feature.Billing => true,
             _ => false

@@ -74,6 +74,8 @@ public class BusinessSettings
     [MaxLength(2000)]
     public string? EmailFooter { get; set; }
 
+    public int LogRetentionDays { get; set; } = 365;
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public DateTime? UpdatedAt { get; set; }

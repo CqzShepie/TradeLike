@@ -19,6 +19,7 @@ using TradeLike.Api.Configuration;
 using TradeLike.Api.Data;
 using TradeLike.Api.Observability;
 using TradeLike.Api.Api.RoutePlanner;
+using TradeLike.Api.Api.Push;
 using TradeLike.Api.Security;
 using TradeLike.Api.Services;
 
@@ -113,6 +114,9 @@ else
 }
 
 builder.Services.AddHttpClient<GoogleRoutePlanner>();
+builder.Services.AddSingleton<PushDomainEventQueue>();
+builder.Services.AddHttpClient<PushNotifier>();
+builder.Services.AddHostedService<PushNotifier>();
 builder.Services.AddHttpClient();
 builder.Services.AddHealthChecks()
     .AddCheck<SqlHealthCheck>("sql")

@@ -12,6 +12,7 @@ namespace TradeLike.Api.Workflows;
 [ApiController]
 [Route("api/workflows")]
 [Authorize(Policy = "RequireManagerRole")]
+[PlanGuard(Feature.WorkflowAutomations)]
 public class WorkflowsController : ControllerBase
 {
     private const int EngineVersion = 3;
@@ -32,7 +33,12 @@ public class WorkflowsController : ControllerBase
             new WorkflowNodeDefinition("Decision", "Control", "Branches by condition.", 1, 2),
             new WorkflowNodeDefinition("Fork", "Control", "Runs parallel branches and waits for all branches.", 1, 8),
             new WorkflowNodeDefinition("Loop", "Control", "Repeats child nodes for each item or while a condition passes.", 1, 1),
-            new WorkflowNodeDefinition("Join", "Control", "Collects fork outputs.", 8, 1)
+            new WorkflowNodeDefinition("Join", "Control", "Collects fork outputs.", 8, 1),
+            new WorkflowNodeDefinition("InvoicePaid", "Trigger", "Starts when an invoice is marked paid.", 0, 1),
+            new WorkflowNodeDefinition("JobOverdue", "Trigger", "Starts when a scheduled job becomes overdue.", 0, 1),
+            new WorkflowNodeDefinition("SendWebhook", "Action", "Sends a webhook payload to a configured endpoint.", 1, 1),
+            new WorkflowNodeDefinition("ApplyDiscount", "Action", "Applies a configured discount to a customer or document.", 1, 1),
+            new WorkflowNodeDefinition("ChangeJobStatus", "Action", "Updates a job status when workflow conditions pass.", 1, 1)
         });
     }
 
@@ -43,7 +49,7 @@ public class WorkflowsController : ControllerBase
         var rows = await InventorySql.QueryAsync(
             _db,
             """
-            SELECT Id, Name, EngineVersion, IsActive, UpdatedAt, CreatedAt
+            SELECT Id, Name, EngineVersion, IsActive, UpdatedAt, CreatedAt, Enabled, MaxRunAttempts
             FROM Workflows
             WHERE TenantId = @tenantId
             ORDER BY UpdatedAt DESC, CreatedAt DESC
@@ -54,7 +60,9 @@ public class WorkflowsController : ControllerBase
                 reader.GetInt32(2),
                 reader.GetBoolean(3),
                 reader.IsDBNull(4) ? null : reader.GetDateTime(4),
-                reader.GetDateTime(5)),
+                reader.GetDateTime(5),
+                reader.GetBoolean(6),
+                reader.GetInt32(7)),
             cancellationToken,
             ("@tenantId", tenantId));
 
@@ -76,13 +84,18 @@ public class WorkflowsController : ControllerBase
         }
 
         var tenantId = TenantHelpers.GetTenantId(HttpContext);
+        if (request.IsActive && await WorkflowLimitExceededAsync(tenantId, cancellationToken))
+        {
+            return UpgradeRequired();
+        }
+
         var definitionJson = JsonSerializer.Serialize(request.Definition);
         var row = await InventorySql.QuerySingleAsync(
             _db,
             """
-            INSERT INTO Workflows (TenantId, Name, EngineVersion, DefinitionJson, IsActive, CreatedAt, UpdatedAt)
-            OUTPUT INSERTED.Id, INSERTED.Name, INSERTED.EngineVersion, INSERTED.DefinitionJson, INSERTED.IsActive, INSERTED.UpdatedAt, INSERTED.CreatedAt
-            VALUES (@tenantId, @name, 3, @definitionJson, @isActive, SYSUTCDATETIME(), SYSUTCDATETIME())
+            INSERT INTO Workflows (TenantId, Name, EngineVersion, DefinitionJson, IsActive, Enabled, MaxRunAttempts, CreatedAt, UpdatedAt)
+            OUTPUT INSERTED.Id, INSERTED.Name, INSERTED.EngineVersion, INSERTED.DefinitionJson, INSERTED.IsActive, INSERTED.UpdatedAt, INSERTED.CreatedAt, INSERTED.Enabled, INSERTED.MaxRunAttempts
+            VALUES (@tenantId, @name, 3, @definitionJson, @isActive, @enabled, @maxRunAttempts, SYSUTCDATETIME(), SYSUTCDATETIME())
             """,
             static reader => new WorkflowDetail(
                 reader.GetInt32(0),
@@ -91,14 +104,35 @@ public class WorkflowsController : ControllerBase
                 JsonDocument.Parse(reader.GetString(3)).RootElement.Clone(),
                 reader.GetBoolean(4),
                 reader.IsDBNull(5) ? null : reader.GetDateTime(5),
-                reader.GetDateTime(6)),
+                reader.GetDateTime(6),
+                reader.GetBoolean(7),
+                reader.GetInt32(8)),
             cancellationToken,
             ("@tenantId", tenantId),
             ("@name", request.Name.Trim()),
             ("@definitionJson", definitionJson),
-            ("@isActive", request.IsActive));
+            ("@isActive", request.IsActive),
+            ("@enabled", request.Enabled),
+            ("@maxRunAttempts", request.MaxRunAttempts is > 0 ? request.MaxRunAttempts.Value : 3));
 
         return CreatedAtAction(nameof(GetWorkflows), new { id = row.Id }, row);
+    }
+
+    [HttpPut("{id:int}/enabled")]
+    public async Task<IActionResult> SetEnabled(int id, SetWorkflowEnabledRequest request, CancellationToken cancellationToken)
+    {
+        var tenantId = TenantHelpers.GetTenantId(HttpContext);
+        if (request.Enabled && await WorkflowLimitExceededAsync(tenantId, cancellationToken, id))
+        {
+            return UpgradeRequired();
+        }
+
+        var changed = await _db.Database.ExecuteSqlRawAsync(
+            "UPDATE Workflows SET Enabled = {0}, IsActive = {0}, UpdatedAt = SYSUTCDATETIME() WHERE Id = {1} AND TenantId = {2}",
+            [request.Enabled, id, tenantId],
+            cancellationToken);
+
+        return changed == 0 ? NotFound() : NoContent();
     }
 
     [HttpPost("{id:int}/runs")]
@@ -107,7 +141,7 @@ public class WorkflowsController : ControllerBase
         var tenantId = TenantHelpers.GetTenantId(HttpContext);
         var definition = await InventorySql.QueryAsync(
             _db,
-            "SELECT DefinitionJson FROM Workflows WHERE Id = @id AND TenantId = @tenantId AND EngineVersion = 3",
+            "SELECT DefinitionJson FROM Workflows WHERE Id = @id AND TenantId = @tenantId AND EngineVersion = 3 AND IsActive = 1 AND Enabled = 1",
             static reader => reader.GetString(0),
             cancellationToken,
             ("@id", id),
@@ -142,6 +176,86 @@ public class WorkflowsController : ControllerBase
             ("@planJson", planJson));
 
         return Accepted(run);
+    }
+
+    [HttpPost("events/invoice-paid")]
+    public async Task<ActionResult<IReadOnlyList<WorkflowActionLog>>> HandleInvoicePaid(
+        InvoicePaidWorkflowEvent request,
+        CancellationToken cancellationToken)
+    {
+        if (request.InvoiceId <= 0)
+        {
+            return BadRequest(new { error = "Invoice id is required." });
+        }
+
+        var tenantId = TenantHelpers.GetTenantId(HttpContext);
+        var definitions = await InventorySql.QueryAsync(
+            _db,
+            """
+            SELECT Id, DefinitionJson
+            FROM Workflows
+            WHERE TenantId = @tenantId AND EngineVersion = 3 AND IsActive = 1 AND Enabled = 1
+            """,
+            static reader => new
+            {
+                Id = reader.GetInt32(0),
+                Definition = JsonDocument.Parse(reader.GetString(1)).RootElement.Clone()
+            },
+            cancellationToken,
+            ("@tenantId", tenantId));
+
+        var logs = new List<WorkflowActionLog>();
+        foreach (var workflow in definitions)
+        {
+            logs.AddRange(PremiumWorkflowEngine.BuildInvoicePaidLogs(workflow.Definition, request.InvoiceId));
+        }
+
+        return Ok(logs);
+    }
+
+    private async Task<bool> WorkflowLimitExceededAsync(int tenantId, CancellationToken cancellationToken, int? ignoringWorkflowId = null)
+    {
+        var subscription = await _db.Subscriptions
+            .AsNoTracking()
+            .Include(item => item.Plan)
+            .FirstOrDefaultAsync(item => item.TenantId == tenantId, cancellationToken);
+
+        var planName = subscription?.Plan?.Name ?? "Solo";
+        var limit = planName.Trim().ToLowerInvariant() switch
+        {
+            "solo" => 0,
+            "team" => 3,
+            "business" => 10,
+            "enterprise" => int.MaxValue,
+            _ => 0
+        };
+
+        if (limit == int.MaxValue)
+        {
+            return false;
+        }
+
+        var count = await InventorySql.QuerySingleAsync(
+            _db,
+            """
+            SELECT COUNT(*)
+            FROM Workflows
+            WHERE TenantId = @tenantId AND IsActive = 1 AND Enabled = 1 AND (@ignoreId IS NULL OR Id <> @ignoreId)
+            """,
+            static reader => reader.GetInt32(0),
+            cancellationToken,
+            ("@tenantId", tenantId),
+            ("@ignoreId", ignoringWorkflowId));
+
+        return count >= limit;
+    }
+
+    private static ObjectResult UpgradeRequired()
+    {
+        return new ObjectResult(new { error = "Upgrade required" })
+        {
+            StatusCode = StatusCodes.Status402PaymentRequired
+        };
     }
 }
 
@@ -210,8 +324,10 @@ internal static class WorkflowV3Executor
 }
 
 public record WorkflowNodeDefinition(string Type, string Group, string Description, int MinInputs, int MaxOutputs);
-public record WorkflowSummary(int Id, string Name, int EngineVersion, bool IsActive, DateTime? UpdatedAt, DateTime CreatedAt);
-public record WorkflowDetail(int Id, string Name, int EngineVersion, JsonElement Definition, bool IsActive, DateTime? UpdatedAt, DateTime CreatedAt);
+public record WorkflowSummary(int Id, string Name, int EngineVersion, bool IsActive, DateTime? UpdatedAt, DateTime CreatedAt, bool Enabled, int MaxRunAttempts);
+public record WorkflowDetail(int Id, string Name, int EngineVersion, JsonElement Definition, bool IsActive, DateTime? UpdatedAt, DateTime CreatedAt, bool Enabled, int MaxRunAttempts);
 public record WorkflowRunResponse(int Id, int WorkflowId, int EngineVersion, string Status, JsonElement ExecutionPlan, DateTime StartedAt);
-public record SaveWorkflowRequest(string Name, JsonElement Definition, bool IsActive);
+public record SaveWorkflowRequest(string Name, JsonElement Definition, bool IsActive, bool Enabled = true, int? MaxRunAttempts = 3);
 public record StartWorkflowRunRequest(Dictionary<string, object?>? Input);
+public record SetWorkflowEnabledRequest(bool Enabled);
+public record InvoicePaidWorkflowEvent(int InvoiceId);

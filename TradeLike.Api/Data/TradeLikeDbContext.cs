@@ -20,6 +20,10 @@ public class TradeLikeDbContext : DbContext
 
     public DbSet<AdminAuditLog> AdminAuditLogs => Set<AdminAuditLog>();
 
+    public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
+
+    public DbSet<ApiUsageStat> ApiUsageStats => Set<ApiUsageStat>();
+
     public DbSet<Customer> Customers => Set<Customer>();
 
     public DbSet<Job> Jobs => Set<Job>();
@@ -29,6 +33,16 @@ public class TradeLikeDbContext : DbContext
     public DbSet<QuoteLineItem> QuoteLineItems => Set<QuoteLineItem>();
 
     public DbSet<Invoice> Invoices => Set<Invoice>();
+
+    public DbSet<DocumentTemplate> DocumentTemplates => Set<DocumentTemplate>();
+
+    public DbSet<GeneratedDocument> GeneratedDocuments => Set<GeneratedDocument>();
+
+    public DbSet<AccountingToken> AccountingTokens => Set<AccountingToken>();
+
+    public DbSet<AccountingSyncLog> AccountingSyncLogs => Set<AccountingSyncLog>();
+
+    public DbSet<FullDataExportLog> FullDataExportLogs => Set<FullDataExportLog>();
 
     public DbSet<Van> Vans => Set<Van>();
 
@@ -48,9 +62,31 @@ public class TradeLikeDbContext : DbContext
 
     public DbSet<StaffLeaveRequest> StaffLeaveRequests => Set<StaffLeaveRequest>();
 
+    public DbSet<Expense> Expenses => Set<Expense>();
+
+    public DbSet<MileageRate> MileageRates => Set<MileageRate>();
+
+    public DbSet<PushSubscription> PushSubscriptions => Set<PushSubscription>();
+
     public DbSet<JobAssignment> JobAssignments => Set<JobAssignment>();
 
     public DbSet<JobAssignmentStaff> JobAssignmentStaff => Set<JobAssignmentStaff>();
+
+    public DbSet<Workflow> Workflows => Set<Workflow>();
+
+    public DbSet<Dashboard> Dashboards => Set<Dashboard>();
+
+    public DbSet<DashboardWidget> DashboardWidgets => Set<DashboardWidget>();
+
+    public DbSet<Company> Companies => Set<Company>();
+
+    public DbSet<CompanyUser> CompanyUsers => Set<CompanyUser>();
+
+    public DbSet<CompanySetting> CompanySettings => Set<CompanySetting>();
+
+    public DbSet<WebhookWorkflow> WebhookWorkflows => Set<WebhookWorkflow>();
+
+    public DbSet<WebhookWorkflowDelivery> WebhookWorkflowDeliveries => Set<WebhookWorkflowDelivery>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -204,11 +240,29 @@ public class TradeLikeDbContext : DbContext
                 .IsRequired()
                 .HasMaxLength(20)
                 .HasDefaultValue("INV");
+
+            entity.Property(settings => settings.LogRetentionDays)
+                .HasDefaultValue(365);
         });
 
         modelBuilder.Entity<AdminAuditLog>(entity =>
         {
             entity.HasIndex(log => log.TenantId);
+
+            entity.HasIndex(log => new
+            {
+                log.TenantId,
+                log.CreatedAtUtc
+            });
+
+            entity.Property(log => log.EntityType)
+                .HasMaxLength(80);
+
+            entity.Property(log => log.EntityId)
+                .HasMaxLength(120);
+
+            entity.Property(log => log.DiffJson)
+                .HasColumnType("nvarchar(max)");
 
             entity.Property(log => log.ActorEmail)
                 .IsRequired()
@@ -250,11 +304,58 @@ public class TradeLikeDbContext : DbContext
 
             entity.HasIndex(log => log.ActorUserId);
 
+            entity.HasIndex(log => log.UserId);
+
             entity.HasIndex(log => log.ActorEmail);
 
             entity.HasIndex(log => log.TargetId);
 
             entity.HasIndex(log => log.TargetEmail);
+        });
+
+        modelBuilder.Entity<RolePermission>(entity =>
+        {
+            entity.HasKey(permission => new
+            {
+                permission.RoleName,
+                permission.Entity,
+                permission.Field
+            });
+
+            entity.Property(permission => permission.RoleName)
+                .HasMaxLength(80);
+
+            entity.Property(permission => permission.Entity)
+                .HasMaxLength(80);
+
+            entity.Property(permission => permission.Field)
+                .HasMaxLength(120);
+
+            entity.Property(permission => permission.Permission)
+                .HasConversion<string>()
+                .HasMaxLength(20);
+
+            var seededAt = new DateTime(2026, 7, 1, 0, 0, 0, DateTimeKind.Utc);
+
+            entity.HasData(
+                new RolePermission { RoleName = "CustomerEmployee", Entity = "Jobs", Field = "InternalNotes", Permission = FieldPermission.Hidden, UpdatedAtUtc = seededAt },
+                new RolePermission { RoleName = "CustomerManager", Entity = "Quote", Field = "MarginPence", Permission = FieldPermission.Read, UpdatedAtUtc = seededAt },
+                new RolePermission { RoleName = "CustomerDirector", Entity = "*", Field = "*", Permission = FieldPermission.Write, UpdatedAtUtc = seededAt },
+                new RolePermission { RoleName = "Director", Entity = "*", Field = "*", Permission = FieldPermission.Write, UpdatedAtUtc = seededAt },
+                new RolePermission { RoleName = "Staff", Entity = "*", Field = "*", Permission = FieldPermission.Write, UpdatedAtUtc = seededAt });
+        });
+
+        modelBuilder.Entity<ApiUsageStat>(entity =>
+        {
+            entity.HasIndex(stat => new
+                {
+                    stat.TenantId,
+                    stat.PeriodStartUtc
+                })
+                .IsUnique();
+
+            entity.Property(stat => stat.PeriodStartUtc)
+                .IsRequired();
         });
 
         modelBuilder.Entity<Job>(entity =>
@@ -377,6 +478,80 @@ public class TradeLikeDbContext : DbContext
             entity.Property(invoice => invoice.Status)
                 .IsRequired()
                 .HasMaxLength(30);
+        });
+
+        modelBuilder.Entity<DocumentTemplate>(entity =>
+        {
+            entity.HasIndex(template => new { template.TenantId, template.Type });
+
+            entity.Property(template => template.Type)
+                .HasConversion<string>()
+                .HasMaxLength(30);
+
+            entity.Property(template => template.Name)
+                .IsRequired()
+                .HasMaxLength(160);
+
+            entity.Property(template => template.HtmlTemplate)
+                .IsRequired();
+        });
+
+        modelBuilder.Entity<GeneratedDocument>(entity =>
+        {
+            entity.HasIndex(document => new { document.TenantId, document.EntityType, document.EntityId });
+
+            entity.Property(document => document.EntityType)
+                .HasConversion<string>()
+                .HasMaxLength(30);
+
+            entity.Property(document => document.PdfUrl)
+                .IsRequired()
+                .HasMaxLength(1000);
+        });
+
+        modelBuilder.Entity<AccountingToken>(entity =>
+        {
+            entity.HasIndex(token => new { token.TenantId, token.Provider })
+                .IsUnique();
+
+            entity.Property(token => token.Provider)
+                .HasConversion<string>()
+                .HasMaxLength(30);
+
+            entity.Property(token => token.AccessToken)
+                .IsRequired();
+
+            entity.Property(token => token.RefreshToken)
+                .IsRequired();
+        });
+
+        modelBuilder.Entity<AccountingSyncLog>(entity =>
+        {
+            entity.HasIndex(log => new { log.TenantId, log.Provider, log.CreatedAtUtc });
+
+            entity.Property(log => log.Provider)
+                .HasConversion<string>()
+                .HasMaxLength(30);
+
+            entity.Property(log => log.Direction)
+                .IsRequired()
+                .HasMaxLength(40);
+
+            entity.Property(log => log.Status)
+                .IsRequired()
+                .HasMaxLength(40);
+
+            entity.Property(log => log.DetailsJson)
+                .IsRequired();
+        });
+
+        modelBuilder.Entity<FullDataExportLog>(entity =>
+        {
+            entity.HasIndex(log => new { log.TenantId, log.CreatedAtUtc });
+
+            entity.Property(log => log.PlanName)
+                .IsRequired()
+                .HasMaxLength(20);
         });
 
         modelBuilder.Entity<Van>(entity =>
@@ -588,6 +763,65 @@ public class TradeLikeDbContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
+        modelBuilder.Entity<Expense>(entity =>
+        {
+            entity.HasIndex(expense => new
+            {
+                expense.TenantId,
+                expense.DateUtc
+            });
+
+            entity.HasIndex(expense => new
+            {
+                expense.TenantId,
+                expense.StaffId
+            });
+
+            entity.Property(expense => expense.Category)
+                .HasConversion<string>()
+                .HasMaxLength(40);
+
+            entity.Property(expense => expense.Description)
+                .IsRequired()
+                .HasMaxLength(500);
+
+            entity.Property(expense => expense.Miles)
+                .HasPrecision(10, 2);
+        });
+
+        modelBuilder.Entity<MileageRate>(entity =>
+        {
+            entity.HasIndex(rate => new
+            {
+                rate.TenantId,
+                rate.EffectiveFromUtc
+            });
+        });
+
+        modelBuilder.Entity<PushSubscription>(entity =>
+        {
+            entity.HasIndex(subscription => new
+                {
+                    subscription.TenantId,
+                    subscription.UserId
+                });
+
+            entity.HasIndex(subscription => subscription.Endpoint)
+                .IsUnique();
+
+            entity.Property(subscription => subscription.Endpoint)
+                .IsRequired()
+                .HasMaxLength(2048);
+
+            entity.Property(subscription => subscription.P256dh)
+                .IsRequired()
+                .HasMaxLength(500);
+
+            entity.Property(subscription => subscription.Auth)
+                .IsRequired()
+                .HasMaxLength(500);
+        });
+
         modelBuilder.Entity<JobAssignment>(entity =>
         {
             entity.HasIndex(assignment => new
@@ -625,6 +859,172 @@ public class TradeLikeDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(staff => staff.StaffMemberId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<Workflow>(entity =>
+        {
+            entity.ToTable("Workflows");
+
+            entity.HasIndex(workflow => new { workflow.TenantId, workflow.EngineVersion });
+
+            entity.Property(workflow => workflow.Name)
+                .IsRequired()
+                .HasMaxLength(180);
+
+            entity.Property(workflow => workflow.DefinitionJson)
+                .IsRequired();
+
+            entity.Property(workflow => workflow.DiagramJson);
+
+            entity.Property(workflow => workflow.EngineVersion)
+                .HasDefaultValue(3);
+
+            entity.Property(workflow => workflow.IsActive)
+                .HasDefaultValue(true);
+        });
+
+        modelBuilder.Entity<Dashboard>(entity =>
+        {
+            entity.HasIndex(dashboard => dashboard.TenantId);
+
+            entity.Property(dashboard => dashboard.Name)
+                .IsRequired()
+                .HasMaxLength(160);
+
+            entity.Property(dashboard => dashboard.LayoutJson)
+                .IsRequired();
+
+            entity.HasMany(dashboard => dashboard.Widgets)
+                .WithOne(widget => widget.Dashboard)
+                .HasForeignKey(widget => widget.DashboardId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<DashboardWidget>(entity =>
+        {
+            entity.Property(widget => widget.Type)
+                .HasConversion<string>()
+                .HasMaxLength(20);
+
+            entity.Property(widget => widget.QueryJson)
+                .IsRequired();
+
+            entity.Property(widget => widget.PositionJson)
+                .IsRequired();
+        });
+
+        modelBuilder.Entity<Company>(entity =>
+        {
+            entity.HasIndex(company => new { company.TenantId, company.ParentCompanyId });
+
+            entity.Property(company => company.Name)
+                .IsRequired()
+                .HasMaxLength(180);
+
+            entity.Property(company => company.Type)
+                .IsRequired()
+                .HasMaxLength(40);
+
+            entity.Property(company => company.IsActive)
+                .HasDefaultValue(true);
+
+            entity.HasOne(company => company.ParentCompany)
+                .WithMany(company => company.Children)
+                .HasForeignKey(company => company.ParentCompanyId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<CompanyUser>(entity =>
+        {
+            entity.HasIndex(companyUser => new { companyUser.CompanyId, companyUser.UserId })
+                .IsUnique();
+
+            entity.Property(companyUser => companyUser.Role)
+                .HasConversion<string>()
+                .HasMaxLength(20);
+
+            entity.HasOne(companyUser => companyUser.Company)
+                .WithMany(company => company.Users)
+                .HasForeignKey(companyUser => companyUser.CompanyId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<CompanySetting>(entity =>
+        {
+            entity.HasIndex(setting => new { setting.CompanyId, setting.SettingKey })
+                .IsUnique();
+
+            entity.Property(setting => setting.SettingKey)
+                .IsRequired()
+                .HasMaxLength(120);
+
+            entity.Property(setting => setting.SettingValue)
+                .IsRequired()
+                .HasMaxLength(4000);
+
+            entity.HasOne(setting => setting.Company)
+                .WithMany(company => company.Settings)
+                .HasForeignKey(setting => setting.CompanyId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<WebhookWorkflow>(entity =>
+        {
+            entity.HasIndex(workflow => new { workflow.TenantId, workflow.TriggerEvent, workflow.Enabled });
+
+            entity.Property(workflow => workflow.Name)
+                .IsRequired()
+                .HasMaxLength(160);
+
+            entity.Property(workflow => workflow.TriggerEvent)
+                .IsRequired()
+                .HasMaxLength(120);
+
+            entity.Property(workflow => workflow.FilterJson)
+                .IsRequired();
+
+            entity.Property(workflow => workflow.TransformJson)
+                .IsRequired();
+
+            entity.Property(workflow => workflow.TargetUrl)
+                .IsRequired()
+                .HasMaxLength(2048);
+
+            entity.Property(workflow => workflow.SignatureSecret)
+                .IsRequired()
+                .HasMaxLength(160);
+
+            entity.HasMany(workflow => workflow.Deliveries)
+                .WithOne(delivery => delivery.WebhookWorkflow)
+                .HasForeignKey(delivery => delivery.WebhookWorkflowId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<WebhookWorkflowDelivery>(entity =>
+        {
+            entity.HasIndex(delivery => new { delivery.Status, delivery.AvailableAtUtc });
+
+            entity.HasIndex(delivery => new { delivery.TenantId, delivery.WebhookWorkflowId });
+
+            entity.Property(delivery => delivery.EventName)
+                .IsRequired()
+                .HasMaxLength(120);
+
+            entity.Property(delivery => delivery.PayloadJson)
+                .IsRequired();
+
+            entity.Property(delivery => delivery.Status)
+                .IsRequired()
+                .HasMaxLength(40);
+
+            entity.Property(delivery => delivery.LastError)
+                .HasMaxLength(1000);
+        });
+
+        modelBuilder.Entity<Job>(entity =>
+        {
+            entity.Property<int?>("CompanyId");
+            entity.HasIndex("TenantId", "CompanyId");
         });
     }
 }

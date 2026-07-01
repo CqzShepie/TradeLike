@@ -105,6 +105,61 @@ jobs:
       - name: Build
         run: npm run build
 
+  dashboard-webhook-docs:
+    name: Dashboard/Webhook docs
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check webhook HMAC docs
+        run: grep -q "X-TL-Signature" docs/webhooks.md
+
+      - name: Check dashboard page surface
+        run: test -f client/src/pages/reports/dashboards/DashboardsPage.tsx
+
+  i18n-lint:
+    name: i18n lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Check locale keys
+        run: node -e "const fs=require('fs');const locales=['fr-FR','es-ES'];const base=Object.keys(JSON.parse(fs.readFileSync('client/src/locales/en-GB.json','utf8'))).sort().join('\n');for(const locale of locales){const keys=Object.keys(JSON.parse(fs.readFileSync('client/src/locales/'+locale+'.json','utf8'))).sort().join('\n');if(keys!==base){throw new Error('Locale '+locale+' keys do not match en-GB');}}"
+
+  web-push-lint:
+    name: Web push lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check push worker
+        run: |
+          test -s client/public/sw-push.ts
+          grep -q "push" client/public/sw-push.ts
+          grep -q "notificationclick" client/public/sw-push.ts
+
+  docs-check:
+    name: Docs check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Permissions matrix exists
+        run: test -s docs/permissions-matrix.md
+
   route-tests:
     name: Route tests
     runs-on: ubuntu-latest
@@ -136,6 +191,64 @@ jobs:
 
       - name: Test payments surface
         run: dotnet test TradeLike.Api.Tests/TradeLike.Api.Tests.csproj -c Release --filter Category=Payments
+
+  pdf-document-tests:
+    name: PDF documents
+    runs-on: ubuntu-latest
+
+    env:
+      PDF_STORAGE_BUCKET: ${{ runner.temp }}/pdf-storage
+      PDF_TEMP_DIR: ${{ runner.temp }}/pdf-temp
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Test template rendering
+        run: dotnet test TradeLike.Api.Tests/TradeLike.Api.Tests.csproj -c Release --filter "FullyQualifiedName~Phase34_36Tests"
+
+  accounting-integration-tests:
+    name: Accounting integrations
+    runs-on: ubuntu-latest
+
+    env:
+      XERO_CLIENT_ID: ci-xero-client
+      XERO_CLIENT_SECRET: ci-xero-secret
+      QUICKBOOKS_CLIENT_ID: ci-quickbooks-client
+      QUICKBOOKS_CLIENT_SECRET: ci-quickbooks-secret
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Test accounting refresh
+        run: dotnet test TradeLike.Api.Tests/TradeLike.Api.Tests.csproj -c Release --filter "FullyQualifiedName~Phase34_36Tests"
+
+  full-export-tests:
+    name: Full export
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Test full export gating
+        run: dotnet test TradeLike.Api.Tests/TradeLike.Api.Tests.csproj -c Release --filter "FullyQualifiedName~Phase34_36Tests"
 
   mobile:
     name: Mobile

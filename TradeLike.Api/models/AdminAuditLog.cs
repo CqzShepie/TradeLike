@@ -8,6 +8,8 @@ public class AdminAuditLog
 
     public int TenantId { get; set; }
 
+    public int? UserId { get; set; }
+
     public int ActorUserId { get; set; }
 
     [Required]
@@ -25,6 +27,14 @@ public class AdminAuditLog
     [Required]
     [MaxLength(120)]
     public string Action { get; set; } = string.Empty;
+
+    [MaxLength(80)]
+    public string EntityType { get; set; } = string.Empty;
+
+    [MaxLength(120)]
+    public string? EntityId { get; set; }
+
+    public string? DiffJson { get; set; }
 
     [Required]
     [MaxLength(80)]
@@ -49,4 +59,6 @@ public class AdminAuditLog
     public string? UserAgent { get; set; }
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
 }

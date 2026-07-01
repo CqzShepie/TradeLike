@@ -17,6 +17,10 @@ type Van = {
 const apiBase = (import.meta.env.VITE_API_URL ?? "http://localhost:5001/api").replace(/\/$/, "");
 
 export default function App() {
+  return window.location.pathname.includes("/mobile/expense") ? <ExpenseQuickAdd /> : <VanStockApp />;
+}
+
+function VanStockApp() {
   const [vans, setVans] = useState<Van[]>([]);
   const [selectedVan, setSelectedVan] = useState<Van | null>(null);
   const [selectedStock, setSelectedStock] = useState<VanStock | null>(null);
@@ -96,6 +100,57 @@ export default function App() {
           </section>
         </div>
       )}
+    </main>
+  );
+}
+
+function ExpenseQuickAdd() {
+  const [category, setCategory] = useState("Fuel");
+  const [amount, setAmount] = useState("");
+  const [miles, setMiles] = useState("");
+  const [description, setDescription] = useState("");
+  const [message, setMessage] = useState("");
+
+  async function saveExpense() {
+    setMessage("");
+    const response = await fetch(`${apiBase}/expenses`, {
+      ...authHeaders(),
+      method: "POST",
+      body: JSON.stringify({
+        dateUtc: new Date().toISOString(),
+        category,
+        amountPence: category === "Mileage" ? null : Math.round(Number(amount) * 100),
+        miles: category === "Mileage" ? Number(miles) : null,
+        description,
+        receiptFileId: null,
+      }),
+    });
+
+    setMessage(response.ok ? "Expense saved." : "Expense could not be saved.");
+    if (response.ok) {
+      setAmount("");
+      setMiles("");
+      setDescription("");
+    }
+  }
+
+  return (
+    <main>
+      <header>
+        <p>TradeLike mobile</p>
+        <h1>Quick expense</h1>
+      </header>
+
+      {message && <div className="notice">{message}</div>}
+
+      <section className="van-card">
+        <label>Category<select value={category} onChange={event => setCategory(event.target.value)}><option>Fuel</option><option>Materials</option><option>Mileage</option><option>Other</option></select></label>
+        {category === "Mileage"
+          ? <label>Miles<input type="number" min="0" step="0.1" value={miles} onChange={event => setMiles(event.target.value)} /></label>
+          : <label>Amount<input type="number" min="0" step="0.01" value={amount} onChange={event => setAmount(event.target.value)} /></label>}
+        <label>Description<textarea value={description} onChange={event => setDescription(event.target.value)} /></label>
+        <button type="button" onClick={saveExpense}>Save expense</button>
+      </section>
     </main>
   );
 }

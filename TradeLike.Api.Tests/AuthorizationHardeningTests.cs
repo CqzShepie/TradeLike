@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
+using System.Text.Json;
+using TradeLike.Api.Api.Expenses;
 using TradeLike.Api.Api.Payments;
 using TradeLike.Api.Api.RoutePlanner;
 using TradeLike.Api.Controllers;
@@ -11,12 +13,63 @@ using TradeLike.Api.Data;
 using TradeLike.Api.Models;
 using TradeLike.Api.Security;
 using TradeLike.Api.Services;
+using TradeLike.Api.Workflows;
 using Xunit;
 
 namespace TradeLike.Api.Tests;
 
 public sealed class AuthorizationHardeningTests
 {
+    [Fact]
+    public async Task MileageExpenseCalculatesAmountPence()
+    {
+        await using var context = CreateContext();
+        context.MileageRates.Add(new MileageRate
+        {
+            TenantId = 1,
+            PencePerMile = 45,
+            EffectiveFromUtc = DateTime.UtcNow.AddDays(-30)
+        });
+        await context.SaveChangesAsync();
+
+        var controller = new ExpensesController(context)
+        {
+            ControllerContext = new ControllerContext
+            {
+                HttpContext = HttpContextForTenant(1, CustomerRoles.Employee)
+            }
+        };
+
+        var result = await controller.CreateExpense(
+            new SaveExpenseRequest(null, DateTime.UtcNow, "Mileage", null, "Site visit", null, 12.5m),
+            CancellationToken.None);
+
+        var created = Assert.IsType<CreatedAtActionResult>(result.Result);
+        var expense = Assert.IsType<ExpenseResponse>(created.Value);
+        Assert.Equal(563, expense.AmountPence);
+    }
+
+    [Fact]
+    public void InvoicePaidTriggerCreatesApplyDiscountWorkflowLog()
+    {
+        using var document = JsonDocument.Parse(
+            """
+            {
+              "nodes": [
+                { "id": "trigger", "type": "InvoicePaid" },
+                { "id": "action", "type": "ApplyDiscount" }
+              ]
+            }
+            """);
+
+        var logs = PremiumWorkflowEngine.BuildInvoicePaidLogs(document.RootElement, 99);
+
+        var log = Assert.Single(logs);
+        Assert.Equal("InvoicePaid", log.Trigger);
+        Assert.Equal("ApplyDiscount", log.Action);
+        Assert.Equal(99, log.EntityId);
+    }
+
     [Fact]
     public async Task CrossTenantJobReadReturns404()
     {

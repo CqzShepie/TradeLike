@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Briefcase, CalendarDays, FileText, LayoutDashboard, Settings2, Users, UserCog, BarChart3, Umbrella } from "lucide-react";
+import { Briefcase, CalendarDays, FileText, LayoutDashboard, Settings2, Users, UserCog, BarChart3, Umbrella, ReceiptText, Bell, Workflow } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
 
 import Logo from "./Logo";
@@ -23,13 +23,16 @@ function Sidebar() {
     { to: "/jobs", label: "Jobs", icon: Briefcase },
     { to: "/quotes", label: "Quotes", icon: FileText },
     { to: "/calendar", label: "Calendar", icon: CalendarDays },
+    { to: "/expenses", label: "Expenses", icon: ReceiptText },
     ...(isManagerOrDirector
       ? [
           { to: "/team", label: "Team", icon: UserCog },
           { to: "/leave", label: "Leave", icon: Umbrella },
           { to: "/reports", label: "Reports", icon: BarChart3 },
+          { to: "/settings/automations", label: "Automations", icon: Workflow },
         ]
       : []),
+    { to: "/settings/notifications", label: "Notifications", icon: Bell },
     { to: "/settings", label: "Settings", icon: Settings2 },
   ];
 
