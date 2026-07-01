@@ -7,6 +7,9 @@ public class Job
 {
     public int Id { get; set; }
 
+    [JsonIgnore]
+    public int TenantId { get; set; }
+
     [Required]
     [MaxLength(100)]
     public string Customer { get; set; } = string.Empty;

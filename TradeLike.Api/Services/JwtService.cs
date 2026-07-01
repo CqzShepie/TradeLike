@@ -27,6 +27,7 @@ public class JwtService
             new Claim(ClaimTypes.Name, name),
             new Claim(ClaimTypes.Role, role),
             new Claim("role", role),
+            new Claim("tid", userId.ToString()),
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };
 

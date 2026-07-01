@@ -30,30 +30,33 @@ public class JobService : IJobService
         _context = context;
     }
 
-    public async Task<IReadOnlyList<Job>> GetAllAsync()
+    public async Task<IReadOnlyList<Job>> GetAllAsync(int tenantId)
     {
         return await _context.Jobs
             .AsNoTracking()
             .Include(job => job.Quote)
                 .ThenInclude(quote => quote!.LineItems)
+            .Where(job => job.TenantId == tenantId)
             .OrderBy(job => job.ScheduledDate)
             .ToListAsync();
     }
 
-    public async Task<Job?> GetByIdAsync(int id)
+    public async Task<Job?> GetByIdAsync(int id, int tenantId)
     {
         return await _context.Jobs
             .AsNoTracking()
             .Include(job => job.Quote)
                 .ThenInclude(quote => quote!.LineItems)
-            .FirstOrDefaultAsync(job => job.Id == id);
+            .FirstOrDefaultAsync(job => job.Id == id && job.TenantId == tenantId);
     }
 
-    public async Task<Job> CreateAsync(Job job)
+    public async Task<Job> CreateAsync(Job job, int tenantId)
     {
         NormaliseJob(job);
         ValidateJob(job);
+        await EnsureEngineerBelongsToTenantAsync(job.EngineerId, tenantId);
 
+        job.TenantId = tenantId;
         job.QuoteId = null;
 
         await _context.Jobs.AddAsync(job);
@@ -62,12 +65,16 @@ public class JobService : IJobService
         return job;
     }
 
-    public async Task<Job?> UpdateAsync(int id, Job updatedJob)
+    public async Task<Job?> UpdateAsync(int id, Job updatedJob, int tenantId)
     {
         NormaliseJob(updatedJob);
         ValidateJob(updatedJob);
+        await EnsureEngineerBelongsToTenantAsync(updatedJob.EngineerId, tenantId);
 
-        var job = await _context.Jobs.FindAsync(id);
+        var job = await _context.Jobs
+            .FirstOrDefaultAsync(existingJob =>
+                existingJob.Id == id &&
+                existingJob.TenantId == tenantId);
 
         if (job is null)
         {
@@ -86,12 +93,15 @@ public class JobService : IJobService
 
         await _context.SaveChangesAsync();
 
-        return await GetByIdAsync(id);
+        return await GetByIdAsync(id, tenantId);
     }
 
-    public async Task<Job?> DeleteAsync(int id)
+    public async Task<Job?> DeleteAsync(int id, int tenantId)
     {
-        var job = await _context.Jobs.FindAsync(id);
+        var job = await _context.Jobs
+            .FirstOrDefaultAsync(existingJob =>
+                existingJob.Id == id &&
+                existingJob.TenantId == tenantId);
 
         if (job is null)
         {
@@ -104,7 +114,7 @@ public class JobService : IJobService
         return job;
     }
 
-    public async Task<IReadOnlyList<Job>> GetTodayAsync()
+    public async Task<IReadOnlyList<Job>> GetTodayAsync(int tenantId)
     {
         var today = DateTime.Today;
         var tomorrow = today.AddDays(1);
@@ -113,12 +123,15 @@ public class JobService : IJobService
             .AsNoTracking()
             .Include(job => job.Quote)
                 .ThenInclude(quote => quote!.LineItems)
-            .Where(job => job.ScheduledDate >= today && job.ScheduledDate < tomorrow)
+            .Where(job =>
+                job.TenantId == tenantId &&
+                job.ScheduledDate >= today &&
+                job.ScheduledDate < tomorrow)
             .OrderBy(job => job.ScheduledDate)
             .ToListAsync();
     }
 
-    public async Task<IReadOnlyList<Job>> GetWeekAsync(DateTime weekStart)
+    public async Task<IReadOnlyList<Job>> GetWeekAsync(DateTime weekStart, int tenantId)
     {
         weekStart = weekStart.Date;
 
@@ -134,19 +147,25 @@ public class JobService : IJobService
             .AsNoTracking()
             .Include(job => job.Quote)
                 .ThenInclude(quote => quote!.LineItems)
-            .Where(job => job.ScheduledDate >= start && job.ScheduledDate < end)
+            .Where(job =>
+                job.TenantId == tenantId &&
+                job.ScheduledDate >= start &&
+                job.ScheduledDate < end)
             .OrderBy(job => job.ScheduledDate)
             .ToListAsync();
     }
 
-    public async Task<Job?> LinkQuoteAsync(int jobId, int quoteId)
+    public async Task<Job?> LinkQuoteAsync(int jobId, int quoteId, int tenantId)
     {
         if (quoteId <= 0)
         {
             throw new ValidationException("Enter a valid quote number.");
         }
 
-        var job = await _context.Jobs.FindAsync(jobId);
+        var job = await _context.Jobs
+            .FirstOrDefaultAsync(existingJob =>
+                existingJob.Id == jobId &&
+                existingJob.TenantId == tenantId);
 
         if (job is null)
         {
@@ -155,7 +174,9 @@ public class JobService : IJobService
 
         var quoteExists = await _context.Quotes
             .AsNoTracking()
-            .AnyAsync(quote => quote.Id == quoteId);
+            .AnyAsync(quote =>
+                quote.Id == quoteId &&
+                quote.TenantId == tenantId);
 
         if (!quoteExists)
         {
@@ -165,6 +186,7 @@ public class JobService : IJobService
         var existingLinkedJob = await _context.Jobs
             .AsNoTracking()
             .FirstOrDefaultAsync(existingJob =>
+                existingJob.TenantId == tenantId &&
                 existingJob.QuoteId == quoteId &&
                 existingJob.Id != jobId);
 
@@ -178,12 +200,15 @@ public class JobService : IJobService
 
         await _context.SaveChangesAsync();
 
-        return await GetByIdAsync(jobId);
+        return await GetByIdAsync(jobId, tenantId);
     }
 
-    public async Task<Job?> UnlinkQuoteAsync(int jobId)
+    public async Task<Job?> UnlinkQuoteAsync(int jobId, int tenantId)
     {
-        var job = await _context.Jobs.FindAsync(jobId);
+        var job = await _context.Jobs
+            .FirstOrDefaultAsync(existingJob =>
+                existingJob.Id == jobId &&
+                existingJob.TenantId == tenantId);
 
         if (job is null)
         {
@@ -194,7 +219,26 @@ public class JobService : IJobService
 
         await _context.SaveChangesAsync();
 
-        return await GetByIdAsync(jobId);
+        return await GetByIdAsync(jobId, tenantId);
+    }
+
+    private async Task EnsureEngineerBelongsToTenantAsync(int? engineerId, int tenantId)
+    {
+        if (engineerId is null)
+        {
+            return;
+        }
+
+        var engineerExists = await _context.Engineers
+            .AsNoTracking()
+            .AnyAsync(engineer =>
+                engineer.Id == engineerId &&
+                engineer.TenantId == tenantId);
+
+        if (!engineerExists)
+        {
+            throw new ValidationException("Engineer was not found.");
+        }
     }
 
     private static void NormaliseJob(Job job)

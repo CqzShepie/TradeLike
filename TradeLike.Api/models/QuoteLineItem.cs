@@ -7,6 +7,9 @@ public class QuoteLineItem
 {
     public int Id { get; set; }
 
+    [JsonIgnore]
+    public int TenantId { get; set; }
+
     public int QuoteId { get; set; }
 
     [JsonIgnore]

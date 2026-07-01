@@ -13,24 +13,26 @@ public class CustomerService : ICustomerService
         _context = context;
     }
 
-    public async Task<IReadOnlyList<Customer>> GetAllAsync()
+    public async Task<IReadOnlyList<Customer>> GetAllAsync(int tenantId)
     {
         return await _context.Customers
             .AsNoTracking()
+            .Where(c => c.TenantId == tenantId)
             .OrderBy(c => c.Name)
             .ToListAsync();
     }
 
-    public async Task<Customer?> GetByIdAsync(int id)
+    public async Task<Customer?> GetByIdAsync(int id, int tenantId)
     {
         return await _context.Customers
             .AsNoTracking()
-            .FirstOrDefaultAsync(c => c.Id == id);
+            .FirstOrDefaultAsync(c => c.Id == id && c.TenantId == tenantId);
     }
 
-    public async Task<Customer> CreateAsync(Customer customer)
+    public async Task<Customer> CreateAsync(Customer customer, int tenantId)
     {
         NormaliseCustomer(customer);
+        customer.TenantId = tenantId;
 
         await _context.Customers.AddAsync(customer);
         await _context.SaveChangesAsync();
@@ -38,11 +40,14 @@ public class CustomerService : ICustomerService
         return customer;
     }
 
-    public async Task<Customer?> UpdateAsync(int id, Customer updatedCustomer)
+    public async Task<Customer?> UpdateAsync(int id, Customer updatedCustomer, int tenantId)
     {
         NormaliseCustomer(updatedCustomer);
 
-        var customer = await _context.Customers.FindAsync(id);
+        var customer = await _context.Customers
+            .FirstOrDefaultAsync(existingCustomer =>
+                existingCustomer.Id == id &&
+                existingCustomer.TenantId == tenantId);
 
         if (customer is null)
         {
@@ -60,9 +65,12 @@ public class CustomerService : ICustomerService
         return customer;
     }
 
-    public async Task<Customer?> DeleteAsync(int id)
+    public async Task<Customer?> DeleteAsync(int id, int tenantId)
     {
-        var customer = await _context.Customers.FindAsync(id);
+        var customer = await _context.Customers
+            .FirstOrDefaultAsync(existingCustomer =>
+                existingCustomer.Id == id &&
+                existingCustomer.TenantId == tenantId);
 
         if (customer is null)
         {

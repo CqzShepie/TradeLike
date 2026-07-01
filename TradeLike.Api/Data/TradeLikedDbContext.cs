@@ -193,6 +193,8 @@ public class TradeLikeDbContext : DbContext
 
         modelBuilder.Entity<Job>(entity =>
         {
+            entity.HasIndex(j => j.TenantId);
+
             entity.Property(j => j.Customer)
                 .IsRequired()
                 .HasMaxLength(100);
@@ -233,6 +235,8 @@ public class TradeLikeDbContext : DbContext
 
         modelBuilder.Entity<Quote>(entity =>
         {
+            entity.HasIndex(q => q.TenantId);
+
             entity.Property(q => q.CustomerName)
                 .IsRequired()
                 .HasMaxLength(150);
@@ -240,6 +244,21 @@ public class TradeLikeDbContext : DbContext
             entity.Property(q => q.Title)
                 .IsRequired()
                 .HasMaxLength(200);
+        });
+
+        modelBuilder.Entity<Customer>(entity =>
+        {
+            entity.HasIndex(customer => customer.TenantId);
+        });
+
+        modelBuilder.Entity<Engineer>(entity =>
+        {
+            entity.HasIndex(engineer => engineer.TenantId);
+        });
+
+        modelBuilder.Entity<QuoteLineItem>(entity =>
+        {
+            entity.HasIndex(item => item.TenantId);
         });
     }
 }

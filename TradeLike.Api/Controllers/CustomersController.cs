@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TradeLike.Api.Models;
+using TradeLike.Api.Security;
 using TradeLike.Api.Services;
 
 namespace TradeLike.Api.Controllers;
@@ -20,7 +21,7 @@ public class CustomersController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetCustomers()
     {
-        var customers = await _customerService.GetAllAsync();
+        var customers = await _customerService.GetAllAsync(TenantHelpers.GetTenantId(HttpContext));
 
         return Ok(customers);
     }
@@ -28,7 +29,7 @@ public class CustomersController : ControllerBase
     [HttpGet("{id:int}")]
     public async Task<IActionResult> GetCustomer(int id)
     {
-        var customer = await _customerService.GetByIdAsync(id);
+        var customer = await _customerService.GetByIdAsync(id, TenantHelpers.GetTenantId(HttpContext));
 
         if (customer is null)
         {
@@ -41,7 +42,7 @@ public class CustomersController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> CreateCustomer([FromBody] Customer customer)
     {
-        var createdCustomer = await _customerService.CreateAsync(customer);
+        var createdCustomer = await _customerService.CreateAsync(customer, TenantHelpers.GetTenantId(HttpContext));
 
         return CreatedAtAction(
             nameof(GetCustomer),
@@ -52,7 +53,7 @@ public class CustomersController : ControllerBase
     [HttpPut("{id:int}")]
     public async Task<IActionResult> UpdateCustomer(int id, [FromBody] Customer customer)
     {
-        var updatedCustomer = await _customerService.UpdateAsync(id, customer);
+        var updatedCustomer = await _customerService.UpdateAsync(id, customer, TenantHelpers.GetTenantId(HttpContext));
 
         if (updatedCustomer is null)
         {
@@ -65,7 +66,7 @@ public class CustomersController : ControllerBase
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> DeleteCustomer(int id)
     {
-        var deletedCustomer = await _customerService.DeleteAsync(id);
+        var deletedCustomer = await _customerService.DeleteAsync(id, TenantHelpers.GetTenantId(HttpContext));
 
         if (deletedCustomer is null)
         {

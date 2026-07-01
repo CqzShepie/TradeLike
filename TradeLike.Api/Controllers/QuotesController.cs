@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TradeLike.Api.Contracts.Quotes;
 using TradeLike.Api.Models;
+using TradeLike.Api.Security;
 using TradeLike.Api.Services;
 
 namespace TradeLike.Api.Controllers;
@@ -22,7 +23,7 @@ public class QuotesController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<List<QuoteResponse>>> GetQuotes()
     {
-        var quotes = await _quoteService.GetAllAsync();
+        var quotes = await _quoteService.GetAllAsync(TenantHelpers.GetTenantId(HttpContext));
 
         return Ok(quotes.Select(ToResponse).ToList());
     }
@@ -30,7 +31,7 @@ public class QuotesController : ControllerBase
     [HttpGet("{id:int}")]
     public async Task<ActionResult<QuoteResponse>> GetQuote(int id)
     {
-        var quote = await _quoteService.GetByIdAsync(id);
+        var quote = await _quoteService.GetByIdAsync(id, TenantHelpers.GetTenantId(HttpContext));
 
         if (quote is null)
         {
@@ -47,7 +48,7 @@ public class QuotesController : ControllerBase
         try
         {
             var quote = ToQuote(request);
-            var created = await _quoteService.CreateAsync(quote);
+            var created = await _quoteService.CreateAsync(quote, TenantHelpers.GetTenantId(HttpContext));
             var response = ToResponse(created);
 
             return CreatedAtAction(
@@ -69,7 +70,7 @@ public class QuotesController : ControllerBase
         try
         {
             var quote = ToQuote(request);
-            var updated = await _quoteService.UpdateAsync(id, quote);
+            var updated = await _quoteService.UpdateAsync(id, quote, TenantHelpers.GetTenantId(HttpContext));
 
             if (updated is null)
             {
@@ -91,7 +92,10 @@ public class QuotesController : ControllerBase
     {
         try
         {
-            var job = await _quoteService.ConvertAcceptedQuoteToJobAsync(id, request);
+            var job = await _quoteService.ConvertAcceptedQuoteToJobAsync(
+                id,
+                request,
+                TenantHelpers.GetTenantId(HttpContext));
 
             if (job is null)
             {
@@ -115,7 +119,7 @@ public class QuotesController : ControllerBase
     [HttpDelete("{id:int}")]
     public async Task<ActionResult<QuoteResponse>> DeleteQuote(int id)
     {
-        var deleted = await _quoteService.DeleteAsync(id);
+        var deleted = await _quoteService.DeleteAsync(id, TenantHelpers.GetTenantId(HttpContext));
 
         if (deleted is null)
         {
