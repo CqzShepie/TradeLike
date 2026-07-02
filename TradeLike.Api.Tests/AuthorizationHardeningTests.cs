@@ -1,9 +1,12 @@
 using System.Security.Claims;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Logging.Abstractions;
+using TradeLike.Api;
 using TradeLike.Api.Api.Payments;
 using TradeLike.Api.Api.RoutePlanner;
 using TradeLike.Api.Contracts.Admin;
@@ -18,16 +21,28 @@ namespace TradeLike.Api.Tests;
 
 public sealed class AuthorizationHardeningTests
 {
-    [Theory]
-    [InlineData("Director")]
-    [InlineData("Customer")]
-    [InlineData("CustomerDirector")]
-    [InlineData("director")]
-    public void LegacyOwnerRolesNormaliseToCustomerDirector(string role)
+    [Fact]
+    public void CustomerRolesDoNotElevateLegacyRolesAtRuntime()
     {
-        Assert.Equal(CustomerRoles.Director, CustomerRoles.Normalize(role));
-        Assert.True(CustomerRoles.IsDirector(role));
-        Assert.True(CustomerRoles.IsCustomerRole(role));
+        Assert.Equal(CustomerRoles.LegacyDirector, CustomerRoles.Normalize("Director"));
+        Assert.Equal(CustomerRoles.LegacyCustomer, CustomerRoles.Normalize("Customer"));
+        Assert.False(CustomerRoles.IsDirector("Director"));
+        Assert.False(CustomerRoles.IsCustomerRole("Customer"));
+        Assert.False(CustomerRoles.IsCustomerRole("Director"));
+        Assert.True(CustomerRoles.IsCustomerRole(CustomerRoles.Director));
+        Assert.True(CustomerRoles.IsStudioRole("Director"));
+        Assert.False(CustomerRoles.IsStudioRole(CustomerRoles.Director));
+    }
+
+    [Fact]
+    public void CustomerRolesAcceptOnlyCanonicalCustomerRoles()
+    {
+        Assert.True(CustomerRoles.IsCustomerRole(CustomerRoles.Employee));
+        Assert.True(CustomerRoles.IsCustomerRole(CustomerRoles.Manager));
+        Assert.True(CustomerRoles.IsCustomerRole(CustomerRoles.Director));
+        Assert.False(CustomerRoles.IsCustomerRole("Customer"));
+        Assert.False(CustomerRoles.IsCustomerRole("Director"));
+        Assert.False(CustomerRoles.IsCustomerRole("Admin"));
     }
 
     [Fact]
@@ -121,6 +136,157 @@ public sealed class AuthorizationHardeningTests
 
         var objectResult = Assert.IsType<ObjectResult>(result.Result);
         Assert.Equal(StatusCodes.Status402PaymentRequired, objectResult.StatusCode);
+    }
+
+    [Fact]
+    public async Task ForgotPasswordStoresHashedTokenAndGenericDevelopmentLink()
+    {
+        await using var context = CreateContext();
+        var user = BuildUser(
+            id: 1,
+            email: "owner@example.com",
+            role: CustomerRoles.Director,
+            tenantId: 1,
+            plan: "Solo");
+        context.Users.Add(user);
+        await context.SaveChangesAsync();
+
+        var service = CreatePasswordResetService(context, "Development");
+        var httpContext = new DefaultHttpContext();
+
+        var result = await service.RequestSelfServiceResetAsync("owner@example.com", httpContext);
+
+        Assert.NotNull(result);
+        Assert.NotNull(result!.DevelopmentResetLink);
+        Assert.NotNull(user.PasswordResetTokenHash);
+        var token = ExtractToken(result.DevelopmentResetLink!);
+        Assert.NotEqual(token, user.PasswordResetTokenHash);
+        Assert.Equal(PasswordResetService.HashToken(token), user.PasswordResetTokenHash);
+        Assert.NotNull(user.PasswordResetRequestedAtUtc);
+    }
+
+    [Fact]
+    public async Task ResetPasswordRejectsExpiredToken()
+    {
+        await using var context = CreateContext();
+        var user = BuildUser(
+            id: 1,
+            email: "owner@example.com",
+            role: CustomerRoles.Director,
+            tenantId: 1,
+            plan: "Solo");
+        user.PasswordResetTokenHash = PasswordResetService.HashToken("expired-token");
+        user.PasswordResetTokenExpiresAtUtc = DateTime.UtcNow.AddMinutes(-1);
+        context.Users.Add(user);
+        await context.SaveChangesAsync();
+
+        var service = CreatePasswordResetService(context, "Development");
+
+        var result = await service.ResetPasswordAsync(
+            "expired-token",
+            "NewPassword123!",
+            new DefaultHttpContext());
+
+        Assert.Equal(PasswordResetResult.InvalidOrExpiredToken, result);
+    }
+
+    [Fact]
+    public async Task ResetPasswordUpdatesHashAndClearsToken()
+    {
+        await using var context = CreateContext();
+        var user = BuildUser(
+            id: 1,
+            email: "owner@example.com",
+            role: CustomerRoles.Director,
+            tenantId: 1,
+            plan: "Solo");
+        user.PasswordResetTokenHash = PasswordResetService.HashToken("valid-token");
+        user.PasswordResetTokenExpiresAtUtc = DateTime.UtcNow.AddMinutes(30);
+        user.PasswordResetRequestedAtUtc = DateTime.UtcNow;
+        user.PasswordResetRequired = true;
+        context.Users.Add(user);
+        await context.SaveChangesAsync();
+
+        var service = CreatePasswordResetService(context, "Development");
+
+        var result = await service.ResetPasswordAsync(
+            "valid-token",
+            "NewPassword123!",
+            new DefaultHttpContext());
+
+        Assert.Equal(PasswordResetResult.Success, result);
+        Assert.True(BCrypt.Net.BCrypt.Verify("NewPassword123!", user.PasswordHash));
+        Assert.Null(user.PasswordResetTokenHash);
+        Assert.Null(user.PasswordResetTokenExpiresAtUtc);
+        Assert.Null(user.PasswordResetRequestedAtUtc);
+        Assert.False(user.PasswordResetRequired);
+    }
+
+    [Fact]
+    public async Task ProductionForgotPasswordDoesNotReturnResetLink()
+    {
+        await using var context = CreateContext();
+        var user = BuildUser(
+            id: 1,
+            email: "owner@example.com",
+            role: CustomerRoles.Director,
+            tenantId: 1,
+            plan: "Solo");
+        context.Users.Add(user);
+        await context.SaveChangesAsync();
+
+        var service = CreatePasswordResetService(context, "Production");
+
+        var result = await service.RequestSelfServiceResetAsync(
+            "owner@example.com",
+            new DefaultHttpContext());
+
+        Assert.NotNull(result);
+        Assert.Null(result!.DevelopmentResetLink);
+        Assert.NotNull(user.PasswordResetTokenHash);
+    }
+
+    [Fact]
+    public async Task AdminCreateCustomerUsesSetupLinkInsteadOfStaffTypedPassword()
+    {
+        await using var context = CreateContext();
+        context.Users.Add(BuildUser(
+            id: 1,
+            email: "studio@example.com",
+            role: "Director",
+            tenantId: 1,
+            plan: "Internal"));
+        await context.SaveChangesAsync();
+
+        var service = CreatePasswordResetService(context, "Development");
+        var controller = new AdminUserController(context, service)
+        {
+            ControllerContext = new ControllerContext
+            {
+                HttpContext = HttpContextForStudioUser("studio@example.com")
+            }
+        };
+
+        var result = await controller.CreateUser(new CreateAdminUserRequest
+        {
+            FirstName = "Customer",
+            LastName = "Owner",
+            Email = "owner@example.com",
+            Password = "StaffTyped123!",
+            AccountStatus = "Trial",
+            SubscriptionPlan = "Solo",
+            BillingStatus = "Trial",
+            HealthStatus = "Green"
+        });
+
+        Assert.IsType<OkObjectResult>(result.Result);
+        var created = await context.Users.SingleAsync(user => user.Email == "owner@example.com");
+        Assert.Equal(CustomerRoles.Director, created.Role);
+        Assert.True(created.PasswordResetRequired);
+        Assert.NotNull(created.PasswordResetTokenHash);
+        Assert.False(BCrypt.Net.BCrypt.Verify("StaffTyped123!", created.PasswordHash));
+        Assert.True(await context.AdminAuditLogs.AnyAsync(
+            log => log.Action == "PasswordResetLinkSent" && log.TargetEmail == "owner@example.com"));
     }
 
     [Fact]
@@ -291,6 +457,42 @@ public sealed class AuthorizationHardeningTests
         };
     }
 
+    private static PasswordResetService CreatePasswordResetService(
+        TradeLikeDbContext context,
+        string environmentName)
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Frontend:BaseUrl"] = "https://localhost:5173",
+                ["Features:Notifications:Enabled"] = "false"
+            })
+            .Build();
+
+        var queue = new NotificationQueue(
+            new HttpClient(),
+            configuration,
+            NullLogger<NotificationQueue>.Instance);
+
+        return new PasswordResetService(
+            context,
+            queue,
+            configuration,
+            new TestEnvironment(environmentName),
+            NullLogger<PasswordResetService>.Instance);
+    }
+
+    private static string ExtractToken(string resetLink)
+    {
+        var uri = new Uri(resetLink);
+        var query = uri.Query.TrimStart('?')
+            .Split('&', StringSplitOptions.RemoveEmptyEntries)
+            .Select(part => part.Split('=', 2))
+            .ToDictionary(part => part[0], part => Uri.UnescapeDataString(part[1]));
+
+        return query["token"];
+    }
+
     private static HttpContext HttpContextForTenant(int tenantId, string role)
     {
         var identity = new ClaimsIdentity(new[]
@@ -317,5 +519,25 @@ public sealed class AuthorizationHardeningTests
         {
             User = new ClaimsPrincipal(identity)
         };
+    }
+
+    private sealed class TestEnvironment : IWebHostEnvironment
+    {
+        public TestEnvironment(string environmentName)
+        {
+            EnvironmentName = environmentName;
+        }
+
+        public string EnvironmentName { get; set; }
+
+        public string ApplicationName { get; set; } = "TradeLike.Api.Tests";
+
+        public string WebRootPath { get; set; } = string.Empty;
+
+        public IFileProvider WebRootFileProvider { get; set; } = new NullFileProvider();
+
+        public string ContentRootPath { get; set; } = string.Empty;
+
+        public IFileProvider ContentRootFileProvider { get; set; } = new NullFileProvider();
     }
 }

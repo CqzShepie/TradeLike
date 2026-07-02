@@ -6,6 +6,7 @@ import type {
   CreateAdminUserRequest,
   CreateStaffUserRequest,
   ResetAdminUserPasswordRequest,
+  ResetAdminUserPasswordResponse,
   UpdateCustomerDiscountRequest,
   UpdateCustomerFreeMonthsRequest,
   UpdateCustomerPlanRequest,
@@ -43,7 +44,7 @@ export const adminService = {
       firstName: request.firstName.trim(),
       lastName: request.lastName.trim(),
       email: request.email.trim().toLowerCase(),
-      password: request.password,
+      password: request.password ?? "",
       accountStatus: request.accountStatus,
       businessName: request.businessName.trim(),
       ownerName: request.ownerName.trim(),
@@ -143,9 +144,9 @@ export const adminService = {
 
   async resetPassword(userId: number, request: ResetAdminUserPasswordRequest) {
     return (await apiClient.post(`/admin/users/${userId}/reset-password`, {
-      newPassword: request.newPassword,
-      requirePasswordReset: request.requirePasswordReset,
-    })) as AdminUser;
+      sendResetLink: request.sendResetLink,
+      forcePasswordReset: request.forcePasswordReset,
+    })) as ResetAdminUserPasswordResponse;
   },
 
   async markEmailVerified(userId: number) {

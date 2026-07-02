@@ -72,4 +72,17 @@ describe("Login", () => {
       password: "Password123!",
     }));
   });
+
+  it("renders a forgot password link", () => {
+    render(
+      <MemoryRouter>
+        <Login />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByRole("link", { name: /forgot password/i })).toHaveAttribute(
+      "href",
+      "/forgot-password"
+    );
+  });
 });

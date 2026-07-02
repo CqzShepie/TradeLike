@@ -150,4 +150,25 @@ describe("adminService", () => {
       })
     );
   });
+
+  it("sends password recovery actions without a raw new password", async () => {
+    vi.mocked(apiClient.post).mockResolvedValue({
+      message: "Password reset link sent.",
+      user: adminUser,
+    });
+
+    await adminService.resetPassword(7, {
+      sendResetLink: true,
+      forcePasswordReset: true,
+    });
+
+    expect(apiClient.post).toHaveBeenCalledWith(
+      "/admin/users/7/reset-password",
+      {
+        sendResetLink: true,
+        forcePasswordReset: true,
+      }
+    );
+    expect(vi.mocked(apiClient.post).mock.calls[0]?.[1]).not.toHaveProperty("newPassword");
+  });
 });

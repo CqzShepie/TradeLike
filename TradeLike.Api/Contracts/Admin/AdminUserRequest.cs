@@ -127,9 +127,9 @@ public sealed class AddCustomerSupportNoteRequest
 
 public sealed class ResetAdminUserPasswordRequest
 {
-    public string NewPassword { get; init; } = string.Empty;
+    public bool SendResetLink { get; init; } = true;
 
-    public bool RequirePasswordReset { get; init; } = true;
+    public bool ForcePasswordReset { get; init; }
 }
 
 public sealed class CreateStaffUserRequest

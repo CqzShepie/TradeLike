@@ -12,6 +12,8 @@ import CalendarPage from "../pages/Calendar";
 import A11ySettings from "../pages/AccessibilitySettings";
 import Signup from "../pages/Signup";
 import Login from "../pages/Login";
+import ForgotPassword from "../pages/ForgotPassword";
+import ResetPassword from "../pages/ResetPassword";
 import Quotes from "../pages/Quotes";
 import QuoteDetails from "../pages/QuoteDetails";
 import Invoices from "../pages/Invoices";
@@ -50,6 +52,8 @@ function AppRouter() {
         <Route path="/signup" element={<Signup />} />
         <Route path="/register" element={<Signup />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/company-invite" element={<CompanyInvite />} />
         <Route path="/accept-staff-invite" element={<AcceptStaffInvite />} />
         <Route path="/accept-company-staff-invite" element={<AcceptCompanyStaffInvite />} />

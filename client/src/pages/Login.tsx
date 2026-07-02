@@ -107,6 +107,15 @@ function Login() {
           />
         </FormField>
 
+        <div className="-mt-2 text-right">
+          <Link
+            to="/forgot-password"
+            className="text-sm font-semibold text-blue-300 hover:text-blue-200 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+          >
+            Forgot password?
+          </Link>
+        </div>
+
         {error && <InlineAlert tone="error">{error}</InlineAlert>}
 
         <PrimaryButton type="submit" size="lg" fullWidth disabled={loading}>

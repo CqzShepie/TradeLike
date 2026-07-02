@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using TradeLike.Api.Contracts.Auth;
 using TradeLike.Api.Data;
 using TradeLike.Api.Models;
 using TradeLike.Api.Security;
@@ -14,13 +15,16 @@ public class AuthController : ControllerBase
 {
     private readonly TradeLikeDbContext _context;
     private readonly JwtService _jwtService;
+    private readonly PasswordResetService _passwordResetService;
 
     public AuthController(
         TradeLikeDbContext context,
-        JwtService jwtService)
+        JwtService jwtService,
+        PasswordResetService passwordResetService)
     {
         _context = context;
         _jwtService = jwtService;
+        _passwordResetService = passwordResetService;
     }
 
     public sealed record LoginRequest(
@@ -33,6 +37,46 @@ public class AuthController : ControllerBase
         string Email,
         string Password
     );
+
+    [EnableRateLimiting("auth-forgot-password")]
+    [HttpPost("forgot-password")]
+    public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest request)
+    {
+        var result = await _passwordResetService.RequestSelfServiceResetAsync(
+            request.Email,
+            HttpContext,
+            HttpContext.RequestAborted);
+
+        var response = new Dictionary<string, object?>
+        {
+            ["message"] = PasswordResetService.GenericForgotPasswordMessage
+        };
+
+        if (result?.DevelopmentResetLink is not null)
+        {
+            response["resetLink"] = result.DevelopmentResetLink;
+            response["expiresAtUtc"] = result.ExpiresAtUtc;
+        }
+
+        return Ok(response);
+    }
+
+    [HttpPost("reset-password")]
+    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
+    {
+        var result = await _passwordResetService.ResetPasswordAsync(
+            request.Token,
+            request.NewPassword,
+            HttpContext,
+            HttpContext.RequestAborted);
+
+        return result switch
+        {
+            PasswordResetResult.Success => Ok(new { message = "Your password has been reset. You can now sign in." }),
+            PasswordResetResult.InvalidPassword => BadRequest(new { error = "Password must be at least 8 characters." }),
+            _ => BadRequest(new { error = "This reset link is invalid or has expired." })
+        };
+    }
 
     [EnableRateLimiting("auth-login")]
     [HttpPost("login")]
