@@ -21,6 +21,7 @@ import type {
 } from "../../types/settings";
 import { getCustomerRoleLabel, getCustomerRoleOptions } from "../../utils/customerRoleLabels";
 import { normalizePlan } from "../../routes/planEntitlements";
+import { pricingPlans } from "../../config/pricing";
 
 type SectionId =
   | "account"
@@ -180,8 +181,9 @@ function BillingPanel({ settings, onPlanChanged }: { settings: CustomerSettings;
 
   return (
     <PanelCard title="Plan & billing">
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <Metric label="Plan" value={settings.planBilling.planName} />
+        <Metric label="Monthly price" value={formatCurrency(settings.planBilling.monthlyPricePence)} />
         <Metric label="Billing status" value={settings.planBilling.billingStatus} />
         <Metric label="Seats" value={formatSeatLabel(settings.planBilling.seatsPurchased, settings.planBilling.maxIncludedUsers)} />
         <Metric label="Included users" value={settings.planBilling.maxIncludedUsers == null ? "Unlimited users" : String(settings.planBilling.maxIncludedUsers)} />
@@ -203,7 +205,7 @@ function BillingModal({ settings, onClose, onPlanChanged }: { settings: Customer
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const selectedPlanOption = planOptions.find(plan => plan.name === selectedPlan) ?? planOptions[0];
+  const selectedPlanOption = pricingPlans.find(plan => plan.name === selectedPlan) ?? pricingPlans[0];
 
   async function submitChange() {
     if (!confirmed) {
@@ -256,10 +258,10 @@ function BillingModal({ settings, onClose, onPlanChanged }: { settings: Customer
         </div>
 
         <div className="mt-6 grid gap-3 sm:grid-cols-2">
-          {planOptions.map(plan => (
+          {pricingPlans.map(plan => (
             <button key={plan.name} type="button" onClick={() => { setSelectedPlan(plan.name); setConfirmed(false); }} className={`rounded-xl border p-4 text-left transition ${selectedPlan === plan.name ? "border-blue-400 bg-blue-500/15" : "border-white/10 bg-slate-950/50 hover:bg-white/[0.04]"}`}>
               <p className="font-bold text-white">{plan.name}</p>
-              <p className="mt-1 text-sm text-slate-300">{plan.pricePence == null ? "Talk to us" : `${formatCurrency(plan.pricePence)} / month`}</p>
+              <p className="mt-1 text-sm text-slate-300">{plan.pricePence == null ? "Contact Sales" : `${formatCurrency(plan.pricePence)} / month`}</p>
               <p className="mt-2 text-xs text-slate-400">{plan.includedUsers == null ? "Unlimited users" : `${plan.includedUsers} included user${plan.includedUsers === 1 ? "" : "s"}`}</p>
             </button>
           ))}
@@ -359,16 +361,9 @@ function LinkButton({ to, children, icon }: { to: string; children: React.ReactN
   return <Link to={to} className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-slate-100 transition hover:bg-white/10">{icon}{children}</Link>;
 }
 
-const planOptions = [
-  { name: "Solo", pricePence: 4000, includedUsers: 1 },
-  { name: "Team", pricePence: 9900, includedUsers: 10 },
-  { name: "Business", pricePence: 19900, includedUsers: 25 },
-  { name: "Enterprise", pricePence: null, includedUsers: null },
-];
-
 function formatCurrency(valuePence?: number | null) {
   if (valuePence == null) {
-    return "Custom";
+    return "Contact Sales";
   }
 
   return new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(valuePence / 100);

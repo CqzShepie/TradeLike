@@ -5,6 +5,7 @@ import AccessDiagnosticsPanel from "../components/diagnostics/AccessDiagnosticsP
 import { buildAccessDiagnostic, getAccessReasonMessage, readRawStoredUser } from "../components/diagnostics/accessDiagnostics";
 import { authService } from "../services/authService";
 import { findNavigationItemByPath } from "../routes/navigationConfig";
+import { pricingPlans } from "../config/pricing";
 
 type UpgradeRequiredProps = {
   featureName?: string;
@@ -46,6 +47,14 @@ export default function UpgradeRequired({ featureName, minimumPlan }: UpgradeReq
           <Link className="inline-flex rounded-xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-slate-100 hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-blue-500" to="/dashboard">
             Back to dashboard
           </Link>
+        </div>
+        <div className="mt-6 grid gap-3 text-left sm:grid-cols-2">
+          {pricingPlans.map(plan => (
+            <div key={plan.name} className="rounded-xl border border-white/10 bg-slate-950/50 p-4">
+              <p className="text-sm font-bold text-white">{plan.name}</p>
+              <p className="mt-1 text-sm font-semibold text-blue-200">{plan.displayPrice}</p>
+            </div>
+          ))}
         </div>
         <AccessDiagnosticsPanel diagnostic={diagnostic} />
       </section>

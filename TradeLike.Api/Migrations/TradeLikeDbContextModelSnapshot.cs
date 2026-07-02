@@ -820,7 +820,7 @@ namespace TradeLike.Api.Migrations
                             Id = 1,
                             CreatedAt = new DateTime(2026, 7, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             MaxIncludedUsers = 1,
-                            MonthlyPricePence = 3500,
+                            MonthlyPricePence = 3995,
                             Name = "Solo"
                         },
                         new
@@ -828,7 +828,7 @@ namespace TradeLike.Api.Migrations
                             Id = 2,
                             CreatedAt = new DateTime(2026, 7, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             MaxIncludedUsers = 10,
-                            MonthlyPricePence = 7500,
+                            MonthlyPricePence = 9995,
                             Name = "Team"
                         },
                         new
@@ -837,7 +837,7 @@ namespace TradeLike.Api.Migrations
                             AdditionalUserCostPence = 500,
                             CreatedAt = new DateTime(2026, 7, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             MaxIncludedUsers = 25,
-                            MonthlyPricePence = 15000,
+                            MonthlyPricePence = 15995,
                             Name = "Business"
                         },
                         new

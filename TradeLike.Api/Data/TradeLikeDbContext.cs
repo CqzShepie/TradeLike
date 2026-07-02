@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using TradeLike.Api.Configuration;
 using TradeLike.Api.Models;
 
 namespace TradeLike.Api.Data;
@@ -176,9 +177,9 @@ public class TradeLikeDbContext : DbContext
                 .IsUnique();
 
             entity.HasData(
-                new Plan { Id = 1, Name = "Solo", MonthlyPricePence = 3500, MaxIncludedUsers = 1, AdditionalUserCostPence = null, CreatedAt = new DateTime(2026, 7, 1, 0, 0, 0, DateTimeKind.Utc) },
-                new Plan { Id = 2, Name = "Team", MonthlyPricePence = 7500, MaxIncludedUsers = 10, AdditionalUserCostPence = null, CreatedAt = new DateTime(2026, 7, 1, 0, 0, 0, DateTimeKind.Utc) },
-                new Plan { Id = 3, Name = "Business", MonthlyPricePence = 15000, MaxIncludedUsers = 25, AdditionalUserCostPence = 500, CreatedAt = new DateTime(2026, 7, 1, 0, 0, 0, DateTimeKind.Utc) },
+                new Plan { Id = 1, Name = "Solo", MonthlyPricePence = PlanPricing.SoloMonthlyPricePence, MaxIncludedUsers = 1, AdditionalUserCostPence = null, CreatedAt = new DateTime(2026, 7, 1, 0, 0, 0, DateTimeKind.Utc) },
+                new Plan { Id = 2, Name = "Team", MonthlyPricePence = PlanPricing.TeamMonthlyPricePence, MaxIncludedUsers = 10, AdditionalUserCostPence = null, CreatedAt = new DateTime(2026, 7, 1, 0, 0, 0, DateTimeKind.Utc) },
+                new Plan { Id = 3, Name = "Business", MonthlyPricePence = PlanPricing.BusinessMonthlyPricePence, MaxIncludedUsers = 25, AdditionalUserCostPence = 500, CreatedAt = new DateTime(2026, 7, 1, 0, 0, 0, DateTimeKind.Utc) },
                 new Plan { Id = 4, Name = "Enterprise", MonthlyPricePence = null, MaxIncludedUsers = null, AdditionalUserCostPence = null, CreatedAt = new DateTime(2026, 7, 1, 0, 0, 0, DateTimeKind.Utc) });
         });
 
