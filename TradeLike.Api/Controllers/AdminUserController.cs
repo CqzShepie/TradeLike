@@ -9,6 +9,7 @@ using TradeLike.Api.Contracts.Admin;
 using TradeLike.Api.Data;
 using TradeLike.Api.Models;
 using TradeLike.Api.Services;
+using TradeLike.Api.Services.Plans;
 
 namespace TradeLike.Api.Controllers;
 
@@ -251,6 +252,8 @@ public class AdminUserController : ControllerBase
             var subscriptionPlan = Canonicalise(request.SubscriptionPlan, AllowedSubscriptionPlans);
             var billingStatus = Canonicalise(request.BillingStatus, AllowedBillingStatuses);
             var healthStatus = Canonicalise(request.HealthStatus, AllowedHealthStatuses);
+            var planService = new SubscriptionPlanService(_context);
+            PlanChangeResult? planChange = null;
 
             if ((!string.Equals(user.SubscriptionPlan, subscriptionPlan, StringComparison.OrdinalIgnoreCase) ||
                     !string.Equals(user.BillingStatus, billingStatus, StringComparison.OrdinalIgnoreCase) ||
@@ -289,8 +292,6 @@ public class AdminUserController : ControllerBase
             user.BusinessName = CleanOptional(request.BusinessName);
             user.OwnerName = CleanOptional(request.OwnerName);
             user.OwnerPhone = CleanOptional(request.OwnerPhone);
-            user.SubscriptionPlan = subscriptionPlan;
-            user.BillingStatus = billingStatus;
             user.TrialEndsAt = request.TrialEndsAt;
             user.AdminTags = CleanOptional(request.AdminTags);
             user.SupportNotes = CleanOptional(request.SupportNotes);
@@ -305,9 +306,37 @@ public class AdminUserController : ControllerBase
                 user.CancelReason = null;
             }
 
+            if (!string.Equals(user.SubscriptionPlan, subscriptionPlan, StringComparison.OrdinalIgnoreCase) ||
+                !string.Equals(user.BillingStatus, billingStatus, StringComparison.OrdinalIgnoreCase))
+            {
+                if (string.Equals(subscriptionPlan, "Trial", StringComparison.OrdinalIgnoreCase))
+                {
+                    user.SubscriptionPlan = subscriptionPlan;
+                    user.BillingStatus = billingStatus;
+                    await planService.SyncBillingStatusAsync(user, billingStatus);
+                }
+                else
+                {
+                    var seats = await planService.GetCompatibleSeatCountAsync(user, subscriptionPlan);
+                    planChange = await planService.ApplyCustomerPlanChangeAsync(
+                        user,
+                        subscriptionPlan,
+                        seats,
+                        billingStatus);
+                }
+            }
+            else
+            {
+                user.SubscriptionPlan = subscriptionPlan;
+                user.BillingStatus = billingStatus;
+            }
+
             ValidateAccount(user);
 
             var after = BuildCustomerDetails(user);
+            var planDetails = planChange is null
+                ? string.Empty
+                : $" PlanChange: {planChange.ToAuditDetails(reason)}";
 
             await LogAsync(
                 actor,
@@ -316,7 +345,7 @@ public class AdminUserController : ControllerBase
                 user.Id,
                 user.Email,
                 $"Updated customer account for {user.Email}.",
-                $"Reason: {reason}. Before: {before}. After: {after}.");
+                $"Reason: {reason}. Before: {before}. After: {after}.{planDetails}");
 
             await _context.SaveChangesAsync();
 
@@ -357,6 +386,7 @@ public class AdminUserController : ControllerBase
         user.CancelReason = null;
         user.HealthStatus = "Green";
         user.UpdatedAt = DateTime.UtcNow;
+        await new SubscriptionPlanService(_context).SyncBillingStatusAsync(user, user.BillingStatus);
 
         await LogAsync(
             actor,
@@ -399,20 +429,17 @@ public class AdminUserController : ControllerBase
             }
 
             var reason = CleanRequiredReason(request.Reason);
-            var plan = Canonicalise(request.Plan, new[] { "Solo", "Team", "Business", "Enterprise" });
             var billingStatus = string.IsNullOrWhiteSpace(request.BillingStatus)
                 ? user.BillingStatus
                 : Canonicalise(request.BillingStatus, AllowedBillingStatuses);
 
-            ValidateSeats(plan, request.SeatsPurchased);
-
             var before = BuildCustomerDetails(user);
+            var planChange = await new SubscriptionPlanService(_context).ApplyCustomerPlanChangeAsync(
+                user,
+                request.Plan,
+                request.SeatsPurchased,
+                billingStatus);
 
-            user.SubscriptionPlan = plan;
-            user.BillingStatus = billingStatus;
-            user.UpdatedAt = DateTime.UtcNow;
-
-            await UpsertSubscriptionAsync(user, plan, request.SeatsPurchased, billingStatus);
             ValidateAccount(user);
 
             await LogAsync(
@@ -421,8 +448,8 @@ public class AdminUserController : ControllerBase
                 "User",
                 user.Id,
                 user.Email,
-                $"Changed plan for {user.Email} to {plan}.",
-                $"Reason: {reason}. Seats={request.SeatsPurchased}. Before: {before}. After: {BuildCustomerDetails(user)}.");
+                $"Changed plan for {user.Email} to {planChange.NewPlan}.",
+                $"{planChange.ToAuditDetails(reason)} Before: {before}. After: {BuildCustomerDetails(user)}.");
 
             await _context.SaveChangesAsync();
 
@@ -584,6 +611,7 @@ public class AdminUserController : ControllerBase
             if (!string.IsNullOrWhiteSpace(request.BillingStatus))
             {
                 user.BillingStatus = Canonicalise(request.BillingStatus, AllowedBillingStatuses);
+                await new SubscriptionPlanService(_context).SyncBillingStatusAsync(user, user.BillingStatus);
             }
 
             if (status == "Active")
@@ -1276,6 +1304,11 @@ public class AdminUserController : ControllerBase
         var billingStatus = Canonicalise(request.BillingStatus, AllowedBillingStatuses);
         var healthStatus = Canonicalise(request.HealthStatus, AllowedHealthStatuses);
 
+        if (string.Equals(subscriptionPlan, "Internal", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ValidationException("Internal plan is only available for internal staff accounts.");
+        }
+
         var now = DateTime.UtcNow;
 
         var user = new User
@@ -1458,6 +1491,11 @@ public class AdminUserController : ControllerBase
         if (!AllowedSubscriptionPlans.Contains(user.SubscriptionPlan, StringComparer.OrdinalIgnoreCase))
         {
             throw new ValidationException("Subscription plan is invalid. Use Trial, Solo, Team, Business, Enterprise, or Internal.");
+        }
+
+        if (string.Equals(user.SubscriptionPlan, "Internal", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ValidationException("Internal plan is only available for internal staff accounts.");
         }
 
         if (!AllowedBillingStatuses.Contains(user.BillingStatus, StringComparer.OrdinalIgnoreCase))

@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -6,6 +7,7 @@ using TradeLike.Api.Data;
 using TradeLike.Api.Models;
 using TradeLike.Api.Security;
 using TradeLike.Api.Services;
+using TradeLike.Api.Services.Plans;
 
 namespace TradeLike.Api.Controllers;
 
@@ -116,6 +118,52 @@ public class AuthController : ControllerBase
         return Ok(BuildAuthResponse(user, token, planName));
     }
 
+    [EnableRateLimiting("auth-login")]
+    [HttpPost("staff-login")]
+    public async Task<IActionResult> StaffLogin([FromBody] LoginRequest request)
+    {
+        var email = request.Email.Trim().ToLowerInvariant();
+        var password = request.Password ?? string.Empty;
+
+        var user = await _context.Users
+            .FirstOrDefaultAsync(existingUser => existingUser.Email == email);
+
+        if (user is null ||
+            !BCrypt.Net.BCrypt.Verify(password, user.PasswordHash))
+        {
+            return Unauthorized(new
+            {
+                message = "Invalid email or password."
+            });
+        }
+
+        if (user.AccountStatus is "Suspended" or "Cancelled")
+        {
+            return Unauthorized(new
+            {
+                message = "This account is not currently active."
+            });
+        }
+
+        if (!CustomerRoles.IsStudioRole(user.Role))
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new
+            {
+                error = "This login is for TradeLike staff only."
+            });
+        }
+
+        user.LastLoginAt = DateTime.UtcNow;
+        user.UpdatedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+
+        const string planName = "Internal";
+        var token = CreateToken(user, planName);
+
+        return Ok(BuildAuthResponse(user, token, planName));
+    }
+
     [EnableRateLimiting("auth-register")]
     [HttpPost("register")]
     public async Task<IActionResult> Register([FromBody] RegisterRequest request)
@@ -187,11 +235,21 @@ public class AuthController : ControllerBase
         await _context.SaveChangesAsync();
 
         user.TenantId = user.Id;
+        Plan soloPlan;
+
+        try
+        {
+            soloPlan = await new SubscriptionPlanService(_context).GetRequiredCustomerPlanAsync("Solo");
+        }
+        catch (ValidationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
 
         await _context.Subscriptions.AddAsync(new Subscription
         {
             TenantId = user.Id,
-            PlanId = 1,
+            PlanId = soloPlan.Id,
             SeatsPurchased = 1,
             BillingStartUtc = now,
             NextInvoiceDateUtc = now.AddDays(14),

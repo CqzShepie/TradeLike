@@ -167,6 +167,14 @@ export function roleAllowsFeature(role: UserRole | null | undefined, feature: Pl
   return featureRoles[feature].includes(resolveRole(role));
 }
 
+export function getFeatureMinimumPlan(feature: PlanFeature) {
+  return featureMinimumPlan[feature];
+}
+
+export function getFeatureRequiredRoles(feature: PlanFeature) {
+  return featureRoles[feature];
+}
+
 export function canUseStaffScheduling(user: Pick<AuthUser, "plan" | "role"> | null | undefined) {
   return Boolean(user) &&
     planIncludesFeature(user?.plan, "staff-scheduling") &&

@@ -135,7 +135,7 @@ function Login() {
 
       <p className="mt-4 text-center">
         <Link
-          to="/admin"
+          to="/staff-login"
           className="text-xs font-medium text-slate-500 hover:text-slate-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
         >
           Staff admin portal

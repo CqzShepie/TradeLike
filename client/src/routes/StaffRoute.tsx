@@ -1,5 +1,6 @@
 import { Navigate, useLocation } from "react-router-dom";
-import AccessDenied from "../pages/AccessDenied";
+import { isInternalStaffRole } from "../config/hostnames";
+import StaffAccessDenied from "../pages/StaffAccessDenied";
 import { authService } from "../services/authService";
 
 export default function StaffRoute({ children }: { children: React.ReactNode }) {
@@ -11,14 +12,14 @@ export default function StaffRoute({ children }: { children: React.ReactNode }) 
 
     return (
       <Navigate
-        to={`/login?returnUrl=${encodeURIComponent(returnUrl)}`}
+        to={`/staff-login?returnUrl=${encodeURIComponent(returnUrl)}`}
         replace
       />
     );
   }
 
-  if (!authService.isStaffUser(user)) {
-    return <AccessDenied />;
+  if (!isInternalStaffRole(user.role)) {
+    return <StaffAccessDenied />;
   }
 
   return <>{children}</>;
