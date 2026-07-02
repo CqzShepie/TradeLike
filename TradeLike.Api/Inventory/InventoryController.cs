@@ -30,7 +30,7 @@ public class InventoryController : ControllerBase
             """
             SELECT Id, BranchId, Sku, Name, Description, Unit, ReorderLevel, OnHand, IsActive, CreatedAt
             FROM Products
-            WHERE TenantId = @tenantId AND (@branchId IS NULL OR BranchId IS NULL OR BranchId = @branchId)
+            WHERE TenantId = @tenantId AND IsActive = 1 AND (@branchId IS NULL OR BranchId IS NULL OR BranchId = @branchId)
             ORDER BY Name
             """,
             static reader => new ProductResponse(
@@ -142,6 +142,34 @@ public class InventoryController : ControllerBase
             ("@tenantId", tenantId));
 
         return Ok(rows.Single());
+    }
+
+    [HttpDelete("products/{id:int}")]
+    public async Task<IActionResult> DeleteProduct(int id, CancellationToken cancellationToken)
+    {
+        if (id <= 0)
+        {
+            return BadRequest(new { error = "Product was not found." });
+        }
+
+        var tenantId = TenantHelpers.GetTenantId(HttpContext);
+        var updatedRows = await InventorySql.ExecuteNonQueryAsync(
+            _db,
+            """
+            UPDATE Products
+            SET IsActive = 0
+            WHERE Id = @id AND TenantId = @tenantId
+            """,
+            cancellationToken,
+            ("@id", id),
+            ("@tenantId", tenantId));
+
+        if (updatedRows == 0)
+        {
+            return NotFound(new { error = "Product was not found." });
+        }
+
+        return NoContent();
     }
 
     [HttpGet("suppliers")]

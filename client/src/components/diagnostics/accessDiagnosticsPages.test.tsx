@@ -36,6 +36,12 @@ describe("access diagnostics pages", () => {
 
     expect(screen.getAllByText(/stored session has no recognised plan/i)[0]).toBeInTheDocument();
     expect(screen.getByText(/Business plan/i)).toBeInTheDocument();
+    expect(screen.getByText("£39.95/month")).toBeInTheDocument();
+    expect(screen.getByText("£99.95/month")).toBeInTheDocument();
+    expect(screen.getByText("£159.95/month")).toBeInTheDocument();
+    expect(screen.getByText("Contact Sales")).toBeInTheDocument();
+    expect(screen.queryByText("£40/month")).not.toBeInTheDocument();
+    expect(screen.queryByText("£199/month")).not.toBeInTheDocument();
   });
 
   it("AccessDenied shows role reason", () => {

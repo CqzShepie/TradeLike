@@ -31,7 +31,7 @@ const features = [
   },
   {
     title: "Inventory for Business+",
-    body: "Track stock items, suppliers, purchase orders and low-stock alerts on Business and Enterprise.",
+    body: "Track stock items, suppliers, quantities and low-stock alerts on Business and Enterprise.",
     accent: "bg-teal-500",
   },
   {

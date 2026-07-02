@@ -3,7 +3,6 @@ import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import WeekGrid from "./WeekGrid";
 import WeekNavigation from "./WeekNavigation";
-import RouteMapModal from "./RouteMapModal";
 import { SelectMenu } from "../ui";
 import { useWeekJobs } from "../../hooks/useWeekJobs";
 import { jobsService } from "../../services/jobsService";
@@ -28,7 +27,6 @@ export default function WeekCalendar() {
     const [assignments, setAssignments] = useState<JobAssignment[]>([]);
     const [leaveRequests, setLeaveRequests] = useState<StaffLeaveRequest[]>([]);
     const [selectedCalendar, setSelectedCalendar] = useState("all");
-    const [showRouteModal, setShowRouteModal] = useState(false);
     const [optimisticJobs, setOptimisticJobs] = useState<Job[]>([]);
     const { jobs: serverJobs } = useWeekJobs(currentWeek);
     const { user } = useAuth();
@@ -165,7 +163,6 @@ export default function WeekCalendar() {
     function handleCurrentWeek() { setCurrentWeek(startOfWeek(new Date())); }
     function handleNextWeek() { setCurrentWeek(previous => { const date = new Date(previous); date.setDate(date.getDate() + 7); return startOfWeek(date); }); }
 
-    const selectedEngineerId = selectedCalendar.startsWith("staff:") ? Number(selectedCalendar.replace("staff:", "")) : null;
     const calendarOptions = [
         { value: "all", label: "Merged: everyone" },
         ...(showStaffScheduling ? [{ value: "unassigned", label: "Unassigned jobs" }] : []),
@@ -183,15 +180,6 @@ export default function WeekCalendar() {
             />
             <div className="flex flex-wrap items-center justify-end gap-3 border-b border-white/10 px-4 py-3">
                 <div className="flex flex-wrap items-center gap-2">
-                    {showStaffScheduling && (
-                        <button
-                            type="button"
-                            onClick={() => setShowRouteModal(true)}
-                            className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-500"
-                        >
-                            Optimise Route
-                        </button>
-                    )}
                     {showStaffScheduling && (
                         <SelectMenu
                             ariaLabel="Calendar dispatch filter"
@@ -214,13 +202,6 @@ export default function WeekCalendar() {
                 onSelectJob={setSelectedJob}
                 onMoveJob={handleMoveJob}
             />
-            {showStaffScheduling && showRouteModal && (
-                <RouteMapModal
-                    date={currentWeek}
-                    engineerId={selectedEngineerId}
-                    onClose={() => setShowRouteModal(false)}
-                />
-            )}
             {selectedJob && (() => {
                 const selectedAssignment = assignmentMap.get(selectedJob.id);
                 const selectedTeam = teams.find(team => team.id === selectedAssignment?.assignedTeamId);

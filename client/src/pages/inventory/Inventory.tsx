@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
-import { AlertTriangle, Boxes, ClipboardList, History, Truck } from "lucide-react";
+import { AlertTriangle, Boxes, History, Truck } from "lucide-react";
 
 import {
   EmptyState,
@@ -52,17 +52,7 @@ type StockMovement = {
   createdAt: string;
 };
 
-type PurchaseOrder = {
-  id: number;
-  supplierId: number;
-  supplierName: string;
-  status: string;
-  expectedAt?: string | null;
-  createdAt: string;
-  total: number;
-};
-
-type Modal = "product" | "supplier" | "po" | "movement" | "product-detail" | "supplier-detail" | "po-detail" | null;
+type Modal = "product" | "supplier" | "movement" | "product-detail" | "supplier-detail" | null;
 
 type ProductForm = {
   sku: string;
@@ -81,23 +71,12 @@ type SupplierForm = {
   leadTimeDays: string;
 };
 
-type PurchaseOrderForm = {
-  supplierId: string;
-  productId: string;
-  quantity: string;
-  unitCost: string;
-  expectedAt: string;
-};
-
 type MovementForm = {
   productId: string;
   quantityChange: string;
   reason: string;
   reference: string;
 };
-
-const money = new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" });
-const SYSTEM_PO_PREFIX = "PO";
 
 const blankProductForm: ProductForm = {
   sku: "",
@@ -116,14 +95,6 @@ const blankSupplierForm: SupplierForm = {
   leadTimeDays: "3",
 };
 
-const blankPurchaseOrderForm: PurchaseOrderForm = {
-  supplierId: "",
-  productId: "",
-  quantity: "1",
-  unitCost: "0",
-  expectedAt: "",
-};
-
 const blankMovementForm: MovementForm = {
   productId: "",
   quantityChange: "",
@@ -135,7 +106,6 @@ export default function Inventory() {
   const [products, setProducts] = useState<Product[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [movements, setMovements] = useState<StockMovement[]>([]);
-  const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
   const [error, setError] = useState<Error | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -143,17 +113,14 @@ export default function Inventory() {
   const [modal, setModal] = useState<Modal>(null);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
-  const [selectedOrder, setSelectedOrder] = useState<PurchaseOrder | null>(null);
   const [productForm, setProductForm] = useState<ProductForm>(blankProductForm);
   const [supplierForm, setSupplierForm] = useState<SupplierForm>(blankSupplierForm);
-  const [purchaseOrderForm, setPurchaseOrderForm] = useState<PurchaseOrderForm>(blankPurchaseOrderForm);
   const [movementForm, setMovementForm] = useState<MovementForm>(blankMovementForm);
 
   const lowStock = useMemo(
     () => products.filter(product => product.isActive && Number(product.onHand) <= Number(product.reorderLevel)),
     [products]
   );
-  const openPurchaseOrders = purchaseOrders.filter(order => order.status !== "Received");
   const lastMovementByProduct = useMemo(() => {
     const map = new Map<number, StockMovement>();
     movements.forEach(movement => {
@@ -171,17 +138,15 @@ export default function Inventory() {
     setError(null);
 
     try {
-      const [productRows, supplierRows, movementRows, purchaseOrderRows] = await Promise.all([
+      const [productRows, supplierRows, movementRows] = await Promise.all([
         apiClient.get<Product[]>("/inventory/products"),
         apiClient.get<Supplier[]>("/inventory/suppliers"),
         apiClient.get<StockMovement[]>("/inventory/stock-movements"),
-        apiClient.get<PurchaseOrder[]>("/inventory/purchase-orders"),
       ]);
 
       setProducts(productRows);
       setSuppliers(supplierRows);
       setMovements(movementRows);
-      setPurchaseOrders(purchaseOrderRows);
     } catch (err) {
       setError(err instanceof Error ? err : new Error("Inventory could not be loaded."));
     } finally {
@@ -294,36 +259,12 @@ export default function Inventory() {
     }
   }
 
-  async function createPurchaseOrder(event: FormEvent) {
-    event.preventDefault();
-    setSaving(true);
-    setMessage("");
-
-    try {
-      await apiClient.post<PurchaseOrder>("/inventory/purchase-orders", {
-        supplierId: Number(purchaseOrderForm.supplierId),
-        expectedAt: purchaseOrderForm.expectedAt || null,
-        lines: [{
-          productId: Number(purchaseOrderForm.productId),
-          quantity: Number(purchaseOrderForm.quantity || 0),
-          unitCost: Number(purchaseOrderForm.unitCost || 0),
-        }],
-      });
-      setPurchaseOrderForm(blankPurchaseOrderForm);
-      setModal(null);
-      setMessage("Purchase order created.");
-      await loadInventory();
-    } catch (err) {
-      setError(err instanceof Error ? err : new Error("Unable to create purchase order."));
-    } finally {
-      setSaving(false);
-    }
-  }
-
   async function createMovement(event: FormEvent) {
     event.preventDefault();
     setSaving(true);
     setMessage("");
+    const currentProduct = products.find(product => product.id === Number(movementForm.productId));
+    const nextOnHand = currentProduct ? Number(currentProduct.onHand) + Number(movementForm.quantityChange || 0) : null;
 
     try {
       await apiClient.post<StockMovement>("/inventory/stock-movements", {
@@ -334,7 +275,13 @@ export default function Inventory() {
       });
       setMovementForm(blankMovementForm);
       setModal(null);
-      setMessage("Stock movement recorded.");
+      if (currentProduct && nextOnHand !== null && nextOnHand <= 0) {
+        setMessage("Out of stock. This product has no stock remaining.");
+      } else if (currentProduct && nextOnHand !== null && nextOnHand <= Number(currentProduct.reorderLevel)) {
+        setMessage("Low stock. This product is at or below its low-stock threshold.");
+      } else {
+        setMessage("Stock movement recorded.");
+      }
       await loadInventory();
     } catch (err) {
       setError(err instanceof Error ? err : new Error("Unable to record stock movement."));
@@ -343,17 +290,20 @@ export default function Inventory() {
     }
   }
 
-  async function receiveOrder(order: PurchaseOrder) {
+  async function deleteProduct(product: Product) {
+    const confirmed = window.confirm(`Delete ${product.name}? This removes it from the inventory list.`);
+    if (!confirmed) return;
+
     setSaving(true);
     setMessage("");
 
     try {
-      await apiClient.post(`/inventory/purchase-orders/${order.id}/receive`, {});
-      setMessage(`${formatPo(order.id)} received.`);
+      await apiClient.delete(`/inventory/products/${product.id}`);
+      setMessage("Product deleted.");
       setModal(null);
       await loadInventory();
     } catch (err) {
-      setError(err instanceof Error ? err : new Error("Unable to receive purchase order."));
+      setError(err instanceof Error ? err : new Error("Unable to delete product."));
     } finally {
       setSaving(false);
     }
@@ -372,7 +322,7 @@ export default function Inventory() {
       <ProductPageHeader
         eyebrow="Stock control"
         title="Inventory"
-        description="Track products, suppliers, purchase orders, stock movement and low-stock risk from one clean workspace."
+        description="Track products, suppliers, stock movement and low-stock risk from one clean workspace."
         actions={
           <>
             <SecondaryButton type="button" onClick={() => void loadInventory()} className="border-white/10 bg-white/5 text-slate-100 hover:bg-white/10">
@@ -389,7 +339,7 @@ export default function Inventory() {
         </ProductPanel>
       )}
 
-      {loading && <LoadingState title="Loading inventory" description="Fetching products, suppliers, stock movements and purchase orders." />}
+      {loading && <LoadingState title="Loading inventory" description="Fetching products, suppliers and stock movements." />}
 
       {!loading && error && (
         <ErrorState
@@ -405,11 +355,10 @@ export default function Inventory() {
 
       {!loading && !error && (
         <>
-          <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+          <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <ProductStat label="Products" value={products.length} helper="catalogue items" icon={<Boxes className="h-5 w-5" />} />
             <ProductStat label="Low stock" value={lowStock.length} helper="at or below threshold" icon={<AlertTriangle className="h-5 w-5" />} />
             <ProductStat label="Suppliers" value={suppliers.length} helper="vendor records" icon={<Truck className="h-5 w-5" />} />
-            <ProductStat label="Open POs" value={openPurchaseOrders.length} helper={`${SYSTEM_PO_PREFIX} purchase orders`} icon={<ClipboardList className="h-5 w-5" />} />
             <ProductStat label="Movements" value={movements.length} helper="recent stock history" icon={<History className="h-5 w-5" />} />
           </section>
 
@@ -431,7 +380,7 @@ export default function Inventory() {
                           </div>
                           <p className="text-sm font-semibold text-slate-200">{product.onHand} on hand</p>
                           <p className={Number(product.onHand) <= Number(product.reorderLevel) ? "text-sm font-bold text-red-300" : "text-sm font-semibold text-emerald-300"}>
-                            {Number(product.onHand) <= Number(product.reorderLevel) ? "Reorder now" : "In stock"}
+                            {getStockStatus(product)}
                           </p>
                           <p className="text-sm text-slate-400">{lastMovement ? formatDate(lastMovement.createdAt) : "No movement"}</p>
                         </button>
@@ -442,28 +391,10 @@ export default function Inventory() {
               </ProductPanel>
 
               <ProductPanel>
-                <SectionHeading title="Purchase orders" action={<SecondaryButton type="button" onClick={() => setModal("po")} className="border-white/10 bg-white/5 text-slate-100 hover:bg-white/10">Create PO</SecondaryButton>} />
-                <p className="mt-2 text-sm text-slate-400">Purchase order prefix: <span className="font-semibold text-white">{SYSTEM_PO_PREFIX}</span></p>
-                <div className="mt-4 divide-y divide-white/10">
-                  {purchaseOrders.length === 0 ? (
-                    <EmptyState title="No purchase orders yet" description="Create a supplier purchase order when stock needs replenishing." action={<PrimaryButton type="button" onClick={() => setModal("po")}>Create purchase order</PrimaryButton>} />
-                  ) : (
-                    purchaseOrders.map(order => (
-                      <button key={order.id} type="button" onClick={() => { setSelectedOrder(order); setModal("po-detail"); }} className="grid w-full gap-2 py-3 text-left transition hover:bg-white/[0.03] md:grid-cols-[1fr_120px_140px]">
-                        <p className="font-semibold text-white">{formatPo(order.id)} / {order.supplierName}</p>
-                        <p className="text-sm font-bold text-slate-300">{order.status}</p>
-                        <p className="text-sm font-bold text-white">{money.format(Number(order.total))}</p>
-                      </button>
-                    ))
-                  )}
-                </div>
-              </ProductPanel>
-
-              <ProductPanel>
                 <SectionHeading title="Stock movement history" action={<SecondaryButton type="button" onClick={() => setModal("movement")} className="border-white/10 bg-white/5 text-slate-100 hover:bg-white/10">Adjust stock</SecondaryButton>} />
                 <div className="mt-4 divide-y divide-white/10">
                   {movements.length === 0 ? (
-                    <EmptyState title="No movements recorded" description="Adjustments, received purchase orders and corrections appear here." />
+                    <EmptyState title="No movements recorded" description="Manual adjustments and corrections appear here." />
                   ) : (
                     movements.slice(0, 12).map(movement => (
                       <div key={movement.id} className="grid gap-2 py-3 md:grid-cols-[1fr_120px_160px]">
@@ -500,7 +431,7 @@ export default function Inventory() {
                 <SectionHeading title="Suppliers" action={<SecondaryButton type="button" onClick={openAddSupplier} className="border-white/10 bg-white/5 text-slate-100 hover:bg-white/10">Add supplier</SecondaryButton>} />
                 <div className="mt-4 divide-y divide-white/10">
                   {suppliers.length === 0 ? (
-                    <EmptyState title="No suppliers yet" description="Add suppliers before creating purchase orders." action={<PrimaryButton type="button" onClick={openAddSupplier}>Add supplier</PrimaryButton>} />
+                    <EmptyState title="No suppliers yet" description="Add supplier contact details for your stock records." action={<PrimaryButton type="button" onClick={openAddSupplier}>Add supplier</PrimaryButton>} />
                   ) : (
                     suppliers.map(supplier => (
                       <button key={supplier.id} type="button" onClick={() => { setSelectedSupplier(supplier); setModal("supplier-detail"); }} className="block w-full py-3 text-left">
@@ -545,21 +476,6 @@ export default function Inventory() {
         </ModalShell>
       )}
 
-      {modal === "po" && (
-        <ModalShell title="Create purchase order" onClose={() => setModal(null)}>
-          <form onSubmit={createPurchaseOrder} className="space-y-4">
-            <Field label="Supplier"><Select value={purchaseOrderForm.supplierId} onChange={value => setPurchaseOrderForm({ ...purchaseOrderForm, supplierId: value })}><option value="">Choose supplier</option>{suppliers.map(supplier => <option key={supplier.id} value={supplier.id}>{supplier.name}</option>)}</Select></Field>
-            <Field label="Product"><Select value={purchaseOrderForm.productId} onChange={value => setPurchaseOrderForm({ ...purchaseOrderForm, productId: value })}><option value="">Choose product</option>{products.map(product => <option key={product.id} value={product.id}>{product.name}</option>)}</Select></Field>
-            <div className="grid gap-3 sm:grid-cols-3">
-              <Field label="Quantity"><TextInput type="number" value={purchaseOrderForm.quantity} onChange={event => setPurchaseOrderForm({ ...purchaseOrderForm, quantity: event.target.value })} className="border-white/10 bg-slate-950/60 text-white" /></Field>
-              <Field label="Unit cost"><TextInput type="number" value={purchaseOrderForm.unitCost} onChange={event => setPurchaseOrderForm({ ...purchaseOrderForm, unitCost: event.target.value })} className="border-white/10 bg-slate-950/60 text-white" /></Field>
-              <Field label="Expected"><TextInput type="date" value={purchaseOrderForm.expectedAt} onChange={event => setPurchaseOrderForm({ ...purchaseOrderForm, expectedAt: event.target.value })} className="border-white/10 bg-slate-950/60 text-white" /></Field>
-            </div>
-            <PrimaryButton type="submit" disabled={saving || !purchaseOrderForm.supplierId || !purchaseOrderForm.productId} fullWidth>Create purchase order</PrimaryButton>
-          </form>
-        </ModalShell>
-      )}
-
       {modal === "movement" && (
         <ModalShell title="Adjust stock" onClose={() => setModal(null)}>
           <form onSubmit={createMovement} className="space-y-4">
@@ -578,12 +494,21 @@ export default function Inventory() {
             ["SKU", selectedProduct.sku],
             ["Quantity on hand", String(selectedProduct.onHand)],
             ["Low stock threshold", String(selectedProduct.reorderLevel)],
-            ["Reorder status", selectedProduct.onHand <= selectedProduct.reorderLevel ? "Reorder now" : "In stock"],
+            ["Stock status", getStockStatus(selectedProduct)],
             ["Last movement", lastMovementByProduct.get(selectedProduct.id) ? formatDate(lastMovementByProduct.get(selectedProduct.id)!.createdAt) : "No movement"],
           ]} />
+          {selectedProduct.onHand <= 0 && <StockWarning title="Out of stock" description="This product has no stock remaining." />}
+          {selectedProduct.onHand > 0 && selectedProduct.onHand <= selectedProduct.reorderLevel && <StockWarning title="Low stock" description="This product is at or below its low-stock threshold." />}
           <div className="mt-5 flex flex-wrap gap-2">
             <SecondaryButton type="button" onClick={() => openEditProduct(selectedProduct)} className="border-white/10 bg-white/5 text-slate-100 hover:bg-white/10">Edit product</SecondaryButton>
             <SecondaryButton type="button" onClick={() => { setMovementForm({ ...blankMovementForm, productId: String(selectedProduct.id) }); setModal("movement"); }} className="border-white/10 bg-white/5 text-slate-100 hover:bg-white/10">Adjust stock</SecondaryButton>
+          </div>
+          <div className="mt-6 rounded-xl border border-red-400/30 bg-red-500/10 p-4">
+            <p className="text-sm font-bold text-red-100">Danger zone</p>
+            <p className="mt-1 text-sm text-red-100/80">Delete this product from the active inventory list.</p>
+            <button type="button" disabled={saving} onClick={() => void deleteProduct(selectedProduct)} className="mt-3 rounded-lg border border-red-300/40 px-4 py-2 text-sm font-bold text-red-100 hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-60">
+              Delete product
+            </button>
           </div>
         </ModalShell>
       )}
@@ -601,21 +526,6 @@ export default function Inventory() {
         </ModalShell>
       )}
 
-      {modal === "po-detail" && selectedOrder && (
-        <ModalShell title={formatPo(selectedOrder.id)} onClose={() => setModal(null)}>
-          <DetailGrid rows={[
-            ["Supplier", selectedOrder.supplierName],
-            ["Status", selectedOrder.status],
-            ["Expected", selectedOrder.expectedAt ? formatDate(selectedOrder.expectedAt) : "Not set"],
-            ["Total", money.format(Number(selectedOrder.total))],
-          ]} />
-          {selectedOrder.status !== "Received" && (
-            <div className="mt-5">
-              <PrimaryButton type="button" disabled={saving} onClick={() => void receiveOrder(selectedOrder)}>Receive stock</PrimaryButton>
-            </div>
-          )}
-        </ModalShell>
-      )}
     </ProductPage>
   );
 }
@@ -684,11 +594,22 @@ function DetailGrid({ rows }: { rows: Array<[string, string]> }) {
   );
 }
 
-function formatPo(id: number) {
-  return `${SYSTEM_PO_PREFIX}-${String(id).padStart(4, "0")}`;
-}
-
 function formatDate(value: string) {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? "Not recorded" : date.toLocaleDateString("en-GB");
+}
+
+function getStockStatus(product: Product) {
+  if (Number(product.onHand) <= 0) return "Out of stock";
+  if (Number(product.onHand) <= Number(product.reorderLevel)) return "Low stock";
+  return "In stock";
+}
+
+function StockWarning({ title, description }: { title: string; description: string }) {
+  return (
+    <div className="mt-5 rounded-xl border border-red-400/30 bg-red-500/10 p-4">
+      <p className="text-sm font-bold text-red-100">{title}</p>
+      <p className="mt-1 text-sm text-red-100/80">{description}</p>
+    </div>
+  );
 }

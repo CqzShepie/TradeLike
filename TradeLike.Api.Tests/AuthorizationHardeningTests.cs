@@ -12,7 +12,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using TradeLike.Api;
 using TradeLike.Api.Api.Payments;
-using TradeLike.Api.Api.RoutePlanner;
+using TradeLike.Api.Configuration;
 using TradeLike.Api.Contracts.Admin;
 using TradeLike.Api.Contracts.Jobs;
 using TradeLike.Api.Contracts.Settings;
@@ -179,7 +179,7 @@ public sealed class AuthorizationHardeningTests
     {
         await using var context = CreateContext();
         context.Plans.AddRange(
-            new Plan { Id = 1, Name = "Solo", MonthlyPricePence = 3500, MaxIncludedUsers = 1, CreatedAt = DateTime.UtcNow },
+            new Plan { Id = 1, Name = "Solo", MonthlyPricePence = PlanPricing.SoloMonthlyPricePence, MaxIncludedUsers = 1, CreatedAt = DateTime.UtcNow },
             new Plan { Id = 4, Name = "Enterprise", CreatedAt = DateTime.UtcNow });
         context.Users.Add(BuildUser(1, "owner@example.com", CustomerRoles.Director, 1, "Solo"));
         context.Subscriptions.Add(new Subscription
@@ -265,7 +265,7 @@ public sealed class AuthorizationHardeningTests
         {
             Id = 1,
             Name = "Solo",
-            MonthlyPricePence = 3500,
+            MonthlyPricePence = PlanPricing.SoloMonthlyPricePence,
             MaxIncludedUsers = 1,
             CreatedAt = DateTime.UtcNow
         });
@@ -606,8 +606,8 @@ public sealed class AuthorizationHardeningTests
     {
         await using var context = CreateContext();
         context.Plans.AddRange(
-            new Plan { Id = 1, Name = "Solo", MonthlyPricePence = 3500, MaxIncludedUsers = 1 },
-            new Plan { Id = 2, Name = "Team", MonthlyPricePence = 7500, MaxIncludedUsers = 10 });
+            new Plan { Id = 1, Name = "Solo", MonthlyPricePence = PlanPricing.SoloMonthlyPricePence, MaxIncludedUsers = 1 },
+            new Plan { Id = 2, Name = "Team", MonthlyPricePence = PlanPricing.TeamMonthlyPricePence, MaxIncludedUsers = 10 });
         context.Users.Add(BuildUser(1, "owner@example.com", CustomerRoles.Director, 1, "Solo"));
         context.Subscriptions.Add(new Subscription
         {
@@ -1207,23 +1207,6 @@ public sealed class AuthorizationHardeningTests
     }
 
     [Fact]
-    [Trait("Category", "Route")]
-    public async Task DailyRouteRequiresDate()
-    {
-        var controller = new RoutesController(null!)
-        {
-            ControllerContext = new ControllerContext
-            {
-                HttpContext = HttpContextForTenant(1, CustomerRoles.Employee)
-            }
-        };
-
-        var result = await controller.GetDailyRoute(default, null);
-
-        Assert.IsType<BadRequestObjectResult>(result.Result);
-    }
-
-    [Fact]
     [Trait("Category", "Payments")]
     public async Task CheckoutRejectsUnknownProvider()
     {
@@ -1361,7 +1344,7 @@ public sealed class AuthorizationHardeningTests
         {
             Id = planId,
             Name = planName,
-            MonthlyPricePence = planName == "Enterprise" ? null : 7500,
+            MonthlyPricePence = PriceForPlan(planName),
             MaxIncludedUsers = planName == "Enterprise" ? null : 10,
             CreatedAt = DateTime.UtcNow
         });
@@ -1391,7 +1374,7 @@ public sealed class AuthorizationHardeningTests
             {
                 Id = planId,
                 Name = planName,
-                MonthlyPricePence = planName == "Enterprise" ? null : 7500,
+                MonthlyPricePence = PriceForPlan(planName),
                 MaxIncludedUsers = planName == "Enterprise" ? null : 10,
                 CreatedAt = DateTime.UtcNow
             });
@@ -1411,6 +1394,18 @@ public sealed class AuthorizationHardeningTests
         }
 
         await context.SaveChangesAsync();
+    }
+
+    private static int? PriceForPlan(string planName)
+    {
+        return planName switch
+        {
+            "Solo" => PlanPricing.SoloMonthlyPricePence,
+            "Team" => PlanPricing.TeamMonthlyPricePence,
+            "Business" => PlanPricing.BusinessMonthlyPricePence,
+            "Enterprise" => null,
+            _ => PlanPricing.TeamMonthlyPricePence
+        };
     }
 
     private static async Task<IActionResult?> RunPlanGuardAsync(

@@ -7,14 +7,17 @@ describe("Home", () => {
   it("shows current monthly pricing and Enterprise sales contact", () => {
     renderHome();
 
-    expect(screen.getByText("£40/month")).toBeInTheDocument();
-    expect(screen.getByText("£99/month")).toBeInTheDocument();
-    expect(screen.getByText("£199/month")).toBeInTheDocument();
+    expect(screen.getByText("£39.95/month")).toBeInTheDocument();
+    expect(screen.getByText("£99.95/month")).toBeInTheDocument();
+    expect(screen.getByText("£159.95/month")).toBeInTheDocument();
     expect(screen.getByText("Contact Sales")).toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: "sales@tradelike.co.uk" }).some(link => link.getAttribute("href") === "mailto:sales@tradelike.co.uk")).toBe(true);
-    expect(screen.queryByText("£35/month")).not.toBeInTheDocument();
-    expect(screen.queryByText("£75/month")).not.toBeInTheDocument();
-    expect(screen.queryByText("£150/month")).not.toBeInTheDocument();
+    expect(screen.queryByText("£40/month")).not.toBeInTheDocument();
+    expect(screen.queryByText("£99/month")).not.toBeInTheDocument();
+    expect(screen.queryByText("£199/month")).not.toBeInTheDocument();
+    expect(screen.queryByText("£40.00/month")).not.toBeInTheDocument();
+    expect(screen.queryByText("£99.00/month")).not.toBeInTheDocument();
+    expect(screen.queryByText("£199.00/month")).not.toBeInTheDocument();
   });
 
   it("explains invoices, team, mobile, support and admin time savings", () => {

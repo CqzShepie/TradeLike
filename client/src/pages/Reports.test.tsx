@@ -164,13 +164,13 @@ describe("Reports", () => {
   });
 
   it.each(["Business", "Enterprise"] as const)(
-    "shows Advanced + Custom reports for %s",
+    "shows Business reports for %s",
     async plan => {
       setUser(plan);
 
       renderReports();
 
-      expect(await screen.findByText("Reporting: Advanced + Custom")).toBeInTheDocument();
+      expect(await screen.findByText("Reporting: Business")).toBeInTheDocument();
       expect(screen.getByText("Business reports")).toBeInTheDocument();
       expect(reportsService.getTeam).toHaveBeenCalled();
       expect(reportsService.getBusiness).toHaveBeenCalled();

@@ -20,7 +20,6 @@ using TradeLike.Api;
 using TradeLike.Api.Configuration;
 using TradeLike.Api.Data;
 using TradeLike.Api.Observability;
-using TradeLike.Api.Api.RoutePlanner;
 using TradeLike.Api.Api.Payments;
 using TradeLike.Api.Branding;
 using TradeLike.Api.Companies;
@@ -118,7 +117,6 @@ builder.Services.AddHttpClient<NotificationQueue>();
 builder.Services.AddHttpClient(nameof(ElasticSyncHostedService));
 builder.Services.AddHttpClient(nameof(SearchController));
 builder.Services.AddHttpClient(nameof(WebhookDispatcher));
-builder.Services.AddHttpClient(nameof(GoogleRoutePlanner));
 builder.Services.AddHttpClient(nameof(PaymentsController));
 builder.Services.AddHostedService<ElasticSyncHostedService>();
 builder.Services.AddHostedService<WebhookDispatcher>();
@@ -136,7 +134,6 @@ else
     builder.Services.AddDistributedMemoryCache();
 }
 
-builder.Services.AddHttpClient<GoogleRoutePlanner>();
 builder.Services.AddHttpClient();
 builder.Services.AddHealthChecks()
     .AddCheck<SqlHealthCheck>("sql")

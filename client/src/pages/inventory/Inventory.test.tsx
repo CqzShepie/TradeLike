@@ -29,7 +29,6 @@ describe("Inventory", () => {
       if (endpoint === "/inventory/products") return Promise.resolve([]);
       if (endpoint === "/inventory/suppliers") return Promise.resolve([]);
       if (endpoint === "/inventory/stock-movements") return Promise.resolve([]);
-      if (endpoint === "/inventory/purchase-orders") return Promise.resolve([]);
       return Promise.reject(new Error(`Unexpected endpoint: ${endpoint}`));
     });
   });
@@ -39,7 +38,9 @@ describe("Inventory", () => {
 
     expect(await screen.findByText("No products yet")).toBeInTheDocument();
     expect(screen.getByText("No suppliers yet")).toBeInTheDocument();
-    expect(screen.getByText("No purchase orders yet")).toBeInTheDocument();
+    expect(screen.getByText("No movements recorded")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /create purchase order/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/purchase order prefix/i)).not.toBeInTheDocument();
   });
 
   it("hides raw stack traces in inventory errors", async () => {
@@ -102,7 +103,6 @@ describe("Inventory", () => {
       }
       if (endpoint === "/inventory/suppliers") return Promise.resolve([]);
       if (endpoint === "/inventory/stock-movements") return Promise.resolve([]);
-      if (endpoint === "/inventory/purchase-orders") return Promise.resolve([]);
       return Promise.reject(new Error(`Unexpected endpoint: ${endpoint}`));
     });
     vi.mocked(apiClient.put).mockResolvedValue({});
@@ -122,31 +122,117 @@ describe("Inventory", () => {
     });
   });
 
-  it("renders purchase order details and receive action", async () => {
+  it("deletes a product after confirmation and refreshes the list", async () => {
+    let products = [{
+      id: 3,
+      branchId: null,
+      sku: "TAPE-1",
+      name: "PTFE tape",
+      description: "",
+      unit: "each",
+      reorderLevel: 2,
+      onHand: 12,
+      isActive: true,
+      createdAt: new Date().toISOString(),
+    }];
+
     vi.mocked(apiClient.get).mockImplementation(endpoint => {
-      if (endpoint === "/inventory/products") return Promise.resolve([]);
+      if (endpoint === "/inventory/products") return Promise.resolve(products);
       if (endpoint === "/inventory/suppliers") return Promise.resolve([]);
       if (endpoint === "/inventory/stock-movements") return Promise.resolve([]);
-      if (endpoint === "/inventory/purchase-orders") {
-        return Promise.resolve([{
-          id: 7,
-          supplierId: 1,
-          supplierName: "Acme Supplies",
-          status: "Open",
-          expectedAt: null,
-          createdAt: new Date().toISOString(),
-          total: 125,
-        }]);
+      return Promise.reject(new Error(`Unexpected endpoint: ${endpoint}`));
+    });
+    vi.mocked(apiClient.delete).mockImplementation(() => {
+      products = [];
+      return Promise.resolve(undefined);
+    });
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+
+    renderInventory();
+
+    fireEvent.click(await screen.findByRole("button", { name: /ptfe tape/i }));
+    fireEvent.click(screen.getByRole("button", { name: /delete product/i }));
+
+    await waitFor(() => expect(apiClient.delete).toHaveBeenCalledWith("/inventory/products/3"));
+    expect(confirmSpy).toHaveBeenCalled();
+    expect(await screen.findByText("Product deleted.")).toBeInTheDocument();
+    confirmSpy.mockRestore();
+  });
+
+  it("shows low-stock and out-of-stock alerts", async () => {
+    vi.mocked(apiClient.get).mockImplementation(endpoint => {
+      if (endpoint === "/inventory/products") {
+        return Promise.resolve([
+          {
+            id: 4,
+            branchId: null,
+            sku: "FILTER-1",
+            name: "Filter",
+            description: "",
+            unit: "each",
+            reorderLevel: 5,
+            onHand: 2,
+            isActive: true,
+            createdAt: new Date().toISOString(),
+          },
+          {
+            id: 5,
+            branchId: null,
+            sku: "SEAL-1",
+            name: "Seal",
+            description: "",
+            unit: "each",
+            reorderLevel: 5,
+            onHand: 0,
+            isActive: true,
+            createdAt: new Date().toISOString(),
+          },
+        ]);
       }
+      if (endpoint === "/inventory/suppliers") return Promise.resolve([]);
+      if (endpoint === "/inventory/stock-movements") return Promise.resolve([]);
       return Promise.reject(new Error(`Unexpected endpoint: ${endpoint}`));
     });
 
     renderInventory();
 
-    fireEvent.click(await screen.findByRole("button", { name: /PO-0007/i }));
+    expect(await screen.findAllByText("Low stock")).not.toHaveLength(0);
+    expect(screen.getByText("Out of stock")).toBeInTheDocument();
 
-    expect(screen.getByRole("heading", { name: "PO-0007" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /receive stock/i })).toBeInTheDocument();
+    fireEvent.click(screen.getAllByRole("button", { name: /filter/i })[0]);
+    expect(screen.getByText("This product is at or below its low-stock threshold.")).toBeInTheDocument();
+  });
+
+  it("warns when a stock adjustment leaves a product below threshold", async () => {
+    vi.mocked(apiClient.get).mockImplementation(endpoint => {
+      if (endpoint === "/inventory/products") {
+        return Promise.resolve([{
+          id: 6,
+          branchId: null,
+          sku: "CLIP-1",
+          name: "Pipe clip",
+          description: "",
+          unit: "each",
+          reorderLevel: 5,
+          onHand: 6,
+          isActive: true,
+          createdAt: new Date().toISOString(),
+        }]);
+      }
+      if (endpoint === "/inventory/suppliers") return Promise.resolve([]);
+      if (endpoint === "/inventory/stock-movements") return Promise.resolve([]);
+      return Promise.reject(new Error(`Unexpected endpoint: ${endpoint}`));
+    });
+    vi.mocked(apiClient.post).mockResolvedValue({});
+
+    renderInventory();
+
+    fireEvent.click(await screen.findByRole("button", { name: /adjust stock/i }));
+    fireEvent.change(screen.getByLabelText("Product"), { target: { value: "6" } });
+    fireEvent.change(screen.getByLabelText("Quantity change"), { target: { value: "-2" } });
+    fireEvent.click(screen.getByRole("button", { name: /record movement/i }));
+
+    expect(await screen.findByText("Low stock. This product is at or below its low-stock threshold.")).toBeInTheDocument();
   });
 });
 

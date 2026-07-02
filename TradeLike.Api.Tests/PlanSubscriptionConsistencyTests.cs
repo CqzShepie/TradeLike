@@ -18,6 +18,20 @@ namespace TradeLike.Api.Tests;
 public sealed class PlanSubscriptionConsistencyTests
 {
     [Fact]
+    public void FinalPlanPricingMatchesApprovedCatalog()
+    {
+        Assert.Equal(3995, PlanPricing.SoloMonthlyPricePence);
+        Assert.Equal(9995, PlanPricing.TeamMonthlyPricePence);
+        Assert.Equal(15995, PlanPricing.BusinessMonthlyPricePence);
+        Assert.Null(BuildPlan(4, "Enterprise", null).MonthlyPricePence);
+        Assert.Equal(29985, PlanPricing.SelfServeMonthlyPlanPriceSumPence);
+        Assert.Equal(72, PlanPricing.SoloExpectedMixPercent);
+        Assert.Equal(20, PlanPricing.TeamExpectedMixPercent);
+        Assert.Equal(7, PlanPricing.BusinessExpectedMixPercent);
+        Assert.Equal(1, PlanPricing.EnterpriseExpectedMixPercent);
+    }
+
+    [Fact]
     public async Task ChangingToBusinessUpdatesUserAndSubscriptionPlan()
     {
         await using var context = CreateContext();
@@ -260,7 +274,14 @@ public sealed class PlanSubscriptionConsistencyTests
         {
             Id = id,
             Name = name,
-            MonthlyPricePence = 0,
+            MonthlyPricePence = name switch
+            {
+                "Solo" => PlanPricing.SoloMonthlyPricePence,
+                "Team" => PlanPricing.TeamMonthlyPricePence,
+                "Business" => PlanPricing.BusinessMonthlyPricePence,
+                "Enterprise" => null,
+                _ => 0
+            },
             MaxIncludedUsers = maxIncludedUsers,
             CreatedAt = DateTime.UtcNow
         };

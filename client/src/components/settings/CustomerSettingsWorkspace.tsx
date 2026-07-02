@@ -21,6 +21,7 @@ import type {
 } from "../../types/settings";
 import { getCustomerRoleLabel, getCustomerRoleOptions } from "../../utils/customerRoleLabels";
 import { normalizePlan } from "../../routes/planEntitlements";
+import { pricingPlans } from "../../config/pricing";
 
 type SectionId =
   | "account"
@@ -70,7 +71,6 @@ export default function CustomerSettingsWorkspace({ focusSectionId }: { focusSec
   const plan = normalizePlan(settings?.planBilling.planName);
   const isTeamPlus = plan !== "Solo";
   const isBusinessPlus = plan === "Business" || plan === "Enterprise";
-  const isEnterprise = plan === "Enterprise";
 
   const sections = useMemo(() => {
     const all: Array<{ id: SectionId; title: string; description: string }> = [
@@ -82,7 +82,7 @@ export default function CustomerSettingsWorkspace({ focusSectionId }: { focusSec
       { id: "team", title: "Team members", description: "Owner, manager and team member access for your company." },
       { id: "documents", title: "Quotes & invoices", description: "Document defaults, VAT, notes and reply-to email." },
       { id: "reports", title: "Reports", description: "Default reporting range and included data." },
-      { id: "inventory", title: "Inventory", description: "Low stock defaults and purchase order prefix." },
+      { id: "inventory", title: "Inventory", description: "Low stock defaults." },
       { id: "data", title: "Data import / export", description: "Open import and export tools for your tenant data." },
       { id: "notifications", title: "Notifications", description: "System inboxes and document reply-to status." },
     ];
@@ -124,7 +124,7 @@ export default function CustomerSettingsWorkspace({ focusSectionId }: { focusSec
               {section.id === "business" && <BusinessPanel form={businessForm} saving={savingSection === "business"} onChange={setBusinessForm} onSave={() => saveSection("business", async () => ({ businessProfile: await settingsService.updateBusinessProfile(businessForm) }))} />}
               {section.id === "security" && <SecurityPanel settings={settings} />}
               {section.id === "accessibility" && <AccessibilityPanel onSave={() => setMessage("Settings saved.")} />}
-              {section.id === "billing" && <BillingPanel settings={settings} isEnterprise={isEnterprise} onPlanChanged={planBilling => { setSettings(previous => previous ? { ...previous, planBilling } : previous); authService.updateStoredUser({ plan: planBilling.planName }); }} />}
+              {section.id === "billing" && <BillingPanel settings={settings} onPlanChanged={planBilling => { setSettings(previous => previous ? { ...previous, planBilling } : previous); authService.updateStoredUser({ plan: planBilling.planName }); }} />}
               {section.id === "team" && <TeamPanel settings={settings} saving={savingSection === "team"} onUpdate={(id, payload) => saveSection("team", async () => { const updated = await settingsService.updateTeamMember(id, payload); return { teamMembers: settings.teamMembers.map(member => member.id === id ? updated : member) }; })} />}
               {section.id === "documents" && <DocumentsPanel form={documentForm} saving={savingSection === "documents"} onChange={setDocumentForm} onSave={() => saveSection("documents", async () => ({ documentDefaults: await settingsService.updateDocumentDefaults(documentForm), businessProfile: { ...settings.businessProfile, defaultVatRate: documentForm.defaultVatRate, quoteExpiryDays: documentForm.quoteExpiryDays, defaultQuoteNotes: documentForm.defaultQuoteNotes, defaultInvoiceNotes: documentForm.defaultInvoiceNotes, replyToEmail: documentForm.replyToEmail, paymentTerms: documentForm.paymentTerms, emailFooter: documentForm.emailFooter } }))} />}
               {section.id === "reports" && <ReportsPanel form={reportForm} saving={savingSection === "reports"} onChange={setReportForm} onSave={() => saveSection("reports", async () => ({ reportDefaults: await settingsService.updateReportDefaults(reportForm) }))} />}
@@ -176,21 +176,21 @@ function SecurityPanel({ settings }: { settings: CustomerSettings }) {
   return <PanelCard title="Security"><div className="grid gap-4 md:grid-cols-2"><Metric label="Email verification" value={settings.security.isEmailVerified ? "Verified" : "Pending"} /><Metric label="Password reset required" value={settings.security.passwordResetRequired ? "Yes" : "No"} /><Metric label="Last sign-in" value={formatDateTime(settings.security.lastLoginAtUtc) || "No recent sign-in"} /><Metric label="Session expires" value={formatDateTime(settings.security.sessionExpiresAtUtc) || "Not available"} /></div><div className="mt-5 flex flex-wrap gap-3"><LinkButton to="/forgot-password">Change password</LinkButton><Button variant="secondary" onClick={() => window.location.assign("/login")}>Clear local session</Button></div></PanelCard>;
 }
 
-function BillingPanel({ settings, isEnterprise, onPlanChanged }: { settings: CustomerSettings; isEnterprise: boolean; onPlanChanged: (planBilling: CustomerSettings["planBilling"]) => void }) {
+function BillingPanel({ settings, onPlanChanged }: { settings: CustomerSettings; onPlanChanged: (planBilling: CustomerSettings["planBilling"]) => void }) {
   const [open, setOpen] = useState(false);
 
   return (
     <PanelCard title="Plan & billing">
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <Metric label="Plan" value={settings.planBilling.planName} />
+        <Metric label="Monthly price" value={formatCurrency(settings.planBilling.monthlyPricePence)} />
         <Metric label="Billing status" value={settings.planBilling.billingStatus} />
-        <Metric label="Seats" value={String(settings.planBilling.seatsPurchased)} />
-        <Metric label="Included users" value={settings.planBilling.maxIncludedUsers == null ? "Unlimited" : String(settings.planBilling.maxIncludedUsers)} />
+        <Metric label="Seats" value={formatSeatLabel(settings.planBilling.seatsPurchased, settings.planBilling.maxIncludedUsers)} />
+        <Metric label="Included users" value={settings.planBilling.maxIncludedUsers == null ? "Unlimited users" : String(settings.planBilling.maxIncludedUsers)} />
       </div>
       <p className="mt-5 text-sm text-slate-300">
         Current billing cycle started {formatDate(settings.planBilling.billingStartUtc) || "recently"} and renews on {formatDate(settings.planBilling.nextInvoiceDateUtc) || "your next invoice date"}.
       </p>
-      {isEnterprise && <div className="mt-5 rounded-xl border border-blue-400/20 bg-blue-500/10 p-4 text-sm text-blue-100">Enterprise workspace: priority support and compliance help route through your account team.</div>}
       <div className="mt-5">
         <Button onClick={() => setOpen(true)}><CreditCard className="h-4 w-4" />Manage billing</Button>
       </div>
@@ -205,7 +205,7 @@ function BillingModal({ settings, onClose, onPlanChanged }: { settings: Customer
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const preview = buildPlanPreview(settings.planBilling.planName, selectedPlan, settings.planBilling.nextInvoiceDateUtc);
+  const selectedPlanOption = pricingPlans.find(plan => plan.name === selectedPlan) ?? pricingPlans[0];
 
   async function submitChange() {
     if (!confirmed) {
@@ -230,7 +230,7 @@ function BillingModal({ settings, onClose, onPlanChanged }: { settings: Customer
         trialEndsAtUtc: settings.planBilling.trialEndsAtUtc,
         accountStatus: settings.planBilling.accountStatus,
       });
-      setSuccess(result.message || "Plan change request saved.");
+      setSuccess("Plan change request submitted.");
       setConfirmed(false);
     } catch (err) {
       setError(err instanceof Error ? friendlyBillingError(err.message) : "Plan change request could not be saved.");
@@ -246,7 +246,7 @@ function BillingModal({ settings, onClose, onPlanChanged }: { settings: Customer
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-blue-200">Plan change request</p>
             <h2 className="mt-2 text-2xl font-bold text-white">Manage billing</h2>
-            <p className="mt-2 text-sm leading-6 text-slate-300">Preview a plan change before renewal. No payment is taken from this modal.</p>
+            <p className="mt-2 text-sm leading-6 text-slate-300">Submit a plan change request for the TradeLike team to review. No payment is taken from this modal.</p>
           </div>
           <button type="button" onClick={onClose} className="rounded px-2 text-xl leading-none text-slate-400 hover:bg-white/10" aria-label="Close billing modal">x</button>
         </div>
@@ -254,27 +254,27 @@ function BillingModal({ settings, onClose, onPlanChanged }: { settings: Customer
         <div className="mt-6 grid gap-4 md:grid-cols-3">
           <Metric label="Current plan" value={settings.planBilling.planName} />
           <Metric label="Renewal date" value={formatDate(settings.planBilling.nextInvoiceDateUtc) || "Not available" } />
-          <Metric label="Seats" value={String(settings.planBilling.seatsPurchased)} />
+          <Metric label="Current seats" value={formatSeatLabel(settings.planBilling.seatsPurchased, settings.planBilling.maxIncludedUsers)} />
         </div>
 
         <div className="mt-6 grid gap-3 sm:grid-cols-2">
-          {planOptions.map(plan => (
+          {pricingPlans.map(plan => (
             <button key={plan.name} type="button" onClick={() => { setSelectedPlan(plan.name); setConfirmed(false); }} className={`rounded-xl border p-4 text-left transition ${selectedPlan === plan.name ? "border-blue-400 bg-blue-500/15" : "border-white/10 bg-slate-950/50 hover:bg-white/[0.04]"}`}>
               <p className="font-bold text-white">{plan.name}</p>
-              <p className="mt-1 text-sm text-slate-300">{plan.pricePence == null ? "Talk to us" : `${formatCurrency(plan.pricePence)} / month`}</p>
-              <p className="mt-2 text-xs text-slate-400">{plan.includedUsers == null ? "Unlimited included users" : `${plan.includedUsers} included user${plan.includedUsers === 1 ? "" : "s"}`}</p>
+              <p className="mt-1 text-sm text-slate-300">{plan.pricePence == null ? "Contact Sales" : `${formatCurrency(plan.pricePence)} / month`}</p>
+              <p className="mt-2 text-xs text-slate-400">{plan.includedUsers == null ? "Unlimited users" : `${plan.includedUsers} included user${plan.includedUsers === 1 ? "" : "s"}`}</p>
             </button>
           ))}
         </div>
 
         <div className="mt-6 rounded-xl border border-white/10 bg-slate-950/50 p-4">
-          <p className="text-sm font-bold text-white">Preview</p>
+          <p className="text-sm font-bold text-white">Plan change request</p>
           <div className="mt-3 grid gap-3 text-sm text-slate-300 md:grid-cols-3">
-            <span>Current: {formatCurrency(preview.currentPricePence)}</span>
-            <span>New: {formatCurrency(preview.newPricePence)}</span>
-            <span>Difference: {formatSignedCurrency(preview.monthlyDifferencePence)}</span>
+            <span>Current plan: {settings.planBilling.planName}</span>
+            <span>Requested plan: {selectedPlan}</span>
+            <span>Requested seats: {selectedPlanOption.includedUsers == null ? "Unlimited users" : selectedPlanOption.includedUsers}</span>
           </div>
-          <p className="mt-3 text-sm text-blue-100">{preview.creditText}</p>
+          <p className="mt-3 text-sm text-blue-100">Your request has been recorded. A TradeLike team member will review it.</p>
         </div>
 
         {error && <InlineAlert tone="error">{error}</InlineAlert>}
@@ -282,7 +282,7 @@ function BillingModal({ settings, onClose, onPlanChanged }: { settings: Customer
 
         <label className="mt-5 flex items-start gap-3 rounded-xl border border-white/10 bg-slate-950/50 p-4 text-sm text-slate-200">
           <input type="checkbox" checked={confirmed} onChange={event => setConfirmed(event.target.checked)} className="mt-1 h-4 w-4 rounded border-white/20 bg-slate-950" />
-          <span>I understand this saves a TradeLike plan change request and does not confirm that payment has been taken.</span>
+          <span>I understand this submits a TradeLike plan change request and does not confirm that payment has been taken.</span>
         </label>
 
         <div className="mt-5 flex flex-wrap justify-end gap-3">
@@ -314,9 +314,6 @@ function AccessibilityPanel({ onSave }: { onSave: () => void }) {
         <Toggle label="Larger text" checked={preferences.textSize !== "normal"} onChange={checked => setPreferences({ ...preferences, textSize: checked ? "large" : "normal" })} />
         <Toggle label="High contrast" checked={preferences.highContrast} onChange={checked => setPreferences({ ...preferences, highContrast: checked })} />
       </div>
-      <div className="mt-4 rounded-xl border border-white/10 bg-slate-950/50 p-4 text-sm leading-6 text-slate-300">
-        Keyboard navigation is supported across the app. Use Tab to move through controls, Enter or Space to activate buttons, and visible focus outlines to keep your place.
-      </div>
       <div className="mt-5">
         <Button onClick={save}>Save accessibility preferences</Button>
       </div>
@@ -325,7 +322,7 @@ function AccessibilityPanel({ onSave }: { onSave: () => void }) {
 }
 
 function DocumentsPanel({ form, saving, onChange, onSave }: { form: UpdateDocumentDefaultsSettingsRequest; saving: boolean; onChange: (value: UpdateDocumentDefaultsSettingsRequest) => void; onSave: () => void }) {
-  return <PanelCard title="Quotes & invoices"><div className="mb-4 rounded-xl border border-white/10 bg-slate-950/50 p-4 text-sm text-slate-300">Quote and invoice prefixes are system-defined and apply consistently across all customers.</div><div className="grid gap-4 md:grid-cols-2"><Field label="Default VAT rate"><TextInput type="number" value={String(form.defaultVatRate)} onChange={event => onChange({ ...form, defaultVatRate: Number(event.target.value || 0) })} /></Field><Field label="Quote expiry days"><TextInput type="number" value={String(form.quoteExpiryDays)} onChange={event => onChange({ ...form, quoteExpiryDays: Number(event.target.value || 0) })} /></Field><Field label="Reply-to email"><TextInput value={form.replyToEmail ?? ""} onChange={event => onChange({ ...form, replyToEmail: event.target.value })} /></Field><Field label="Payment terms"><TextInput value={form.paymentTerms ?? ""} onChange={event => onChange({ ...form, paymentTerms: event.target.value })} /></Field></div><div className="mt-4 grid gap-4"><Field label="Default quote notes"><TextArea value={form.defaultQuoteNotes ?? ""} onChange={event => onChange({ ...form, defaultQuoteNotes: event.target.value })} rows={4} /></Field><Field label="Default invoice notes"><TextArea value={form.defaultInvoiceNotes ?? ""} onChange={event => onChange({ ...form, defaultInvoiceNotes: event.target.value })} rows={4} /></Field><Field label="Email footer"><TextArea value={form.emailFooter ?? ""} onChange={event => onChange({ ...form, emailFooter: event.target.value })} rows={4} /></Field></div><div className="mt-5"><Button onClick={onSave} loading={saving}>Save document defaults</Button></div></PanelCard>;
+  return <PanelCard title="Quotes & invoices"><div className="grid gap-4 md:grid-cols-2"><Field label="Default VAT rate"><TextInput type="number" value={String(form.defaultVatRate)} onChange={event => onChange({ ...form, defaultVatRate: Number(event.target.value || 0) })} /></Field><Field label="Quote expiry days"><TextInput type="number" value={String(form.quoteExpiryDays)} onChange={event => onChange({ ...form, quoteExpiryDays: Number(event.target.value || 0) })} /></Field><Field label="Reply-to email"><TextInput value={form.replyToEmail ?? ""} onChange={event => onChange({ ...form, replyToEmail: event.target.value })} /></Field><Field label="Payment terms"><TextInput value={form.paymentTerms ?? ""} onChange={event => onChange({ ...form, paymentTerms: event.target.value })} /></Field></div><div className="mt-4 grid gap-4"><Field label="Default quote notes"><TextArea value={form.defaultQuoteNotes ?? ""} onChange={event => onChange({ ...form, defaultQuoteNotes: event.target.value })} rows={4} /></Field><Field label="Default invoice notes"><TextArea value={form.defaultInvoiceNotes ?? ""} onChange={event => onChange({ ...form, defaultInvoiceNotes: event.target.value })} rows={4} /></Field><Field label="Email footer"><TextArea value={form.emailFooter ?? ""} onChange={event => onChange({ ...form, emailFooter: event.target.value })} rows={4} /></Field></div><div className="mt-5"><Button onClick={onSave} loading={saving}>Save document defaults</Button></div></PanelCard>;
 }
 
 function ReportsPanel({ form, saving, onChange, onSave }: { form: UpdateReportDefaultsSettingsRequest; saving: boolean; onChange: (value: UpdateReportDefaultsSettingsRequest) => void; onSave: () => void }) {
@@ -333,7 +330,7 @@ function ReportsPanel({ form, saving, onChange, onSave }: { form: UpdateReportDe
 }
 
 function InventoryPanel({ form, saving, onChange, onSave }: { form: UpdateInventoryDefaultsSettingsRequest; saving: boolean; onChange: (value: UpdateInventoryDefaultsSettingsRequest) => void; onSave: () => void }) {
-  return <PanelCard title="Inventory"><div className="mb-4 rounded-xl border border-white/10 bg-slate-950/50 p-4 text-sm text-slate-300">Purchase order prefix: <span className="font-semibold text-white">{form.purchaseOrderPrefix || "PO"}</span>. This prefix is system-defined and cannot be edited.</div><div className="grid gap-4 md:grid-cols-2"><Field label="Low stock threshold"><TextInput type="number" value={String(form.lowStockThreshold)} onChange={event => onChange({ ...form, lowStockThreshold: Number(event.target.value || 0) })} /></Field></div><div className="mt-5 flex flex-wrap gap-3"><Button onClick={onSave} loading={saving}>Save inventory defaults</Button><LinkButton to="/inventory" icon={<Building2 className="h-4 w-4" />}>Open inventory</LinkButton></div></PanelCard>;
+  return <PanelCard title="Inventory"><div className="grid gap-4 md:grid-cols-2"><Field label="Low stock threshold"><TextInput type="number" value={String(form.lowStockThreshold)} onChange={event => onChange({ ...form, lowStockThreshold: Number(event.target.value || 0) })} /></Field></div><div className="mt-5 flex flex-wrap gap-3"><Button onClick={onSave} loading={saving}>Save inventory defaults</Button><LinkButton to="/inventory" icon={<Building2 className="h-4 w-4" />}>Open inventory</LinkButton></div></PanelCard>;
 }
 
 function NotificationsPanel({ settings }: { settings: CustomerSettings }) {
@@ -364,60 +361,12 @@ function LinkButton({ to, children, icon }: { to: string; children: React.ReactN
   return <Link to={to} className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-slate-100 transition hover:bg-white/10">{icon}{children}</Link>;
 }
 
-const planOptions = [
-  { name: "Solo", pricePence: 4000, includedUsers: 1 },
-  { name: "Team", pricePence: 9900, includedUsers: 10 },
-  { name: "Business", pricePence: 19900, includedUsers: 25 },
-  { name: "Enterprise", pricePence: null, includedUsers: null },
-];
-
-function buildPlanPreview(currentPlan: string, selectedPlan: string, nextInvoiceDateUtc?: string | null) {
-  const currentPricePence = planOptions.find(plan => plan.name === currentPlan)?.pricePence ?? null;
-  const newPricePence = planOptions.find(plan => plan.name === selectedPlan)?.pricePence ?? null;
-  const monthlyDifferencePence = newPricePence == null || currentPricePence == null ? 0 : newPricePence - currentPricePence;
-  const remainingRatio = calculateRemainingRatio(nextInvoiceDateUtc);
-  const creditPence = Math.round(Math.abs(monthlyDifferencePence) * remainingRatio);
-  const percent = Math.round(remainingRatio * 100);
-  const direction = monthlyDifferencePence >= 0 ? "upgrade credit" : "downgrade credit";
-
-  return {
-    currentPricePence,
-    newPricePence,
-    monthlyDifferencePence,
-    creditText: monthlyDifferencePence === 0
-      ? "No price difference for the selected plan."
-      : `Estimated ${direction}: ${formatCurrency(creditPence)} based on roughly ${percent}% of the current billing period remaining.`,
-  };
-}
-
-function calculateRemainingRatio(nextInvoiceDateUtc?: string | null) {
-  if (!nextInvoiceDateUtc) {
-    return 0.4;
-  }
-
-  const next = new Date(nextInvoiceDateUtc).getTime();
-  if (Number.isNaN(next)) {
-    return 0.4;
-  }
-
-  const daysRemaining = Math.max(0, Math.ceil((next - Date.now()) / 86_400_000));
-  return Math.max(0, Math.min(1, daysRemaining / 30));
-}
-
 function formatCurrency(valuePence?: number | null) {
   if (valuePence == null) {
-    return "Custom";
+    return "Contact Sales";
   }
 
   return new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(valuePence / 100);
-}
-
-function formatSignedCurrency(valuePence: number) {
-  if (valuePence === 0) {
-    return formatCurrency(0);
-  }
-
-  return `${valuePence > 0 ? "+" : "-"}${formatCurrency(Math.abs(valuePence))}`;
 }
 
 function friendlyBillingError(message: string) {
@@ -426,6 +375,10 @@ function friendlyBillingError(message: string) {
   }
 
   return message || "Plan change request could not be saved.";
+}
+
+function formatSeatLabel(seatsPurchased: number, maxIncludedUsers?: number | null) {
+  return maxIncludedUsers == null ? "Unlimited users" : String(seatsPurchased);
 }
 
 function formatDate(value?: string | null) {
