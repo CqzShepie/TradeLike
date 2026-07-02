@@ -53,6 +53,7 @@ export default function UpgradeRequired({ featureName, minimumPlan }: UpgradeReq
             <div key={plan.name} className="rounded-xl border border-white/10 bg-slate-950/50 p-4">
               <p className="text-sm font-bold text-white">{plan.name}</p>
               <p className="mt-1 text-sm font-semibold text-blue-200">{plan.displayPrice}</p>
+              <p className="mt-1 text-xs font-semibold text-slate-400">{plan.userLimitLabel}</p>
             </div>
           ))}
         </div>

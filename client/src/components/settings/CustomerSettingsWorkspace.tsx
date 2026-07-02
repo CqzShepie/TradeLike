@@ -178,6 +178,7 @@ function SecurityPanel({ settings }: { settings: CustomerSettings }) {
 
 function BillingPanel({ settings, onPlanChanged }: { settings: CustomerSettings; onPlanChanged: (planBilling: CustomerSettings["planBilling"]) => void }) {
   const [open, setOpen] = useState(false);
+  const currentPlan = pricingPlans.find(plan => plan.name === settings.planBilling.planName);
 
   return (
     <PanelCard title="Plan & billing">
@@ -186,7 +187,7 @@ function BillingPanel({ settings, onPlanChanged }: { settings: CustomerSettings;
         <Metric label="Monthly price" value={formatCurrency(settings.planBilling.monthlyPricePence)} />
         <Metric label="Billing status" value={settings.planBilling.billingStatus} />
         <Metric label="Seats" value={formatSeatLabel(settings.planBilling.seatsPurchased, settings.planBilling.maxIncludedUsers)} />
-        <Metric label="Included users" value={settings.planBilling.maxIncludedUsers == null ? "Unlimited users" : String(settings.planBilling.maxIncludedUsers)} />
+        <Metric label="User limit" value={currentPlan?.userLimitLabel ?? (settings.planBilling.maxIncludedUsers == null ? "26+ users" : String(settings.planBilling.maxIncludedUsers))} />
       </div>
       <p className="mt-5 text-sm text-slate-300">
         Current billing cycle started {formatDate(settings.planBilling.billingStartUtc) || "recently"} and renews on {formatDate(settings.planBilling.nextInvoiceDateUtc) || "your next invoice date"}.
@@ -262,7 +263,7 @@ function BillingModal({ settings, onClose, onPlanChanged }: { settings: Customer
             <button key={plan.name} type="button" onClick={() => { setSelectedPlan(plan.name); setConfirmed(false); }} className={`rounded-xl border p-4 text-left transition ${selectedPlan === plan.name ? "border-blue-400 bg-blue-500/15" : "border-white/10 bg-slate-950/50 hover:bg-white/[0.04]"}`}>
               <p className="font-bold text-white">{plan.name}</p>
               <p className="mt-1 text-sm text-slate-300">{plan.pricePence == null ? "Contact Sales" : `${formatCurrency(plan.pricePence)} / month`}</p>
-              <p className="mt-2 text-xs text-slate-400">{plan.includedUsers == null ? "Unlimited users" : `${plan.includedUsers} included user${plan.includedUsers === 1 ? "" : "s"}`}</p>
+              <p className="mt-2 text-xs text-slate-400">{plan.userLimitLabel} / {plan.perUserDisplay}</p>
             </button>
           ))}
         </div>
@@ -272,7 +273,7 @@ function BillingModal({ settings, onClose, onPlanChanged }: { settings: Customer
           <div className="mt-3 grid gap-3 text-sm text-slate-300 md:grid-cols-3">
             <span>Current plan: {settings.planBilling.planName}</span>
             <span>Requested plan: {selectedPlan}</span>
-            <span>Requested seats: {selectedPlanOption.includedUsers == null ? "Unlimited users" : selectedPlanOption.includedUsers}</span>
+            <span>Requested seats: {selectedPlanOption.userLimitLabel}</span>
           </div>
           <p className="mt-3 text-sm text-blue-100">Your request has been recorded. A TradeLike team member will review it.</p>
         </div>

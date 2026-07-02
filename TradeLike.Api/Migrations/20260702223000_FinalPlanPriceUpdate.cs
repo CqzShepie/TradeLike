@@ -15,21 +15,21 @@ namespace TradeLike.Api.Migrations
                 keyColumn: "Id",
                 keyValue: 1,
                 column: "MonthlyPricePence",
-                value: 3995);
+                value: 4495);
 
             migrationBuilder.UpdateData(
                 table: "Plans",
                 keyColumn: "Id",
                 keyValue: 2,
                 column: "MonthlyPricePence",
-                value: 9995);
+                value: 11995);
 
             migrationBuilder.UpdateData(
                 table: "Plans",
                 keyColumn: "Id",
                 keyValue: 3,
                 column: "MonthlyPricePence",
-                value: 15995);
+                value: 22995);
 
             migrationBuilder.UpdateData(
                 table: "Plans",
@@ -47,21 +47,21 @@ namespace TradeLike.Api.Migrations
                 keyColumn: "Id",
                 keyValue: 1,
                 column: "MonthlyPricePence",
-                value: 3500);
+                value: 3995);
 
             migrationBuilder.UpdateData(
                 table: "Plans",
                 keyColumn: "Id",
                 keyValue: 2,
                 column: "MonthlyPricePence",
-                value: 7500);
+                value: 9995);
 
             migrationBuilder.UpdateData(
                 table: "Plans",
                 keyColumn: "Id",
                 keyValue: 3,
                 column: "MonthlyPricePence",
-                value: 15000);
+                value: 15995);
         }
     }
 }

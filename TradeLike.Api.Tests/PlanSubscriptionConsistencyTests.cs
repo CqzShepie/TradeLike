@@ -20,11 +20,11 @@ public sealed class PlanSubscriptionConsistencyTests
     [Fact]
     public void FinalPlanPricingMatchesApprovedCatalog()
     {
-        Assert.Equal(3995, PlanPricing.SoloMonthlyPricePence);
-        Assert.Equal(9995, PlanPricing.TeamMonthlyPricePence);
-        Assert.Equal(15995, PlanPricing.BusinessMonthlyPricePence);
+        Assert.Equal(4495, PlanPricing.SoloMonthlyPricePence);
+        Assert.Equal(11995, PlanPricing.TeamMonthlyPricePence);
+        Assert.Equal(22995, PlanPricing.BusinessMonthlyPricePence);
         Assert.Null(BuildPlan(4, "Enterprise", null).MonthlyPricePence);
-        Assert.Equal(29985, PlanPricing.SelfServeMonthlyPlanPriceSumPence);
+        Assert.Equal(39485, PlanPricing.SelfServeMonthlyPlanPriceSumPence);
         Assert.Equal(72, PlanPricing.SoloExpectedMixPercent);
         Assert.Equal(20, PlanPricing.TeamExpectedMixPercent);
         Assert.Equal(7, PlanPricing.BusinessExpectedMixPercent);

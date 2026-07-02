@@ -17,6 +17,7 @@ export default function PricingSection() {
             <article key={plan.name} className="flex flex-col rounded-xl border border-slate-200 bg-slate-50 p-6">
               <h3 className="text-xl font-bold text-slate-950">{plan.name}</h3>
               <p className="mt-4 text-3xl font-bold text-blue-700">{plan.displayPrice}</p>
+              <p className="mt-2 text-sm font-semibold text-slate-700">{plan.perUserDisplay}</p>
               <ul className="mt-6 flex-1 space-y-3 text-sm leading-6 text-slate-600">
                 {plan.features.map(feature => (
                   <li key={feature} className="font-medium">{feature}</li>

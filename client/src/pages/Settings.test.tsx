@@ -133,21 +133,32 @@ describe("Settings", () => {
     renderSettings();
 
     await screen.findByRole("heading", { name: /plan & billing/i });
-    expect(screen.getByText("£39.95")).toBeInTheDocument();
+    expect(screen.getByText("£44.95")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /manage billing/i }));
     fireEvent.click(screen.getByRole("button", { name: /team/i }));
 
     expect(screen.getByRole("heading", { name: /manage billing/i })).toBeInTheDocument();
     expect(screen.getByText(/current plan: solo/i)).toBeInTheDocument();
     expect(screen.getByText(/requested plan: team/i)).toBeInTheDocument();
-    expect(screen.getByText(/requested seats: 10/i)).toBeInTheDocument();
-    expect(screen.getByText(/£39\.95 \/ month/i)).toBeInTheDocument();
-    expect(screen.getByText(/£99\.95 \/ month/i)).toBeInTheDocument();
-    expect(screen.getByText(/£159\.95 \/ month/i)).toBeInTheDocument();
+    expect(screen.getByText(/requested seats: up to 10 users/i)).toBeInTheDocument();
+    expect(screen.getByText(/£44\.95 \/ month/i)).toBeInTheDocument();
+    expect(screen.getByText(/£119\.95 \/ month/i)).toBeInTheDocument();
+    expect(screen.getByText(/£229\.95 \/ month/i)).toBeInTheDocument();
     expect(screen.getByText(/Contact Sales/i)).toBeInTheDocument();
+    expect(screen.getByText(/26\+ users \/ Custom/i)).toBeInTheDocument();
     expect(screen.queryByText(/credit|proration|discount/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/£40(?:\.00)?/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/£199(?:\.00)?/i)).not.toBeInTheDocument();
+    const pageText = document.body.textContent ?? "";
+    [
+      ["39", "95"],
+      ["99", "95"],
+      ["159", "95"],
+      ["40", ""],
+      ["40", "00"],
+      ["199", ""],
+      ["199", "00"],
+    ].forEach(([pounds, pence]) => {
+      expect(pageText).not.toContain(`£${pounds}${pence ? `.${pence}` : ""}`);
+    });
     expect(screen.getByRole("button", { name: /submit request/i })).toBeDisabled();
   });
 
@@ -156,7 +167,7 @@ describe("Settings", () => {
     mockedBillingService.requestPlanChange.mockResolvedValue({
       message: "Plan change request saved. No payment has been taken in this preview flow.",
       planName: "Team",
-      monthlyPricePence: 9995,
+      monthlyPricePence: 11995,
       maxIncludedUsers: 10,
       seatsPurchased: 2,
       billingStartUtc: new Date().toISOString(),
@@ -321,7 +332,7 @@ function buildSettings(plan: "Solo" | "Team" | "Business" | "Enterprise"): Custo
     planBilling: {
       planName: plan,
       billingStatus: "Active",
-      monthlyPricePence: plan === "Enterprise" ? null : plan === "Business" ? 15995 : plan === "Team" ? 9995 : 3995,
+      monthlyPricePence: plan === "Enterprise" ? null : plan === "Business" ? 22995 : plan === "Team" ? 11995 : 4495,
       maxIncludedUsers: plan === "Enterprise" ? null : plan === "Business" ? 25 : plan === "Team" ? 10 : 1,
       seatsPurchased: plan === "Enterprise" ? 40 : plan === "Business" ? 12 : plan === "Team" ? 4 : 1,
       billingStartUtc: new Date().toISOString(),

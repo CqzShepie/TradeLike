@@ -12,7 +12,8 @@ export default function PlanLimitsPanel() {
             key={plan.name}
             title={plan.name}
             pricePence={plan.pricePence}
-            body={`${plan.includedUsers == null ? "Unlimited users" : `${plan.includedUsers} included user${plan.includedUsers === 1 ? "" : "s"}`}. ${plan.features.slice(1).join(". ")}.`}
+            perUserDisplay={plan.perUserDisplay}
+            body={`${plan.userLimitLabel}. ${plan.features.slice(1).join(". ")}.`}
           />
         ))}
       </div>
@@ -20,13 +21,14 @@ export default function PlanLimitsPanel() {
   );
 }
 
-function Card({ title, pricePence, body }: { title: string; pricePence: number | null; body: string }) {
+function Card({ title, pricePence, perUserDisplay, body }: { title: string; pricePence: number | null; perUserDisplay: string; body: string }) {
   return (
     <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
       <p className="font-bold text-slate-900">{title}</p>
       <p className="mt-1 text-sm font-semibold text-blue-700">
         {pricePence == null ? "Contact Sales" : <><Currency valuePence={pricePence} currency="GBP" />/month</>}
       </p>
+      <p className="mt-1 text-xs font-semibold text-slate-500">{perUserDisplay}</p>
       <p className="mt-2 text-sm text-slate-600">{body}</p>
     </div>
   );

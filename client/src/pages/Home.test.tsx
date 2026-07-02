@@ -7,17 +7,30 @@ describe("Home", () => {
   it("shows current monthly pricing and Enterprise sales contact", () => {
     renderHome();
 
-    expect(screen.getByText("£39.95/month")).toBeInTheDocument();
-    expect(screen.getByText("£99.95/month")).toBeInTheDocument();
-    expect(screen.getByText("£159.95/month")).toBeInTheDocument();
+    expect(screen.getByText("£44.95/month")).toBeInTheDocument();
+    expect(screen.getByText("£119.95/month")).toBeInTheDocument();
+    expect(screen.getByText("£229.95/month")).toBeInTheDocument();
     expect(screen.getByText("Contact Sales")).toBeInTheDocument();
+    expect(screen.getByText("£44.95/user")).toBeInTheDocument();
+    expect(screen.getByText("£12.00/user")).toBeInTheDocument();
+    expect(screen.getByText("£9.20/user")).toBeInTheDocument();
+    expect(screen.getByText("Custom")).toBeInTheDocument();
+    expect(screen.getByText("26+ users")).toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: "sales@tradelike.co.uk" }).some(link => link.getAttribute("href") === "mailto:sales@tradelike.co.uk")).toBe(true);
-    expect(screen.queryByText("£40/month")).not.toBeInTheDocument();
-    expect(screen.queryByText("£99/month")).not.toBeInTheDocument();
-    expect(screen.queryByText("£199/month")).not.toBeInTheDocument();
-    expect(screen.queryByText("£40.00/month")).not.toBeInTheDocument();
-    expect(screen.queryByText("£99.00/month")).not.toBeInTheDocument();
-    expect(screen.queryByText("£199.00/month")).not.toBeInTheDocument();
+    const pageText = document.body.textContent ?? "";
+    [
+      ["39", "95/month"],
+      ["99", "95/month"],
+      ["159", "95/month"],
+      ["40", "/month"],
+      ["99", "/month"],
+      ["199", "/month"],
+      ["40", "00/month"],
+      ["99", "00/month"],
+      ["199", "00/month"],
+    ].forEach(([pounds, suffix]) => {
+      expect(pageText).not.toContain(`£${pounds}${suffix.startsWith("/") ? suffix : `.${suffix}`}`);
+    });
   });
 
   it("explains invoices, team, mobile, support and admin time savings", () => {

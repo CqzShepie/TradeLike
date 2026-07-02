@@ -36,12 +36,21 @@ describe("access diagnostics pages", () => {
 
     expect(screen.getAllByText(/stored session has no recognised plan/i)[0]).toBeInTheDocument();
     expect(screen.getByText(/Business plan/i)).toBeInTheDocument();
-    expect(screen.getByText("£39.95/month")).toBeInTheDocument();
-    expect(screen.getByText("£99.95/month")).toBeInTheDocument();
-    expect(screen.getByText("£159.95/month")).toBeInTheDocument();
+    expect(screen.getByText("£44.95/month")).toBeInTheDocument();
+    expect(screen.getByText("£119.95/month")).toBeInTheDocument();
+    expect(screen.getByText("£229.95/month")).toBeInTheDocument();
     expect(screen.getByText("Contact Sales")).toBeInTheDocument();
-    expect(screen.queryByText("£40/month")).not.toBeInTheDocument();
-    expect(screen.queryByText("£199/month")).not.toBeInTheDocument();
+    expect(screen.getByText("26+ users")).toBeInTheDocument();
+    const pageText = document.body.textContent ?? "";
+    [
+      ["39", "95/month"],
+      ["99", "95/month"],
+      ["159", "95/month"],
+      ["40", "/month"],
+      ["199", "/month"],
+    ].forEach(([pounds, suffix]) => {
+      expect(pageText).not.toContain(`£${pounds}${suffix.startsWith("/") ? suffix : `.${suffix}`}`);
+    });
   });
 
   it("AccessDenied shows role reason", () => {

@@ -5,37 +5,47 @@ export type PricingPlan = {
   pricePence: number | null;
   displayPrice: string;
   includedUsers: number | null;
+  userLimitLabel: string;
+  perUserDisplay: string;
   features: string[];
 };
 
 export const pricingPlans: PricingPlan[] = [
   {
     name: "Solo",
-    pricePence: 3995,
-    displayPrice: "£39.95/month",
+    pricePence: 4495,
+    displayPrice: "£44.95/month",
     includedUsers: 1,
+    userLimitLabel: "1 user",
+    perUserDisplay: "£44.95/user",
     features: ["1 user", "Email support", "Basic reporting"],
   },
   {
     name: "Team",
-    pricePence: 9995,
-    displayPrice: "£99.95/month",
+    pricePence: 11995,
+    displayPrice: "£119.95/month",
     includedUsers: 10,
-    features: ["2-10 users", "Priority support", "Advanced reporting"],
+    userLimitLabel: "Up to 10 users",
+    perUserDisplay: "£12.00/user",
+    features: ["Up to 10 users", "Priority support", "Advanced reporting"],
   },
   {
     name: "Business",
-    pricePence: 15995,
-    displayPrice: "£159.95/month",
+    pricePence: 22995,
+    displayPrice: "£229.95/month",
     includedUsers: 25,
-    features: ["11-25 users", "Dedicated support", "Business reporting", "API access"],
+    userLimitLabel: "Up to 25 users",
+    perUserDisplay: "£9.20/user",
+    features: ["Up to 25 users", "Dedicated support", "Business reporting", "API access"],
   },
   {
     name: "Enterprise",
     pricePence: null,
     displayPrice: "Contact Sales",
     includedUsers: null,
-    features: ["Unlimited users", "Dedicated support", "Enterprise reporting", "API access"],
+    userLimitLabel: "26+ users",
+    perUserDisplay: "Custom",
+    features: ["26+ users", "Dedicated support", "Enterprise reporting", "API access"],
   },
 ];
 
@@ -46,4 +56,4 @@ export const planMixAssumptions = {
   Enterprise: 1,
 } satisfies Record<PricingPlanName, number>;
 
-export const selfServeMonthlyPlanPriceSumPence = 29985;
+export const selfServeMonthlyPlanPriceSumPence = 39485;
