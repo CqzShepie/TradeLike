@@ -98,7 +98,12 @@ describe("Dashboard", () => {
     expect(screen.getByRole("heading", { name: "Today's schedule" })).toHaveClass("text-white");
     expect(screen.getByRole("heading", { name: "Upcoming jobs" })).toHaveClass("text-white");
     expect(screen.getByRole("heading", { name: "Recent activity" })).toHaveClass("text-white");
+    expect(screen.getByRole("heading", { name: "Quick actions" })).toHaveClass("text-white");
     expect(screen.getByText("Total jobs")).toHaveClass("text-slate-100");
+    expect(screen.getByText("New Job")).toHaveClass("text-white");
+    expect(screen.getByText("Add Customer")).toHaveClass("text-white");
+    expect(screen.getByText("Create Quote")).toHaveClass("text-white");
+    expect(screen.getByText("Open Calendar")).toHaveClass("text-white");
   });
 });
 

@@ -32,10 +32,11 @@ const actions: QuickAction[] = [
 
 function QuickActions() {
     return (
-        <Card as="section" padding="md">
+        <Card as="section" padding="md" tone="dark">
             <SectionHeader
                 title="Quick actions"
                 subtitle="Common tasks for managing your day."
+                tone="dark"
                 className="mb-5"
             />
 
@@ -44,13 +45,13 @@ function QuickActions() {
                     <Link
                         key={action.to}
                         to={action.to}
-                        className="rounded-xl border border-slate-200 bg-slate-50 p-4 transition hover:border-blue-300 hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+                        className="rounded-xl border border-white/10 bg-slate-950/45 p-4 transition hover:border-blue-300/50 hover:bg-slate-950/70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
                     >
-                        <div className="text-sm font-bold text-slate-950">
+                        <div className="text-sm font-bold text-white">
                             {action.label}
                         </div>
 
-                        <div className="mt-2 text-xs leading-5 text-slate-500">
+                        <div className="mt-2 text-xs leading-5 text-slate-300">
                             {action.description}
                         </div>
                     </Link>
