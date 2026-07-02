@@ -14,6 +14,7 @@ import {
   SecondaryButton,
 } from "../components/ui";
 import { useDashboardSummary } from "../hooks/useDashboardSummary";
+import { friendlyErrorMessage } from "../utils/errorMessages";
 import AccessDenied from "./AccessDenied";
 import UpgradeRequired from "./UpgradeRequired";
 
@@ -60,7 +61,7 @@ function Dashboard() {
       {!loading && error && (
         <ErrorState
           title="Unable to load dashboard"
-          description={error.message}
+          description={friendlyErrorMessage(error, "Dashboard could not be loaded. Please try again.")}
           action={
             <SecondaryButton type="button" onClick={refresh}>
               Try again

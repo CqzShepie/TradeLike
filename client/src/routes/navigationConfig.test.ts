@@ -5,7 +5,7 @@ import {
   getSettingsNavigation,
   getSidebarNavigation,
 } from "./navigationConfig";
-import { planIncludesFeature, roleAllowsFeature } from "./planEntitlements";
+import { getPlanRank, hasFeature, isAtLeastPlan, planIncludesFeature, roleAllowsFeature } from "./planEntitlements";
 
 const baseUser: AuthUser = {
   id: 1,
@@ -96,6 +96,26 @@ describe("navigation entitlements", () => {
     expect(planIncludesFeature(teamManager.plan, "staff-scheduling")).toBe(true);
     expect(roleAllowsFeature(teamManager.role, "staff-scheduling")).toBe(true);
   });
+
+  it("lets higher plans inherit Team and Business features", () => {
+    expect(getPlanRank("Solo")).toBeLessThan(getPlanRank("Team"));
+    expect(isAtLeastPlan("Business", "Team")).toBe(true);
+    expect(isAtLeastPlan("Enterprise", "Business")).toBe(true);
+    expect(hasFeature("Business", "staff-scheduling")).toBe(true);
+    expect(hasFeature("Enterprise", "staff-scheduling")).toBe(true);
+    expect(hasFeature("Enterprise", "api-access")).toBe(true);
+    expect(hasFeature("Internal", "staff-scheduling")).toBe(false);
+  });
+
+  it.each(["Team", "Business", "Enterprise"] as const)(
+    "shows Team navigation for %s managers",
+    plan => {
+      const manager = user({ role: "CustomerManager", plan });
+      const sidebarLabels = getSidebarNavigation(manager).map(item => item.label);
+
+      expect(sidebarLabels).toEqual(expect.arrayContaining(["Team"]));
+    }
+  );
 
   it("allows Business CustomerDirector to see API and Webhooks inside Settings", () => {
     const businessDirector = user({ role: "CustomerDirector", plan: "Business" });

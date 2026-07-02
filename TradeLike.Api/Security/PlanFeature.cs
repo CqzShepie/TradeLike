@@ -5,5 +5,6 @@ public enum Feature
     LeaveManagement,
     TeamManagement,
     Reports,
+    Inventory,
     Billing
 }

@@ -138,7 +138,7 @@ export default function JobDetails() {
           <ProductPanel>
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-blue-300">Job #{job.id}</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-blue-300">Job #{getJobDisplayNumber(job)}</p>
                 <h1 className="mt-1 text-3xl font-bold text-white">{job.jobTitle}</h1>
                 <p className="mt-2 text-sm text-slate-300">{job.customer} - {formatDateTime(job.scheduledDate)}</p>
               </div>
@@ -276,6 +276,10 @@ function Input({ value, onChange }: { value: string; onChange: (value: string) =
 
 function Info({ label, value }: { label: string; value: string }) {
   return <div><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</p><p className="mt-1 text-sm font-medium text-slate-100">{value}</p></div>;
+}
+
+function getJobDisplayNumber(job: Job) {
+  return job.jobNumber ?? job.id;
 }
 
 function Alert({ tone, children, onClose }: { tone: "error" | "success"; children: React.ReactNode; onClose: () => void }) {

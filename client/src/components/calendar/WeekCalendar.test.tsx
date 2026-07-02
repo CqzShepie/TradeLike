@@ -73,7 +73,9 @@ describe("WeekCalendar plan controls", () => {
     expect(screen.queryByRole("button", { name: /optimise route/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("combobox", { name: /calendar dispatch filter/i })).not.toBeInTheDocument();
     expect(screen.queryByText(/Merged: everyone/i)).not.toBeInTheDocument();
-    expect(screen.getByText(/Team dispatch tools unlock on Team/i)).toBeInTheDocument();
+    expect(screen.queryByText(/dispatch view/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Team dispatch tools unlock on Team/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Basic calendar is available on Solo/i)).not.toBeInTheDocument();
   });
 
   it("shows staff scheduling controls for Team CustomerManagers", () => {

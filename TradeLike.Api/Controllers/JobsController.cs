@@ -130,6 +130,7 @@ public class JobsController : ControllerBase
         return new JobResponse
         {
             Id = job.Id,
+            JobNumber = job.JobNumber,
             CustomerId = job.Quote?.CustomerId,
             Customer = job.Customer,
             Phone = job.Phone,
@@ -185,6 +186,8 @@ public class JobsController : ControllerBase
 public sealed class JobResponse
 {
     public int Id { get; init; }
+
+    public int? JobNumber { get; init; }
 
     public int? CustomerId { get; init; }
 

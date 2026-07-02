@@ -61,6 +61,45 @@ describe("Dashboard", () => {
 
     expect(screen.getByText("No dashboard activity yet")).toBeInTheDocument();
   });
+
+  it("renders dashboard headings and stat labels with readable dark styling", () => {
+    mockedUseDashboardSummary.mockReturnValue({
+      summary: {
+        totalJobs: 2,
+        scheduledJobs: 1,
+        inProgressJobs: 0,
+        completedJobs: 1,
+        todayJobs: [{
+          id: 1,
+          customer: "Sarah Johnson",
+          phone: "07981 125031",
+          jobTitle: "Boiler service",
+          address: "1 Trade Street",
+          scheduledDate: "2026-07-02T09:00:00.000Z",
+          status: "Scheduled",
+          priority: "Normal",
+        }],
+        upcomingJobs: [],
+        recentActivity: [{
+          jobId: 1,
+          title: "Job scheduled",
+          description: "Boiler service was scheduled.",
+          type: "Scheduled",
+          timestamp: "2026-07-02T09:00:00.000Z",
+        }],
+      },
+      loading: false,
+      error: null,
+      refresh: vi.fn(),
+    });
+
+    renderDashboard();
+
+    expect(screen.getByRole("heading", { name: "Today's schedule" })).toHaveClass("text-white");
+    expect(screen.getByRole("heading", { name: "Upcoming jobs" })).toHaveClass("text-white");
+    expect(screen.getByRole("heading", { name: "Recent activity" })).toHaveClass("text-white");
+    expect(screen.getByText("Total jobs")).toHaveClass("text-slate-100");
+  });
 });
 
 function renderDashboard() {

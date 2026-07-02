@@ -14,6 +14,7 @@ import {
   TextInput,
 } from "../../components/ui";
 import { apiClient, isApiError } from "../../services/apiClient";
+import { friendlyErrorMessage } from "../../utils/errorMessages";
 import AccessDenied from "../AccessDenied";
 import UpgradeRequired from "../UpgradeRequired";
 
@@ -192,7 +193,7 @@ export default function Inventory() {
       {!loading && error && (
         <ErrorState
           title="Unable to load inventory"
-          description={error.message}
+          description={friendlyErrorMessage(error, "Inventory could not be loaded. Please try again.")}
           action={
             <SecondaryButton type="button" onClick={() => void loadInventory()} className="border-white/10 bg-white/5 text-slate-100 hover:bg-white/10">
               Try again
@@ -217,7 +218,7 @@ export default function Inventory() {
                 <h2 className="text-lg font-bold text-white">Products</h2>
                 <div className="mt-4 overflow-hidden rounded-2xl border border-white/10">
                   {products.length === 0 ? (
-                    <EmptyState title="Add your first product" description="Products will appear here once stock is created." />
+                    <EmptyState title="No products yet" description="Products will appear here once stock is created." />
                   ) : (
                     products.map(product => (
                       <div key={product.id} className="grid gap-3 border-b border-white/10 p-4 last:border-b-0 md:grid-cols-[1fr_120px_140px]">
@@ -265,6 +266,23 @@ export default function Inventory() {
                         <p className="font-semibold text-white">PO-{order.id} / {order.supplierName}</p>
                         <p className="text-sm font-bold text-slate-300">{order.status}</p>
                         <p className="text-sm font-bold text-white">{money.format(Number(order.total))}</p>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </ProductPanel>
+
+              <ProductPanel>
+                <h2 className="text-lg font-bold text-white">Suppliers</h2>
+                <div className="mt-4 divide-y divide-white/10">
+                  {suppliers.length === 0 ? (
+                    <EmptyState title="No suppliers yet" description="Suppliers will appear here once vendor records are created." />
+                  ) : (
+                    suppliers.map(supplier => (
+                      <div key={supplier.id} className="grid gap-2 py-3 md:grid-cols-[1fr_160px_120px]">
+                        <p className="font-semibold text-white">{supplier.name}</p>
+                        <p className="text-sm text-slate-300">{supplier.email || "No email"}</p>
+                        <p className="text-sm font-semibold text-slate-300">{supplier.leadTimeDays} days</p>
                       </div>
                     ))
                   )}

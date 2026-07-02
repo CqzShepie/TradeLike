@@ -37,7 +37,7 @@ function JobCard({ job, onViewJob, teams = [], members = [], assignment }: JobCa
     >
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Job #{job.id}</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Job #{job.jobNumber ?? job.id}</p>
           <h3 className="mt-1 text-lg font-bold text-slate-900">{job.jobTitle}</h3>
           <p className="mt-1 text-sm font-medium text-slate-600">{job.customer}</p>
         </div>

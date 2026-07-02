@@ -129,7 +129,7 @@ export default function PreviousJobs() {
               <article key={job.id} className="rounded-2xl border border-white/10 bg-slate-900/80 p-5 shadow-sm">
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div>
-                    <p className="text-xs font-semibold uppercase text-slate-500">Job #{job.id}</p>
+                    <p className="text-xs font-semibold uppercase text-slate-500">Job #{job.jobNumber ?? job.id}</p>
                     <h2 className="text-lg font-bold text-white">{job.jobTitle}</h2>
                     <p className="mt-1 text-sm text-slate-300">{job.customer} - {job.phone}</p>
                   </div>

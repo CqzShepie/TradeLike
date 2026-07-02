@@ -9,9 +9,9 @@ export default function CalendarPage() {
   return (
     <ProductPage maxWidth="full">
       <ProductPageHeader
-        eyebrow="Dispatch board"
+        eyebrow="Schedule"
         title="Calendar"
-        description="Plan the working week, move jobs between days, and view team availability in one responsive schedule."
+        description="Plan the working week, move jobs between days, and keep the schedule clear."
       />
 
       <ProductPanel className="overflow-hidden p-0">
