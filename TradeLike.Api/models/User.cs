@@ -51,6 +51,13 @@ public class User
 
     public bool PasswordResetRequired { get; set; }
 
+    [MaxLength(128)]
+    public string? PasswordResetTokenHash { get; set; }
+
+    public DateTime? PasswordResetTokenExpiresAtUtc { get; set; }
+
+    public DateTime? PasswordResetRequestedAtUtc { get; set; }
+
     [MaxLength(180)]
     public string? BusinessName { get; set; }
 

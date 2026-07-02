@@ -28,6 +28,21 @@ export interface RegisterRequest {
   password: string;
 }
 
+export interface ForgotPasswordRequest {
+  email: string;
+}
+
+export interface ForgotPasswordResponse {
+  message: string;
+  resetLink?: string;
+  expiresAtUtc?: string;
+}
+
+export interface ResetPasswordRequest {
+  token: string;
+  newPassword: string;
+}
+
 export interface AuthUser {
   id: number;
   email: string;
@@ -72,14 +87,20 @@ export interface LoginResponse {
 }
 
 export function normalizeUserRole(role: UserRole | string | null | undefined): UserRole {
+  return tryNormalizeUserRole(role) ?? "CustomerEmployee";
+}
+
+function tryNormalizeUserRole(role: UserRole | string | null | undefined): UserRole | null {
   const normalized = String(role ?? "").trim().toLowerCase();
 
   switch (normalized) {
     case "customerdirector":
     case "customer director":
-    case "director":
-    case "customer":
       return "CustomerDirector";
+    case "customer":
+      return "Customer";
+    case "director":
+      return "Director";
     case "customermanager":
     case "customer manager":
       return "CustomerManager";
@@ -88,30 +109,73 @@ export function normalizeUserRole(role: UserRole | string | null | undefined): U
       return "CustomerEmployee";
     case "staff":
       return "Staff";
+    case "admin":
+      return "Admin";
+    case "support":
+      return "Support";
+    case "junior developer":
+      return "Junior Developer";
+    case "developer":
+      return "Developer";
+    case "senior developer":
+      return "Senior Developer";
+    case "marketing":
+      return "Marketing";
+    case "customer service":
+      return "Customer Service";
+    case "operations coordinator":
+      return "Operations Coordinator";
+    case "personal assistant":
+      return "Personal Assistant";
     default:
-      return role ? (role as UserRole) : "CustomerEmployee";
+      return null;
   }
 }
 
-function normalizeStoredUserRole(user: Pick<AuthUser, "role" | "plan">): UserRole {
-  const rawRole = String(user.role ?? "").trim();
-  const normalizedPlan = String(user.plan ?? "").trim().toLowerCase();
+const internalRoles: UserRole[] = [
+  "Staff",
+  "Director",
+  "Admin",
+  "Support",
+  "Junior Developer",
+  "Developer",
+  "Senior Developer",
+  "Marketing",
+  "Customer Service",
+  "Operations Coordinator",
+  "Personal Assistant",
+];
 
-  if (normalizedPlan === "internal" && rawRole) {
-    return rawRole as UserRole;
+function normalizeStoredUserRole(user: Pick<AuthUser, "role" | "plan">): UserRole | null {
+  return tryNormalizeUserRole(user.role);
+}
+
+function normalizeLoginResponse(response: LoginResponse): LoginResponse {
+  const role = normalizeStoredUserRole(response.user);
+
+  if (!role) {
+    clearToken();
+    throw new Error("This account role needs migration before sign-in.");
   }
 
-  return normalizeUserRole(rawRole);
+  return {
+    ...response,
+    user: {
+      ...response.user,
+      role,
+    },
+  };
 }
 
 function saveSession(response: LoginResponse) {
-  localStorage.setItem("tradelike_token", response.token);
+  const normalizedResponse = normalizeLoginResponse(response);
+
+  localStorage.setItem("tradelike_token", normalizedResponse.token);
   localStorage.setItem("tradelike_user", JSON.stringify({
-    ...response.user,
-    role: normalizeStoredUserRole(response.user),
+    ...normalizedResponse.user,
   }));
 
-  setToken(response.token);
+  setToken(normalizedResponse.token);
 }
 
 function readStoredUser() {
@@ -123,9 +187,18 @@ function readStoredUser() {
 
   try {
     const user = JSON.parse(rawUser) as AuthUser;
+    const role = normalizeStoredUserRole(user);
+
+    if (!role) {
+      localStorage.removeItem("tradelike_user");
+      localStorage.removeItem("tradelike_token");
+      clearToken();
+      return null;
+    }
+
     return {
       ...user,
-      role: normalizeStoredUserRole(user),
+      role,
     };
   } catch {
     localStorage.removeItem("tradelike_user");
@@ -167,7 +240,7 @@ export const authService = {
 
     saveSession(response);
 
-    return response;
+    return normalizeLoginResponse(response);
   },
 
   async register(request: RegisterRequest): Promise<LoginResponse> {
@@ -179,7 +252,20 @@ export const authService = {
 
     saveSession(response);
 
-    return response;
+    return normalizeLoginResponse(response);
+  },
+
+  async forgotPassword(request: ForgotPasswordRequest): Promise<ForgotPasswordResponse> {
+    return apiClient.post<ForgotPasswordResponse>("/auth/forgot-password", {
+      email: request.email.trim().toLowerCase(),
+    });
+  },
+
+  async resetPassword(request: ResetPasswordRequest): Promise<{ message: string }> {
+    return apiClient.post<{ message: string }>("/auth/reset-password", {
+      token: request.token,
+      newPassword: request.newPassword,
+    });
   },
 
   logout() {
@@ -214,9 +300,7 @@ export const authService = {
       return false;
     }
 
-    return !["CustomerDirector", "CustomerManager", "CustomerEmployee"].includes(
-      normalizeStoredUserRole(user)
-    );
+    return internalRoles.includes(normalizeUserRole(user.role));
   },
 
   isDirector(user = readStoredUser()) {

@@ -1,12 +1,14 @@
 using System.ComponentModel.DataAnnotations;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TradeLike.Api.Contracts.Admin;
 using TradeLike.Api.Data;
 using TradeLike.Api.Models;
+using TradeLike.Api.Services;
 
 namespace TradeLike.Api.Controllers;
 
@@ -84,10 +86,14 @@ public class AdminUserController : ControllerBase
     };
 
     private readonly TradeLikeDbContext _context;
+    private readonly PasswordResetService? _passwordResetService;
 
-    public AdminUserController(TradeLikeDbContext context)
+    public AdminUserController(
+        TradeLikeDbContext context,
+        PasswordResetService? passwordResetService = null)
     {
         _context = context;
+        _passwordResetService = passwordResetService;
     }
 
     [HttpGet("users")]
@@ -164,6 +170,12 @@ public class AdminUserController : ControllerBase
         try
         {
             var user = await CreateCustomerUserInternal(request);
+            PasswordResetIssueResult? resetIssue = null;
+
+            if (_passwordResetService is not null)
+            {
+                resetIssue = await _passwordResetService.IssueResetAsync(user, HttpContext.RequestAborted);
+            }
 
             await LogAsync(
                 actor,
@@ -173,6 +185,17 @@ public class AdminUserController : ControllerBase
                 user.Email,
                 $"Created customer account for {user.Email}.",
                 BuildCustomerDetails(user));
+
+            await LogAsync(
+                actor,
+                "PasswordResetLinkSent",
+                "User",
+                user.Id,
+                user.Email,
+                $"Sent password setup link for {user.Email}.",
+                resetIssue is null
+                    ? "Password reset service was not configured; account requires password reset."
+                    : $"Setup link expires at {resetIssue.ExpiresAtUtc:u}. Token was not logged.");
 
             await _context.SaveChangesAsync();
 
@@ -742,7 +765,7 @@ public class AdminUserController : ControllerBase
     }
 
     [HttpPost("users/{id:int}/reset-password")]
-    public async Task<ActionResult<AdminUserResponse>> ResetPassword(
+    public async Task<ActionResult<object>> ResetPassword(
         int id,
         [FromBody] ResetAdminUserPasswordRequest request)
     {
@@ -760,10 +783,9 @@ public class AdminUserController : ControllerBase
 
         try
         {
-            if (string.IsNullOrWhiteSpace(request.NewPassword) ||
-                request.NewPassword.Trim().Length < 8)
+            if (!request.SendResetLink && !request.ForcePasswordReset)
             {
-                throw new ValidationException("New password must be at least 8 characters.");
+                throw new ValidationException("Choose at least one password reset action.");
             }
 
             var user = await _context.Users.FindAsync(id);
@@ -778,22 +800,55 @@ public class AdminUserController : ControllerBase
                 return Forbid();
             }
 
-            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword.Trim());
-            user.PasswordResetRequired = request.RequirePasswordReset;
-            user.UpdatedAt = DateTime.UtcNow;
+            PasswordResetIssueResult? resetIssue = null;
 
-            await LogAsync(
-                actor,
-                "PasswordReset",
-                "User",
-                user.Id,
-                user.Email,
-                $"Reset password for {user.Email}.",
-                $"Require password reset on next login: {request.RequirePasswordReset}");
+            if (request.SendResetLink)
+            {
+                if (_passwordResetService is null)
+                {
+                    throw new InvalidOperationException("Password reset service is not configured.");
+                }
+
+                resetIssue = await _passwordResetService.IssueResetAsync(user, HttpContext.RequestAborted);
+
+                await LogAsync(
+                    actor,
+                    "PasswordResetLinkSent",
+                    "User",
+                    user.Id,
+                    user.Email,
+                    $"Sent password reset link for {user.Email}.",
+                    $"Reset link expires at {resetIssue.ExpiresAtUtc:u}. Token was not logged.");
+            }
+
+            if (request.ForcePasswordReset)
+            {
+                user.PasswordResetRequired = true;
+                user.UpdatedAt = DateTime.UtcNow;
+
+                await LogAsync(
+                    actor,
+                    "PasswordResetForced",
+                    "User",
+                    user.Id,
+                    user.Email,
+                    $"Forced password reset for {user.Email}.",
+                    "User must reset their password on next sign-in.");
+            }
 
             await _context.SaveChangesAsync();
 
-            return Ok(ToResponse(user));
+            return Ok(new
+            {
+                message = request.SendResetLink && request.ForcePasswordReset
+                    ? "Password reset link sent and reset required on next sign-in."
+                    : request.SendResetLink
+                        ? "Password reset link sent."
+                        : "Password reset required on next sign-in.",
+                resetLink = resetIssue?.DevelopmentResetLink,
+                expiresAtUtc = resetIssue?.ExpiresAtUtc,
+                user = ToResponse(user)
+            });
         }
         catch (ValidationException ex)
         {
@@ -1203,8 +1258,9 @@ public class AdminUserController : ControllerBase
         var firstName = request.FirstName.Trim();
         var lastName = request.LastName.Trim();
         var email = request.Email.Trim().ToLowerInvariant();
+        var generatedPassword = CreateServerGeneratedPassword();
 
-        ValidateBasicUserFields(firstName, lastName, email, request.Password);
+        ValidateBasicUserFields(firstName, lastName, email, generatedPassword);
 
         var duplicate = await _context.Users
             .AsNoTracking()
@@ -1227,15 +1283,15 @@ public class AdminUserController : ControllerBase
             FirstName = firstName,
             LastName = lastName,
             Email = email,
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password.Trim()),
-            Role = "Customer",
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(generatedPassword),
+            Role = "CustomerDirector",
             AccountStatus = accountStatus,
             DiscountType = "None",
             DiscountValue = 0,
             FreeMonths = 0,
             FreeMonthsExpireAt = request.FreeMonthsExpireAt,
             IsEmailVerified = false,
-            PasswordResetRequired = false,
+            PasswordResetRequired = true,
             BusinessName = CleanOptional(request.BusinessName),
             OwnerName = CleanOptional(request.OwnerName),
             OwnerPhone = CleanOptional(request.OwnerPhone),
@@ -1728,6 +1784,12 @@ public class AdminUserController : ControllerBase
     private static bool CanResetPasswords(User user)
     {
         return IsDirector(user) || user.CanResetPasswords || user.CanManageSecurity;
+    }
+
+    private static string CreateServerGeneratedPassword()
+    {
+        var bytes = RandomNumberGenerator.GetBytes(32);
+        return Convert.ToBase64String(bytes);
     }
 
     private static bool CanVerifyEmails(User user)

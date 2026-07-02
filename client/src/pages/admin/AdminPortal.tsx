@@ -122,7 +122,6 @@ export default function AdminPortal() {
   const [createFirstName, setCreateFirstName] = useState("");
   const [createLastName, setCreateLastName] = useState("");
   const [createEmail, setCreateEmail] = useState("");
-  const [createPassword, setCreatePassword] = useState("");
   const [createStatus, setCreateStatus] = useState<AdminAccountStatus>("Trial");
   const [createBusinessName, setCreateBusinessName] = useState("");
   const [createOwnerName, setCreateOwnerName] = useState("");
@@ -156,8 +155,8 @@ export default function AdminPortal() {
   const [cancelReason, setCancelReason] = useState("");
   const [adminNotes, setAdminNotes] = useState("");
   const [accountChangeReason, setAccountChangeReason] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [requirePasswordReset, setRequirePasswordReset] = useState(true);
+  const [sendResetLink, setSendResetLink] = useState(true);
+  const [forcePasswordReset, setForcePasswordReset] = useState(false);
 
   const [createStaffFirstName, setCreateStaffFirstName] = useState("");
   const [createStaffLastName, setCreateStaffLastName] = useState("");
@@ -328,8 +327,8 @@ export default function AdminPortal() {
     setCancelReason(user.cancelReason ?? "");
     setAdminNotes(user.adminNotes ?? "");
     setAccountChangeReason("");
-    setNewPassword("");
-    setRequirePasswordReset(true);
+    setSendResetLink(true);
+    setForcePasswordReset(false);
   }
 
   function selectStaff(user: AdminUser) {
@@ -383,10 +382,6 @@ export default function AdminPortal() {
       showError("A valid customer email address is required.");
       return;
     }
-    if (createPassword.trim().length < 8) {
-      showError("Customer password must be at least 8 characters.");
-      return;
-    }
     if ((createStatus === "Cancelled" || createBillingStatus === "Cancelled") && createCancelReason.trim() === "") {
       showError("Cancel reason is required when creating a cancelled account.");
       return;
@@ -399,7 +394,7 @@ export default function AdminPortal() {
         firstName: createFirstName,
         lastName: createLastName,
         email: createEmail,
-        password: createPassword,
+        password: "",
         accountStatus: createStatus,
         businessName: createBusinessName,
         ownerName: createOwnerName,
@@ -420,7 +415,6 @@ export default function AdminPortal() {
       setCreateFirstName("");
       setCreateLastName("");
       setCreateEmail("");
-      setCreatePassword("");
       setCreateStatus("Trial");
       setCreateBusinessName("");
       setCreateOwnerName("");
@@ -435,7 +429,7 @@ export default function AdminPortal() {
       setCreateAccountSource("");
       setCreateCancelReason("");
       setCreateNotes("");
-      showMessage(`Created customer account for ${created.email}.`);
+      showMessage(`Created customer account for ${created.email}. A password setup link has been sent if notifications are configured.`);
       await refreshAuditLogs();
     } catch (err) {
       showError(getErrorMessage(err, "Unable to create customer account."));
@@ -521,19 +515,20 @@ export default function AdminPortal() {
     if (!selectedUser) {
       return;
     }
-    if (newPassword.trim().length < 8) {
-      showError("New password must be at least 8 characters.");
+    if (!sendResetLink && !forcePasswordReset) {
+      showError("Choose at least one password reset action.");
       return;
     }
     try {
       setSaving(true);
       setError("");
       setMessage("");
-      const updated = await adminService.resetPassword(selectedUser.id, { newPassword, requirePasswordReset });
+      const response = await adminService.resetPassword(selectedUser.id, { sendResetLink, forcePasswordReset });
+      const updated = response.user;
       upsertUser(updated);
       setSelectedUser(updated);
       fillSelectedUserForm(updated);
-      showMessage(`Password updated for ${updated.email}.`);
+      showMessage(response.message);
       await loadCustomerTimeline(updated.id);
       await refreshAuditLogs();
     } catch (err) {
@@ -755,7 +750,7 @@ export default function AdminPortal() {
                         <DarkInput value={createFirstName} onChange={setCreateFirstName} placeholder="First name" />
                         <DarkInput value={createLastName} onChange={setCreateLastName} placeholder="Last name" />
                         <DarkInput value={createEmail} onChange={setCreateEmail} placeholder="Email address" type="email" />
-                        <DarkInput value={createPassword} onChange={setCreatePassword} placeholder="Temporary password, minimum 8 characters" type="password" />
+                        <p className="rounded-lg border border-blue-500/30 bg-blue-500/10 px-3 py-2 text-sm text-blue-100">The customer will set their own password from a secure setup link.</p>
                         <DarkInput value={createBusinessName} onChange={setCreateBusinessName} placeholder="Business name" />
                         <DarkInput value={createOwnerName} onChange={setCreateOwnerName} placeholder="Owner name" />
                         <DarkInput value={createOwnerPhone} onChange={setCreateOwnerPhone} placeholder="Owner phone" />
@@ -807,7 +802,7 @@ export default function AdminPortal() {
                         <div className="space-y-6">
                           <div className="rounded-xl border border-slate-800 bg-slate-900 p-5 shadow-sm"><h2 className="text-lg font-bold text-white">Account actions</h2><div className="mt-4 grid gap-3"><button type="button" onClick={handleMarkVerified} disabled={saving || selectedUser.isEmailVerified} className="rounded-lg border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50">{selectedUser.isEmailVerified ? "Email Verified" : "Mark Email Verified"}</button><button type="button" onClick={handleSendVerificationEmail} disabled={saving} className="rounded-lg border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50">Send Verification Email</button><button type="button" onClick={handleSendOnboardingEmail} disabled={saving} className="rounded-lg border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50">Send Onboarding Email</button></div></div>
                           <div className="rounded-xl border border-slate-800 bg-slate-900 p-5 shadow-sm"><h2 className="text-lg font-bold text-white">Account snapshot</h2><div className="mt-4 grid gap-3 text-sm text-slate-400"><SnapshotRow label="Last login" value={selectedUser.lastLoginAt ? formatDateTime(selectedUser.lastLoginAt) : "Never"} /><SnapshotRow label="Trial ends" value={selectedUser.trialEndsAt ? formatDateTime(selectedUser.trialEndsAt) : "Not set"} /><SnapshotRow label="Free months expiry" value={selectedUser.freeMonthsExpireAt ? formatDateTime(selectedUser.freeMonthsExpireAt) : "Not set"} /><SnapshotRow label="Onboarding email" value={selectedUser.onboardingEmailSentAt ? formatDateTime(selectedUser.onboardingEmailSentAt) : "Not sent"} /><SnapshotRow label="Verification email" value={selectedUser.emailVerificationSentAt ? formatDateTime(selectedUser.emailVerificationSentAt) : "Never"} /></div></div>
-                          <form onSubmit={handleResetPassword} className="rounded-xl border border-slate-800 bg-slate-900 p-5 shadow-sm"><h2 className="text-lg font-bold text-white">Reset password</h2><div className="mt-4 space-y-4"><DarkInput value={newPassword} onChange={setNewPassword} type="password" placeholder="New password, minimum 8 characters" /><label className="flex items-center gap-2 text-sm text-slate-300"><input type="checkbox" checked={requirePasswordReset} onChange={event => setRequirePasswordReset(event.target.checked)} />Require password reset on next login</label><button type="submit" disabled={saving} className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-slate-600">{saving ? "Updating..." : "Reset Password"}</button></div></form>
+                          <form onSubmit={handleResetPassword} className="rounded-xl border border-slate-800 bg-slate-900 p-5 shadow-sm"><h2 className="text-lg font-bold text-white">Password recovery</h2><p className="mt-1 text-sm text-slate-400">Staff can send a reset link or require a reset, but cannot set the customer's new password.</p><div className="mt-4 space-y-4"><label className="flex items-center gap-2 text-sm text-slate-300"><input type="checkbox" checked={sendResetLink} onChange={event => setSendResetLink(event.target.checked)} />Send password reset link</label><label className="flex items-center gap-2 text-sm text-slate-300"><input type="checkbox" checked={forcePasswordReset} onChange={event => setForcePasswordReset(event.target.checked)} />Force password reset on next sign-in</label><button type="submit" disabled={saving} className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-slate-600">{saving ? "Sending..." : "Apply password recovery"}</button></div></form>
                           <div className="rounded-xl border border-slate-800 bg-slate-900 shadow-sm"><div className="border-b border-slate-800 px-5 py-4"><h2 className="text-lg font-bold text-white">Customer timeline</h2></div>{loadingTimeline ? <div className="p-5 text-sm text-slate-400">Loading...</div> : customerTimeline.length === 0 ? <div className="p-5 text-sm text-slate-400">No timeline entries yet.</div> : <div className="max-h-[360px] divide-y divide-slate-800 overflow-y-auto">{customerTimeline.map(log => <AuditLogRow key={log.id} log={log} />)}</div>}</div>
                         </div>
                       </div>

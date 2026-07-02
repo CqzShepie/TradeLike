@@ -14,11 +14,44 @@ public static class CustomerRoles
 
     public const string LegacyDirector = "Director";
 
-    public static readonly string[] EmployeeRoles = [Employee, Manager, Director, LegacyCustomer, LegacyDirector];
+    public const string Admin = "Admin";
 
-    public static readonly string[] ManagerRoles = [Manager, Director, LegacyCustomer, LegacyDirector];
+    public const string Support = "Support";
 
-    public static readonly string[] DirectorRoles = [Director, LegacyCustomer, LegacyDirector];
+    public const string JuniorDeveloper = "Junior Developer";
+
+    public const string Developer = "Developer";
+
+    public const string SeniorDeveloper = "Senior Developer";
+
+    public const string Marketing = "Marketing";
+
+    public const string CustomerService = "Customer Service";
+
+    public const string OperationsCoordinator = "Operations Coordinator";
+
+    public const string PersonalAssistant = "Personal Assistant";
+
+    public static readonly string[] EmployeeRoles = [Employee, Manager, Director];
+
+    public static readonly string[] ManagerRoles = [Manager, Director];
+
+    public static readonly string[] DirectorRoles = [Director];
+
+    public static readonly string[] StudioRoles =
+    [
+        LegacyDirector,
+        Admin,
+        Support,
+        JuniorDeveloper,
+        Developer,
+        SeniorDeveloper,
+        Marketing,
+        CustomerService,
+        OperationsCoordinator,
+        PersonalAssistant,
+        Staff
+    ];
 
     public static string Normalize(string? role)
     {
@@ -29,26 +62,12 @@ public static class CustomerRoles
 
         var cleaned = role.Trim();
 
-        if (string.Equals(cleaned, LegacyDirector, StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(cleaned, LegacyCustomer, StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(cleaned, Director, StringComparison.OrdinalIgnoreCase))
+        foreach (var knownRole in EmployeeRoles.Concat(StudioRoles).Append(LegacyCustomer))
         {
-            return Director;
-        }
-
-        if (string.Equals(cleaned, Manager, StringComparison.OrdinalIgnoreCase))
-        {
-            return Manager;
-        }
-
-        if (string.Equals(cleaned, Employee, StringComparison.OrdinalIgnoreCase))
-        {
-            return Employee;
-        }
-
-        if (string.Equals(cleaned, Staff, StringComparison.OrdinalIgnoreCase))
-        {
-            return Staff;
+            if (string.Equals(cleaned, knownRole, StringComparison.OrdinalIgnoreCase))
+            {
+                return knownRole;
+            }
         }
 
         return cleaned;
@@ -56,8 +75,7 @@ public static class CustomerRoles
 
     public static bool IsCustomerRole(string role)
     {
-        return EmployeeRoles.Contains(role, StringComparer.OrdinalIgnoreCase) ||
-            EmployeeRoles.Contains(Normalize(role), StringComparer.OrdinalIgnoreCase);
+        return EmployeeRoles.Contains(Normalize(role), StringComparer.OrdinalIgnoreCase);
     }
 
     public static bool IsManagerOrDirector(string? role)
@@ -68,5 +86,11 @@ public static class CustomerRoles
     public static bool IsDirector(string? role)
     {
         return string.Equals(Normalize(role), Director, StringComparison.OrdinalIgnoreCase);
+    }
+
+    public static bool IsStudioRole(string? role)
+    {
+        return role is not null &&
+            StudioRoles.Contains(Normalize(role), StringComparer.OrdinalIgnoreCase);
     }
 }

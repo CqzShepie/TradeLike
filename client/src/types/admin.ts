@@ -114,7 +114,7 @@ export type CreateAdminUserRequest = {
   firstName: string;
   lastName: string;
   email: string;
-  password: string;
+  password?: string;
   accountStatus: AdminAccountStatus;
   businessName: string;
   ownerName: string;
@@ -153,8 +153,15 @@ export type UpdateAdminUserAccountRequest = {
 };
 
 export type ResetAdminUserPasswordRequest = {
-  newPassword: string;
-  requirePasswordReset: boolean;
+  sendResetLink: boolean;
+  forcePasswordReset: boolean;
+};
+
+export type ResetAdminUserPasswordResponse = {
+  message: string;
+  resetLink?: string;
+  expiresAtUtc?: string;
+  user: AdminUser;
 };
 
 export type CreateStaffUserRequest = {

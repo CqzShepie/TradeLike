@@ -106,6 +106,7 @@ builder.Services.AddDbContext<TradeLikeDbContext>(options =>
 builder.Services.AddScoped<ICustomerService, CustomerService>();
 builder.Services.AddScoped<IJobService, JobService>();
 builder.Services.AddScoped<IQuoteService, QuoteService>();
+builder.Services.AddScoped<PasswordResetService>();
 builder.Services.AddHttpClient<NotificationQueue>();
 builder.Services.AddHttpClient(nameof(ElasticSyncHostedService));
 builder.Services.AddHttpClient(nameof(SearchController));
@@ -192,20 +193,6 @@ builder.Services
 
 builder.Services.AddAuthorization(options =>
 {
-    /*
-     * Backwards-compatible role policies.
-     *
-     * New customer-side roles:
-     * - CustomerEmployee
-     * - CustomerManager
-     * - CustomerDirector
-     *
-     * Legacy roles still accepted so existing local/prod users do not get locked out:
-     * - Customer
-     * - Director
-     * - Staff
-     */
-
     options.AddPolicy("RequireCustomerRole", policy =>
         policy.RequireAssertion(context => HasAnyRole(context.User, CustomerRoles.EmployeeRoles)));
 
@@ -225,11 +212,10 @@ builder.Services.AddAuthorization(options =>
         policy.RequireAssertion(context => HasAnyRole(context.User, CustomerRoles.DirectorRoles)));
 
     options.AddPolicy("RequireStaffRole", policy =>
-        policy.RequireAssertion(context => HasAnyRole(context.User,
-            CustomerRoles.Staff,
-            CustomerRoles.LegacyDirector,
-            CustomerRoles.Director
-        )));
+        policy.RequireAssertion(context => HasAnyRole(context.User, CustomerRoles.StudioRoles)));
+
+    options.AddPolicy("RequireStudioStaffRole", policy =>
+        policy.RequireAssertion(context => HasAnyRole(context.User, CustomerRoles.StudioRoles)));
 });
 
 builder.Services.AddRateLimiter(options =>
@@ -261,6 +247,18 @@ builder.Services.AddRateLimiter(options =>
             }));
 
     options.AddPolicy("company-staff-invite", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: GetClientIpAddress(context),
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 5,
+                Window = TimeSpan.FromMinutes(10),
+                QueueLimit = 0,
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                AutoReplenishment = true
+            }));
+
+    options.AddPolicy("auth-forgot-password", context =>
         RateLimitPartition.GetFixedWindowLimiter(
             partitionKey: GetClientIpAddress(context),
             factory: _ => new FixedWindowRateLimiterOptions

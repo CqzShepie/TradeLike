@@ -142,6 +142,11 @@ public class TradeLikeDbContext : DbContext
             entity.Property(user => user.AdminNotes)
                 .HasMaxLength(4000);
 
+            entity.Property(user => user.PasswordResetTokenHash)
+                .HasMaxLength(128);
+
+            entity.HasIndex(user => user.PasswordResetTokenHash);
+
             entity.HasIndex(user => user.Role);
 
             entity.HasIndex(user => user.AccountStatus);

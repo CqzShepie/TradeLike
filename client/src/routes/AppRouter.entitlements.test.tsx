@@ -15,6 +15,8 @@ vi.mock("../pages/Calendar", () => ({ default: () => <h1>Calendar page</h1> }));
 vi.mock("../pages/AccessibilitySettings", () => ({ default: () => <h1>Accessibility page</h1> }));
 vi.mock("../pages/Signup", () => ({ default: () => <h1>Signup page</h1> }));
 vi.mock("../pages/Login", () => ({ default: () => <h1>Login page</h1> }));
+vi.mock("../pages/ForgotPassword", () => ({ default: () => <h1>Forgot password page</h1> }));
+vi.mock("../pages/ResetPassword", () => ({ default: () => <h1>Reset password page</h1> }));
 vi.mock("../pages/Quotes", () => ({ default: () => <h1>Quotes page</h1> }));
 vi.mock("../pages/QuoteDetails", () => ({ default: () => <h1>Quote details page</h1> }));
 vi.mock("../pages/Invoices", () => ({ default: () => <h1>Invoices page</h1> }));
@@ -104,14 +106,14 @@ describe("AppRouter entitlement guards", () => {
     expect(screen.getByRole("heading", { name: expectedHeading })).toBeInTheDocument();
   });
 
-  it.each(["Director", "Customer", "CustomerDirector"] as const)(
-    "allows a Solo legacy %s user to visit /jobs",
+  it.each(["Director", "Customer"] as const)(
+    "shows AccessDenied when a legacy %s user visits /jobs",
     role => {
       setSession({ ...soloDirector, role });
 
       renderRouter("/jobs");
 
-      expect(screen.getByRole("heading", { name: "Jobs page" })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: /access denied/i })).toBeInTheDocument();
     }
   );
 
