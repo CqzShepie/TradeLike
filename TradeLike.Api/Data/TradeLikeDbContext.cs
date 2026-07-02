@@ -281,6 +281,14 @@ public class TradeLikeDbContext : DbContext
             entity.HasIndex(j => new
             {
                 j.TenantId,
+                j.JobNumber
+            })
+                .IsUnique()
+                .HasFilter("[JobNumber] IS NOT NULL");
+
+            entity.HasIndex(j => new
+            {
+                j.TenantId,
                 j.ScheduledDate
             });
 

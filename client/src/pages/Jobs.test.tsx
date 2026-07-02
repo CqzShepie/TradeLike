@@ -3,6 +3,7 @@ import { MemoryRouter } from "react-router-dom";
 import Jobs from "./Jobs";
 import { useJobs } from "../hooks/useJobs";
 import { customersService } from "../services/customersService";
+import { jobAssignmentsService } from "../services/jobAssignmentsService";
 
 vi.mock("../components/layout/Sidebar", () => ({
   default: () => <aside>Sidebar</aside>,
@@ -21,6 +22,7 @@ vi.mock("../services/customerStaffService", () => ({
 vi.mock("../services/jobAssignmentsService", () => ({
   jobAssignmentsService: {
     getAll: vi.fn().mockResolvedValue([]),
+    update: vi.fn().mockResolvedValue([]),
   },
 }));
 
@@ -36,6 +38,8 @@ describe("Jobs", () => {
     localStorage.clear();
     vi.mocked(customersService.getAll).mockResolvedValue([]);
     vi.mocked(customersService.create).mockReset();
+    vi.mocked(jobAssignmentsService.getAll).mockResolvedValue([]);
+    vi.mocked(jobAssignmentsService.update).mockResolvedValue([]);
   });
 
   it("renders an empty state when no jobs are returned", () => {
@@ -339,6 +343,88 @@ describe("Jobs", () => {
 
     expect(screen.getByRole("combobox", { name: /job team filter/i })).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: /job engineer filter/i })).toBeInTheDocument();
+  });
+
+  it.each(["Business", "Enterprise"] as const)(
+    "shows staff and team filters for %s managers",
+    plan => {
+      setStoredUser(plan, "CustomerManager");
+      vi.mocked(useJobs).mockReturnValue({
+        jobs: [],
+        loading: false,
+        error: null,
+        reloadJobs: vi.fn(),
+        addJob: vi.fn(),
+        deleteJob: vi.fn(),
+        updateJob: vi.fn(),
+        editingJob: null,
+        startEdit: vi.fn(),
+        cancelEdit: vi.fn(),
+      });
+
+      render(
+        <MemoryRouter>
+          <Jobs />
+        </MemoryRouter>
+      );
+
+      expect(screen.getByRole("combobox", { name: /job team filter/i })).toBeInTheDocument();
+      expect(screen.getByRole("combobox", { name: /job engineer filter/i })).toBeInTheDocument();
+    }
+  );
+
+  it("shows an assignment action for Team+ job rows", async () => {
+    setStoredUser("Team", "CustomerManager");
+    vi.mocked(jobAssignmentsService.getAll).mockResolvedValue([]);
+    vi.mocked(jobAssignmentsService.update).mockResolvedValue([
+      {
+        jobId: 1,
+        assignedTeamId: null,
+        leadStaffMemberId: 10,
+        assignedStaffMemberIds: [],
+      },
+    ]);
+    const { customerStaffService } = await import("../services/customerStaffService");
+    vi.mocked(customerStaffService.getWorkspace).mockResolvedValue({
+      members: [{ id: 10, firstName: "Ava", lastName: "Engineer", email: "ava@example.com", phone: "", roleName: "Engineer", status: "Active" }],
+      teams: [],
+    } as never);
+    vi.mocked(useJobs).mockReturnValue({
+      jobs: [
+        {
+          id: 1,
+          customer: "Sarah Johnson",
+          phone: "07981 125031",
+          jobTitle: "Boiler service",
+          address: "1 Trade Street",
+          scheduledDate: new Date(Date.now() + 86400000).toISOString(),
+          status: "Scheduled",
+          priority: "Normal",
+        },
+      ],
+      loading: false,
+      error: null,
+      reloadJobs: vi.fn(),
+      addJob: vi.fn(),
+      deleteJob: vi.fn(),
+      updateJob: vi.fn(),
+      editingJob: null,
+      startEdit: vi.fn(),
+      cancelEdit: vi.fn(),
+    });
+
+    render(
+      <MemoryRouter>
+        <Jobs />
+      </MemoryRouter>
+    );
+
+    const assignButtons = await screen.findAllByRole("button", { name: /^assign$/i });
+    fireEvent.click(assignButtons[0]);
+
+    await waitFor(() => expect(jobAssignmentsService.update).toHaveBeenCalledWith(1, expect.objectContaining({
+      leadStaffMemberId: 10,
+    })));
   });
 
   it("renders job stat cards", () => {

@@ -15,6 +15,21 @@ describe("authService role canonicalisation", () => {
     expect(authService.isStaffUser(user({ role: "Director", plan: "Internal" }))).toBe(true);
     expect(authService.isStaffUser(user({ role: "Customer", plan: "Solo" }))).toBe(false);
   });
+
+  it.each(["Director", "Customer"] as const)(
+    "normalises legacy %s customer sessions to CustomerDirector",
+    role => {
+      localStorage.setItem("tradelike_user", JSON.stringify(user({ role, plan: "Solo" })));
+
+      expect(authService.getUser()?.role).toBe("CustomerDirector");
+    }
+  );
+
+  it("keeps internal Director sessions internal", () => {
+    localStorage.setItem("tradelike_user", JSON.stringify(user({ role: "Director", plan: "Internal" })));
+
+    expect(authService.getUser()?.role).toBe("Director");
+  });
 });
 
 function user(overrides: Partial<AuthUser>): AuthUser {

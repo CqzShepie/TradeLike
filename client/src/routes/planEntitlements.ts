@@ -139,6 +139,16 @@ const featureRoles: Record<PlanFeature, UserRole[]> = {
 };
 
 export function getPlanLevel(plan: string | null | undefined) {
+  return getPlanRank(plan);
+}
+
+export function getPlanRank(plan: string | null | undefined) {
+  const normalized = String(plan ?? "Solo").trim().toLowerCase();
+
+  if (normalized === "internal") {
+    return -1;
+  }
+
   return planLevels[normalizePlan(plan)];
 }
 
@@ -152,15 +162,24 @@ export function normalizePlan(plan: string | null | undefined): PlanName {
       return "Business";
     case "team":
       return "Team";
+    case "trial":
     case "solo":
     default:
       return "Solo";
   }
 }
 
+export function isAtLeastPlan(currentPlan: string | null | undefined, requiredPlan: PlanName) {
+  return getPlanRank(currentPlan) >= getPlanRank(requiredPlan);
+}
+
 export function planIncludesFeature(plan: string | null | undefined, feature: PlanFeature) {
   const minimumPlan = featureMinimumPlan[feature];
-  return getPlanLevel(plan) >= getPlanLevel(minimumPlan);
+  return isAtLeastPlan(plan, minimumPlan);
+}
+
+export function hasFeature(plan: string | null | undefined, feature: PlanFeature) {
+  return planIncludesFeature(plan, feature);
 }
 
 export function roleAllowsFeature(role: UserRole | null | undefined, feature: PlanFeature) {
@@ -205,11 +224,17 @@ export function canAccessRoute(user: AuthUser | null, routeConfig: EntitlementRo
   }
 
   const minimumPlan = routeConfig.minimumPlan ?? featureMinimumPlan[routeConfig.feature];
-  return getPlanLevel(user.plan) >= getPlanLevel(minimumPlan) ? "allowed" : "upgrade";
+  return isAtLeastPlan(user.plan, minimumPlan) ? "allowed" : "upgrade";
 }
 
 function resolveRole(role: UserRole | null | undefined): UserRole {
-  return normalizeUserRole(role);
+  const normalized = normalizeUserRole(role);
+
+  if (normalized === "Director" || normalized === "Customer") {
+    return "CustomerDirector";
+  }
+
+  return normalized;
 }
 
 function resolveUserRole(user: Pick<AuthUser, "plan" | "role"> | null | undefined): UserRole {

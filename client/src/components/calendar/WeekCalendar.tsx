@@ -152,13 +152,7 @@ export default function WeekCalendar() {
                 onCurrentWeek={handleCurrentWeek}
                 onNextWeek={handleNextWeek}
             />
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-4 py-3">
-                <div>
-                    <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Dispatch View</div>
-                    {!showStaffScheduling && (
-                        <p className="mt-1 text-xs text-slate-500">Basic calendar is available on Solo. Team dispatch tools unlock on Team.</p>
-                    )}
-                </div>
+            <div className="flex flex-wrap items-center justify-end gap-3 border-b border-white/10 px-4 py-3">
                 <div className="flex flex-wrap items-center gap-2">
                     {showStaffScheduling && (
                         <button

@@ -107,13 +107,24 @@ describe("AppRouter entitlement guards", () => {
   });
 
   it.each(["Director", "Customer"] as const)(
-    "shows AccessDenied when a legacy %s user visits /jobs",
+    "allows a legacy %s customer user to visit /jobs",
     role => {
       setSession({ ...soloDirector, role });
 
       renderRouter("/jobs");
 
-      expect(screen.getByRole("heading", { name: /access denied/i })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "Jobs page" })).toBeInTheDocument();
+    }
+  );
+
+  it.each(["Business", "Enterprise"] as const)(
+    "allows a %s CustomerDirector to visit reports",
+    plan => {
+      setSession({ ...soloDirector, plan });
+
+      renderRouter("/reports");
+
+      expect(screen.getByRole("heading", { name: "Reports page" })).toBeInTheDocument();
     }
   );
 

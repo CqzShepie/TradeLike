@@ -10,6 +10,8 @@ public class Job
     [JsonIgnore]
     public int TenantId { get; set; }
 
+    public int? JobNumber { get; set; }
+
     [Required]
     [MaxLength(180)]
     public string Customer { get; set; } = string.Empty;

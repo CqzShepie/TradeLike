@@ -6,6 +6,7 @@ export type JobPriority = "Low" | "Normal" | "High" | "Urgent";
 
 export type Job = {
   id: number;
+  jobNumber?: number | null;
   customerId?: number | null;
   customer: string;
   phone: string;

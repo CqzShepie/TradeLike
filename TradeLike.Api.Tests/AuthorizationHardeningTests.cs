@@ -10,6 +10,7 @@ using TradeLike.Api;
 using TradeLike.Api.Api.Payments;
 using TradeLike.Api.Api.RoutePlanner;
 using TradeLike.Api.Contracts.Admin;
+using TradeLike.Api.Contracts.Jobs;
 using TradeLike.Api.Controllers;
 using TradeLike.Api.Data;
 using TradeLike.Api.Models;
@@ -74,6 +75,88 @@ public sealed class AuthorizationHardeningTests
         var result = await controller.GetJob(42);
 
         Assert.IsType<NotFoundResult>(result.Result);
+    }
+
+    [Fact]
+    public async Task TenantJobNumbersStartAtOnePerTenant()
+    {
+        await using var context = CreateContext();
+        var service = new JobService(context);
+
+        var tenantOneJob = await service.CreateAsync(BuildCreateJobRequest("Tenant one job"), 1);
+        var tenantTwoJob = await service.CreateAsync(BuildCreateJobRequest("Tenant two job"), 2);
+        var tenantOneSecondJob = await service.CreateAsync(BuildCreateJobRequest("Tenant one second job"), 1);
+
+        Assert.NotEqual(tenantOneJob.Id, tenantTwoJob.Id);
+        Assert.Equal(1, tenantOneJob.JobNumber);
+        Assert.Equal(1, tenantTwoJob.JobNumber);
+        Assert.Equal(2, tenantOneSecondJob.JobNumber);
+    }
+
+    [Fact]
+    public async Task ReportsSummaryCountsOnlyCallerTenantJobs()
+    {
+        await using var context = CreateContext();
+        var thisMonth = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 10);
+        context.Jobs.AddRange(
+            BuildJob(1, 1, "Completed", thisMonth),
+            BuildJob(2, 2, "Completed", thisMonth),
+            BuildJob(3, 1, "Scheduled", thisMonth));
+        await context.SaveChangesAsync();
+
+        var controller = new ReportsController(context)
+        {
+            ControllerContext = new ControllerContext
+            {
+                HttpContext = HttpContextForTenant(1, CustomerRoles.Director)
+            }
+        };
+
+        var result = await controller.GetSummary();
+        var ok = Assert.IsType<OkObjectResult>(result.Result);
+        var summary = Assert.IsType<ReportsSummaryResponse>(ok.Value);
+
+        Assert.Equal(1, summary.JobsCompleted);
+        Assert.Equal(2, summary.JobsScheduled);
+    }
+
+    [Fact]
+    public async Task BusinessReportRequiresBusinessOrEnterprisePlan()
+    {
+        await using var context = CreateContext();
+        context.Plans.AddRange(
+            new Plan { Id = 1, Name = "Solo", MonthlyPricePence = 3500, MaxIncludedUsers = 1, CreatedAt = DateTime.UtcNow },
+            new Plan { Id = 4, Name = "Enterprise", CreatedAt = DateTime.UtcNow });
+        context.Users.Add(BuildUser(1, "owner@example.com", CustomerRoles.Director, 1, "Solo"));
+        context.Subscriptions.Add(new Subscription
+        {
+            TenantId = 1,
+            PlanId = 1,
+            SeatsPurchased = 1,
+            BillingStartUtc = DateTime.UtcNow,
+            NextInvoiceDateUtc = DateTime.UtcNow.AddMonths(1),
+            Status = "Active"
+        });
+        await context.SaveChangesAsync();
+
+        var controller = new ReportsController(context)
+        {
+            ControllerContext = new ControllerContext
+            {
+                HttpContext = HttpContextForTenant(1, CustomerRoles.Director)
+            }
+        };
+
+        var soloResult = await controller.GetBusiness();
+        var blocked = Assert.IsType<ObjectResult>(soloResult.Result);
+        Assert.Equal(StatusCodes.Status402PaymentRequired, blocked.StatusCode);
+
+        var subscription = await context.Subscriptions.SingleAsync();
+        subscription.PlanId = 4;
+        await context.SaveChangesAsync();
+
+        var enterpriseResult = await controller.GetBusiness();
+        Assert.IsType<OkObjectResult>(enterpriseResult.Result);
     }
 
     [Fact]
@@ -454,6 +537,36 @@ public sealed class AuthorizationHardeningTests
             CanManageAccounts = canManageAccounts,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
+        };
+    }
+
+    private static CreateJobRequest BuildCreateJobRequest(string title)
+    {
+        return new CreateJobRequest
+        {
+            Customer = "Customer",
+            Phone = "07123456789",
+            JobTitle = title,
+            Address = "1 Trade Street",
+            ScheduledDate = DateTime.Today.AddDays(1),
+            Status = "Scheduled",
+            Priority = "Normal"
+        };
+    }
+
+    private static Job BuildJob(int id, int tenantId, string status, DateTime scheduledDate)
+    {
+        return new Job
+        {
+            Id = id,
+            TenantId = tenantId,
+            Customer = "Customer",
+            Phone = "07123456789",
+            JobTitle = "Job",
+            Address = "1 Trade Street",
+            ScheduledDate = scheduledDate,
+            Status = status,
+            Priority = "Normal"
         };
     }
 

@@ -110,6 +110,7 @@ function Jobs() {
         const searchableText = [
           `job ${job.id}`,
           `job #${job.id}`,
+          job.jobNumber ? `job ${job.jobNumber} job #${job.jobNumber}` : "",
           job.customer,
           job.jobTitle,
           job.status,
@@ -145,6 +146,24 @@ function Jobs() {
     { label: "Pending", value: jobs.filter(job => job.status === "Scheduled" && !isPreviousJob(job)).length, helper: "waiting to start", icon: <ListFilter className="h-5 w-5" /> },
     { label: "Completed", value: countStatus(jobs, "Completed"), helper: "finished jobs", icon: <CheckCircle2 className="h-5 w-5" /> },
   ];
+
+  async function assignFirstAvailableMember(job: Job) {
+    if (members.length === 0) {
+      window.alert("Add team members first.");
+      return;
+    }
+
+    const current = assignmentMap.get(job.id);
+    const updated = await jobAssignmentsService.update(job.id, {
+      assignedTeamId: current?.assignedTeamId ?? null,
+      leadStaffMemberId: current?.leadStaffMemberId ?? members[0].id,
+      assignedStaffMemberIds: current?.assignedStaffMemberIds ?? [],
+      scheduledEndDate: current?.scheduledEndDate ?? null,
+      calendarColour: current?.calendarColour ?? null,
+    });
+
+    setAssignments(updated);
+  }
 
   if (isApiError(error) && error.status === 403) {
     return <AccessDenied />;
@@ -333,6 +352,7 @@ function Jobs() {
                             members={members}
                             showStaffScheduling={showStaffScheduling}
                             onView={() => navigate(`/jobs/${job.id}`)}
+                            onAssign={() => void assignFirstAvailableMember(job)}
                           />
                         ))}
                       </tbody>
@@ -347,6 +367,7 @@ function Jobs() {
                         assignment={assignmentMap.get(job.id)}
                         members={members}
                         showStaffScheduling={showStaffScheduling}
+                        onAssign={() => void assignFirstAvailableMember(job)}
                       />
                     ))}
                   </div>
@@ -366,17 +387,19 @@ function JobRow({
   members,
   showStaffScheduling,
   onView,
+  onAssign,
 }: {
   job: Job;
   assignment?: JobAssignment;
   members: CustomerStaffMember[];
   showStaffScheduling: boolean;
   onView: () => void;
+  onAssign: () => void;
 }) {
   return (
     <tr className="align-top text-slate-200 transition hover:bg-white/[0.03]">
       <td className="px-4 py-4">
-        <p className="font-semibold text-white">#{job.id} {job.jobTitle}</p>
+        <p className="font-semibold text-white">#{getJobDisplayNumber(job)} {job.jobTitle}</p>
         <p className="mt-1 text-xs text-slate-400">{job.address || "No address saved"}</p>
       </td>
       <td className="px-4 py-4">{job.customer}</td>
@@ -388,6 +411,11 @@ function JobRow({
       <td className="px-4 py-4">
         <div className="flex justify-end gap-2">
           <button type="button" onClick={onView} className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-slate-100 hover:bg-white/10">View</button>
+          {showStaffScheduling && (
+            <button type="button" onClick={onAssign} className="rounded-lg border border-blue-400/30 px-3 py-1.5 text-xs font-semibold text-blue-200 hover:bg-blue-500/10">
+              {members.length === 0 ? "Add team members first" : getAssignmentLabel(job, assignment, members) === "Unassigned" ? "Assign" : "Change"}
+            </button>
+          )}
         </div>
       </td>
     </tr>
@@ -399,17 +427,19 @@ function JobMobileCard({
   assignment,
   members,
   showStaffScheduling,
+  onAssign,
 }: {
   job: Job;
   assignment?: JobAssignment;
   members: CustomerStaffMember[];
   showStaffScheduling: boolean;
+  onAssign: () => void;
 }) {
   return (
     <article className="rounded-2xl border border-white/10 bg-slate-950/50 p-5">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-blue-300">Job #{job.id}</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-blue-300">Job #{getJobDisplayNumber(job)}</p>
           <Link to={`/jobs/${job.id}`} className="mt-1 block text-lg font-bold text-white hover:text-blue-200">{job.jobTitle}</Link>
           <p className="mt-1 text-sm text-slate-400">{job.customer}</p>
         </div>
@@ -421,9 +451,16 @@ function JobMobileCard({
         <Info label="Priority" value={job.priority} />
         <Info label="Quote" value={job.quoteId ? `Quote #${job.quoteId}` : "None"} />
       </div>
-      <Link to={`/jobs/${job.id}`} className="mt-4 inline-flex rounded-lg border border-white/10 px-3 py-2 text-xs font-semibold text-slate-100 hover:bg-white/10">
-        View
-      </Link>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <Link to={`/jobs/${job.id}`} className="inline-flex rounded-lg border border-white/10 px-3 py-2 text-xs font-semibold text-slate-100 hover:bg-white/10">
+          View
+        </Link>
+        {showStaffScheduling && (
+          <button type="button" onClick={onAssign} className="rounded-lg border border-blue-400/30 px-3 py-2 text-xs font-semibold text-blue-200 hover:bg-blue-500/10">
+            {members.length === 0 ? "Add team members first" : getAssignmentLabel(job, assignment, members) === "Unassigned" ? "Assign" : "Change"}
+          </button>
+        )}
+      </div>
     </article>
   );
 }
@@ -475,6 +512,10 @@ function getAssignmentLabel(job: Job, assignment: JobAssignment | undefined, mem
   }
 
   return "Unassigned";
+}
+
+function getJobDisplayNumber(job: Job) {
+  return job.jobNumber ?? job.id;
 }
 
 function formatDateTime(value: string) {

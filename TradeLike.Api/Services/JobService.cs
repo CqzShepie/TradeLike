@@ -123,6 +123,7 @@ public class JobService : IJobService
         var job = new Job
         {
             TenantId = tenantId,
+            JobNumber = await GetNextJobNumberAsync(tenantId),
             Customer = CleanRequired(request.Customer, "Customer"),
             Phone = CleanRequired(request.Phone, "Phone number"),
             JobTitle = CleanRequired(request.JobTitle, "Job title"),
@@ -141,6 +142,15 @@ public class JobService : IJobService
         await _context.SaveChangesAsync();
 
         return job;
+    }
+
+    private async Task<int> GetNextJobNumberAsync(int tenantId)
+    {
+        var currentMax = await _context.Jobs
+            .Where(job => job.TenantId == tenantId)
+            .MaxAsync(job => (int?)job.JobNumber) ?? 0;
+
+        return currentMax + 1;
     }
 
     public async Task<Job?> UpdateAsync(int id, UpdateJobRequest request, int tenantId)

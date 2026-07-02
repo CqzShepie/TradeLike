@@ -147,7 +147,18 @@ const internalRoles: UserRole[] = [
 ];
 
 function normalizeStoredUserRole(user: Pick<AuthUser, "role" | "plan">): UserRole | null {
-  return tryNormalizeUserRole(user.role);
+  const role = tryNormalizeUserRole(user.role);
+  const plan = String(user.plan ?? "").trim().toLowerCase();
+
+  if (!role) {
+    return null;
+  }
+
+  if (plan !== "internal" && (role === "Director" || role === "Customer")) {
+    return "CustomerDirector";
+  }
+
+  return role;
 }
 
 function normalizeLoginResponse(response: LoginResponse): LoginResponse {

@@ -120,7 +120,7 @@ export function getAccessReasonMessage(reason: AccessBlockReason) {
     case "subscription-mismatch-suspected":
       return "The plan looks internal or unknown for the customer app, so subscription data may be mismatched.";
     default:
-      return "The route was blocked, but no specific reason was supplied.";
+      return "Access was blocked after role, billing, plan and feature checks. Refresh your session; if it continues, this may be a plan hierarchy or route configuration issue.";
   }
 }
 
@@ -223,7 +223,9 @@ function inferReason(input: {
     return "feature-disabled";
   }
 
-  return "unknown";
+  return hasProbablyStaleSession(input.user)
+    ? "stale-session-suspected"
+    : "unknown";
 }
 
 function readString(user: Partial<AuthUser> | Record<string, unknown> | null, key: string) {
@@ -274,7 +276,21 @@ function isKnownCustomerPlan(plan: string) {
 }
 
 function planLevel(plan: string) {
-  return planLevels[plan.trim().toLowerCase()] ?? -1;
+  const normalized = plan.trim().toLowerCase();
+
+  if (normalized === "trial") {
+    return 0;
+  }
+
+  if (normalized === "internal") {
+    return -1;
+  }
+
+  return planLevels[normalized] ?? -1;
+}
+
+function hasProbablyStaleSession(user: Partial<AuthUser> | Record<string, unknown> | null) {
+  return Boolean(user) && (!localStorage.getItem("tradelike_token") || !localStorage.getItem("tradelike_user"));
 }
 
 function isLocalhost(hostname: string) {
