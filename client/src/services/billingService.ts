@@ -10,8 +10,19 @@ export type BillingSubscription = {
   status: string;
 };
 
+export type BillingPlanChangeResponse = BillingSubscription & {
+  message: string;
+};
+
 export const billingService = {
   async getSubscription() {
     return (await apiClient.get("/billing/subscription")) as BillingSubscription;
+  },
+
+  async requestPlanChange(planName: string) {
+    return await apiClient.post<BillingPlanChangeResponse>("/billing/plan-change", {
+      planName,
+      confirmed: true,
+    });
   },
 };

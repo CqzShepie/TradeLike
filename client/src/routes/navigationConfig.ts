@@ -17,7 +17,6 @@ import {
   Link2,
   LockKeyhole,
   Package,
-  Palette,
   ReceiptText,
   Settings2,
   ShieldCheck,
@@ -41,7 +40,7 @@ export type NavigationGroup =
   | "general"
   | "team-access"
   | "billing-plan"
-  | "branding-documents"
+  | "documents"
   | "data"
   | "integrations"
   | "developer"
@@ -95,9 +94,8 @@ export const navigationConfig: NavigationItem[] = [
   { id: "usage", label: "Usage", path: "/settings/billing/usage", icon: Gauge, group: "billing-plan", feature: "usage", exactMatch: true, minimumPlan: "Solo", hiddenFromSidebar: true, settingSection: "Billing & Plan", requiredRoles: directorRoles, badge: "Owner", description: "Feature and account usage." },
   { id: "plan-limits", label: "Plan Limits", path: "/settings/plan-limits", icon: LockKeyhole, group: "billing-plan", feature: "plan-limits", exactMatch: true, minimumPlan: "Solo", hiddenFromSidebar: true, settingSection: "Billing & Plan", requiredRoles: managerRoles, description: "Included users, feature gates and upgrade guidance." },
 
-  { id: "branding", label: "Branding", path: "/settings/branding", icon: Palette, group: "branding-documents", feature: "branding", exactMatch: true, minimumPlan: "Business", hiddenFromSidebar: true, settingSection: "Branding & Documents", requiredRoles: directorRoles, badge: "Business+", description: "Logo, colour and customer-facing brand settings." },
-  { id: "templates", label: "Document Templates", path: "/settings/templates", icon: FileCog, group: "branding-documents", feature: "templates", exactMatch: true, minimumPlan: "Team", hiddenFromSidebar: true, settingSection: "Branding & Documents", requiredRoles: managerRoles, badge: "Team+", description: "Quote, invoice and job document templates." },
-  { id: "documents", label: "Documents", path: "/settings/documents", icon: FileText, group: "branding-documents", feature: "documents", exactMatch: true, minimumPlan: "Team", hiddenFromSidebar: true, settingSection: "Branding & Documents", requiredRoles: managerRoles, badge: "Team+", description: "PDF and document generation defaults." },
+  { id: "templates", label: "Document Templates", path: "/settings/templates", icon: FileCog, group: "documents", feature: "templates", exactMatch: true, minimumPlan: "Team", hiddenFromSidebar: true, settingSection: "Documents", requiredRoles: managerRoles, badge: "Team+", description: "Quote, invoice and job document templates." },
+  { id: "documents", label: "Documents", path: "/settings/documents", icon: FileText, group: "documents", feature: "documents", exactMatch: true, minimumPlan: "Team", hiddenFromSidebar: true, settingSection: "Documents", requiredRoles: managerRoles, badge: "Team+", description: "PDF and document generation defaults." },
 
   { id: "import-export", label: "Import / Export", path: "/settings/import-export", icon: UploadCloud, group: "data", feature: "import-export", exactMatch: true, minimumPlan: "Business", hiddenFromSidebar: true, settingSection: "Data", requiredRoles: directorRoles, badge: "Business+", description: "Move company data in and out of TradeLike." },
   { id: "full-data-export", label: "Full Data Export", path: "/settings/full-data-export", icon: Database, group: "data", feature: "full-data-export", exactMatch: true, minimumPlan: "Business", hiddenFromSidebar: true, settingSection: "Data", requiredRoles: directorRoles, badge: "Business+", description: "Owner-only tenant data export." },
@@ -117,7 +115,7 @@ export const settingsSectionLabels: Record<Exclude<NavigationGroup, "main">, str
   general: "General",
   "team-access": "Team & Access",
   "billing-plan": "Billing & Plan",
-  "branding-documents": "Branding & Documents",
+  documents: "Documents",
   data: "Data",
   integrations: "Integrations",
   developer: "Developer",

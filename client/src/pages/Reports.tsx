@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import type { ReactNode } from "react";
 import { BarChart3, Briefcase, CheckCircle2, Users } from "lucide-react";
 
 import {
@@ -57,9 +58,11 @@ export default function Reports() {
   const [jobRows, setJobRows] = useState<JobReportRow[]>([]);
   const [teamReport, setTeamReport] = useState<TeamReport | null>(null);
   const [businessReport, setBusinessReport] = useState<BusinessReport | null>(null);
+  const [detailTitle, setDetailTitle] = useState<string | null>(null);
   const { user } = useAuth();
   const showTeamReports = hasFeature(user?.plan, "staff-scheduling");
   const showBusinessReports = isAtLeastPlan(user?.plan, "Business");
+  const reportTier = showBusinessReports ? "Advanced + Custom" : showTeamReports ? "Advanced" : "Basic";
 
   useEffect(() => {
     void loadReports();
@@ -71,8 +74,8 @@ export default function Reports() {
       setError(null);
       const [jobRows, assignmentRows, staffWorkspace, summaryReport, jobReportRows] = await Promise.all([
         jobsService.getAll(),
-        jobAssignmentsService.getAll(),
-        customerStaffService.getWorkspace(),
+        showTeamReports ? jobAssignmentsService.getAll() : Promise.resolve([]),
+        showTeamReports ? customerStaffService.getWorkspace() : Promise.resolve(blankWorkspace),
         reportsService.getSummary(range),
         reportsService.getJobs(range),
       ]);
@@ -173,7 +176,7 @@ export default function Reports() {
         actions={
           <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm">
             <p className="font-bold text-white">{workspace.entitlements.planName}</p>
-            <p className="text-slate-400">Reporting: Included</p>
+            <p className="text-slate-400">Reporting: {reportTier}</p>
           </div>
         }
       />
@@ -227,11 +230,11 @@ export default function Reports() {
 
           <ProductPanel>
             <h2 className="text-lg font-bold text-white">Jobs by status</h2>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="mt-4">
               {jobRows.length === 0 ? (
                 <p className="text-sm text-slate-400">Not enough job data in this range yet.</p>
               ) : (
-                jobRows.map(row => <ProductStat key={row.status} label={row.status} value={row.count} helper="jobs" icon={<Briefcase className="h-5 w-5" />} />)
+                <BarChart rows={jobRows.map(row => ({ label: row.status, value: row.count }))} onOpen={label => setDetailTitle(`Jobs: ${label}`)} />
               )}
             </div>
           </ProductPanel>
@@ -244,6 +247,7 @@ export default function Reports() {
                 <ProductStat label="Team members" value={teamReport?.rows.length ?? workspace.members.length} helper="available staff" icon={<Users className="h-5 w-5" />} />
               </div>
               {teamReport?.timeTrackingMessage && <p className="mt-4 text-sm text-slate-400">{teamReport.timeTrackingMessage}</p>}
+              {teamReport && <div className="mt-4"><BarChart rows={teamReport.rows.map(row => ({ label: row.name, value: row.assignedJobs }))} onOpen={label => setDetailTitle(`Team workload: ${label}`)} /></div>}
             </ProductPanel>
           )}
 
@@ -259,6 +263,12 @@ export default function Reports() {
                 </div>
               ) : (
                 <p className="mt-4 text-sm text-slate-400">Business reporting data is not available yet.</p>
+              )}
+              {businessReport && (
+                <div className="mt-5 grid gap-3 md:grid-cols-2">
+                  <MiniBar label="Quote conversion" value={businessReport.quoteConversionRatePercent} max={100} onClick={() => setDetailTitle("Quote conversion")} />
+                  <MiniBar label="Paid invoice share" value={businessReport.invoiceTotalPence === 0 ? 0 : Math.round((businessReport.paidInvoiceTotalPence / businessReport.invoiceTotalPence) * 100)} max={100} onClick={() => setDetailTitle("Invoice payment status")} />
+                </div>
               )}
             </ProductPanel>
           )}
@@ -310,6 +320,19 @@ export default function Reports() {
           </div>}
         </>
       )}
+      {detailTitle && (
+        <ReportModal title={detailTitle} onClose={() => setDetailTitle(null)}>
+          <p className="text-sm leading-6 text-slate-300">
+            These figures are calculated from real tenant jobs, quotes, invoices and assignments for the selected date range.
+          </p>
+          <div className="mt-4 rounded-xl border border-white/10 bg-slate-950/50 p-4 text-sm text-slate-300">
+            Export CSV is available from the current loaded report rows.
+          </div>
+          <button type="button" onClick={() => exportCsv(jobRows)} className="mt-4 rounded-lg border border-white/10 px-4 py-2 text-sm font-semibold text-slate-100 hover:bg-white/10">
+            Export CSV
+          </button>
+        </ReportModal>
+      )}
     </ProductPage>
   );
 }
@@ -329,6 +352,63 @@ function WorkloadPanel({ title, children }: { title: string; children: React.Rea
       <div className="mt-4 space-y-3">{children}</div>
     </ProductPanel>
   );
+}
+
+function BarChart({ rows, onOpen }: { rows: Array<{ label: string; value: number }>; onOpen: (label: string) => void }) {
+  const max = Math.max(1, ...rows.map(row => row.value));
+
+  return (
+    <div className="space-y-3" role="list" aria-label="Report chart">
+      {rows.map(row => (
+        <button key={row.label} type="button" onClick={() => onOpen(row.label)} className="grid w-full gap-2 rounded-xl border border-white/10 bg-slate-950/50 p-3 text-left hover:bg-white/[0.04] sm:grid-cols-[140px_minmax(0,1fr)_48px] sm:items-center">
+          <span className="text-sm font-semibold text-white">{row.label}</span>
+          <span className="h-3 overflow-hidden rounded-full bg-slate-800">
+            <span className="block h-full rounded-full bg-blue-500" style={{ width: `${Math.max(4, (row.value / max) * 100)}%` }} />
+          </span>
+          <span className="text-sm font-bold text-blue-200">{row.value}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function MiniBar({ label, value, max, onClick }: { label: string; value: number; max: number; onClick: () => void }) {
+  return (
+    <button type="button" onClick={onClick} className="rounded-xl border border-white/10 bg-slate-950/50 p-4 text-left hover:bg-white/[0.04]">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm font-semibold text-white">{label}</p>
+        <p className="text-sm font-bold text-blue-200">{value}%</p>
+      </div>
+      <div className="mt-3 h-3 overflow-hidden rounded-full bg-slate-800">
+        <div className="h-full rounded-full bg-blue-500" style={{ width: `${Math.max(4, Math.min(100, (value / max) * 100))}%` }} />
+      </div>
+    </button>
+  );
+}
+
+function ReportModal({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4">
+      <div className="w-full max-w-xl rounded-2xl border border-white/10 bg-slate-900 p-6 shadow-2xl shadow-slate-950/60">
+        <div className="flex items-start justify-between gap-4">
+          <h2 className="text-xl font-bold text-white">{title}</h2>
+          <button type="button" onClick={onClose} className="rounded px-2 text-xl leading-none text-slate-400 hover:bg-white/10" aria-label="Close report details">x</button>
+        </div>
+        <div className="mt-4">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+function exportCsv(rows: JobReportRow[]) {
+  const csv = ["status,count", ...rows.map(row => `${row.status},${row.count}`)].join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "tradelike-reports.csv";
+  link.click();
+  URL.revokeObjectURL(url);
 }
 
 function WorkloadRow({

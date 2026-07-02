@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 
 import Reports from "./Reports";
@@ -41,6 +41,7 @@ vi.mock("../services/customerStaffService", () => ({
 
 describe("Reports", () => {
   beforeEach(() => {
+    vi.clearAllMocks();
     localStorage.clear();
     setUser("Business");
     vi.mocked(jobsService.getAll).mockResolvedValue([]);
@@ -99,6 +100,82 @@ describe("Reports", () => {
     expect(screen.getByText("Not enough job data in this range yet.")).toBeInTheDocument();
     expect(screen.getByText("Business reports")).toBeInTheDocument();
   });
+
+  it("renders chart rows and opens report detail modal", async () => {
+    vi.mocked(reportsService.getJobs).mockResolvedValue([
+      { status: "Completed", count: 4 },
+      { status: "Scheduled", count: 2 },
+    ]);
+
+    renderReports();
+
+    fireEvent.click(await screen.findByRole("button", { name: /Completed/i }));
+
+    expect(screen.getByRole("heading", { name: "Jobs: Completed" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /export csv/i })).toBeInTheDocument();
+  });
+
+  it("keeps Solo reports basic and skips Team-gated data calls", async () => {
+    setUser("Solo");
+
+    renderReports();
+
+    expect(await screen.findByText("Reporting: Basic")).toBeInTheDocument();
+    expect(screen.queryByText("Team reports")).not.toBeInTheDocument();
+    expect(screen.queryByText("Business reports")).not.toBeInTheDocument();
+    expect(jobAssignmentsService.getAll).not.toHaveBeenCalled();
+    expect(customerStaffService.getWorkspace).not.toHaveBeenCalled();
+    expect(reportsService.getTeam).not.toHaveBeenCalled();
+    expect(reportsService.getBusiness).not.toHaveBeenCalled();
+  });
+
+  it("shows Team advanced reports without Business custom reports", async () => {
+    setUser("Team");
+    vi.mocked(customerStaffService.getWorkspace).mockResolvedValue({
+      teams: [],
+      members: [],
+      entitlements: {
+        planName: "Team",
+        maxUsers: 10,
+        teamsEnabled: true,
+        staffSchedulingEnabled: true,
+        advancedPermissionsEnabled: false,
+        reportingEnabled: true,
+        apiAccessEnabled: false,
+        supportLevel: "Email",
+      },
+      roleOptions: [],
+      futureSecurityItems: [],
+      qualityOfLifeItems: [],
+    });
+    vi.mocked(reportsService.getTeam).mockResolvedValue({
+      rows: [],
+      unassignedJobs: 0,
+      timeTrackingMessage: "Time tracking data is not available yet.",
+    });
+
+    renderReports();
+
+    expect(await screen.findByText("Reporting: Advanced")).toBeInTheDocument();
+    expect(screen.getByText("Team reports")).toBeInTheDocument();
+    expect(screen.getByText("Time tracking data is not available yet.")).toBeInTheDocument();
+    expect(screen.queryByText("Business reports")).not.toBeInTheDocument();
+    expect(reportsService.getBusiness).not.toHaveBeenCalled();
+  });
+
+  it.each(["Business", "Enterprise"] as const)(
+    "shows Advanced + Custom reports for %s",
+    async plan => {
+      setUser(plan);
+
+      renderReports();
+
+      expect(await screen.findByText("Reporting: Advanced + Custom")).toBeInTheDocument();
+      expect(screen.getByText("Business reports")).toBeInTheDocument();
+      expect(reportsService.getTeam).toHaveBeenCalled();
+      expect(reportsService.getBusiness).toHaveBeenCalled();
+    }
+  );
 
   it("hides raw stack traces in report errors", async () => {
     vi.mocked(reportsService.getSummary).mockRejectedValue(

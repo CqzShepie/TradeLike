@@ -12,7 +12,6 @@ vi.mock("../pages/PreviousJobs", () => ({ default: () => <h1>Previous jobs page<
 vi.mock("../pages/Customers", () => ({ default: () => <h1>Customers page</h1> }));
 vi.mock("../pages/CustomerDetails", () => ({ default: () => <h1>Customer details page</h1> }));
 vi.mock("../pages/Calendar", () => ({ default: () => <h1>Calendar page</h1> }));
-vi.mock("../pages/AccessibilitySettings", () => ({ default: () => <h1>Accessibility page</h1> }));
 vi.mock("../pages/Signup", () => ({ default: () => <h1>Signup page</h1> }));
 vi.mock("../pages/Login", () => ({ default: () => <h1>Login page</h1> }));
 vi.mock("../pages/ForgotPassword", () => ({ default: () => <h1>Forgot password page</h1> }));
@@ -29,7 +28,6 @@ vi.mock("../pages/CustomerStaff", () => ({ default: () => <h1>Team page</h1> }))
 vi.mock("../pages/Reports", () => ({ default: () => <h1>Reports page</h1> }));
 vi.mock("../pages/ReportsOverview", () => ({ default: () => <h1>Advanced reports page</h1> }));
 vi.mock("../pages/api-dev/ApiDeveloperPage", () => ({ default: () => <h1>API page</h1> }));
-vi.mock("../pages/branding/BrandingPage", () => ({ default: () => <h1>Branding page</h1> }));
 vi.mock("../pages/import/ImportExportPage", () => ({ default: () => <h1>Import export page</h1> }));
 vi.mock("../pages/inventory/Inventory", () => ({ default: () => <h1>Inventory page</h1> }));
 vi.mock("../pages/SupportCenter", () => ({ default: () => <h1>Support page</h1> }));
@@ -144,12 +142,47 @@ describe("AppRouter entitlement guards", () => {
     expect(screen.getByRole("heading", { name: /upgrade required/i })).toBeInTheDocument();
   });
 
+  it("shows UpgradeRequired when a Team user visits Inventory directly", () => {
+    setSession({ ...soloDirector, plan: "Team" });
+
+    renderRouter("/inventory");
+
+    expect(screen.getByRole("heading", { name: /upgrade required/i })).toBeInTheDocument();
+  });
+
+  it.each(["Business", "Enterprise"] as const)(
+    "allows a %s user to visit Inventory",
+    plan => {
+      setSession({ ...soloDirector, plan });
+
+      renderRouter("/inventory");
+
+      expect(screen.getByRole("heading", { name: "Inventory page" })).toBeInTheDocument();
+    }
+  );
+
   it("shows UpgradeRequired when a Solo user visits advanced reports directly", () => {
     setSession(soloDirector);
 
     renderRouter("/reports/overview");
 
     expect(screen.getByRole("heading", { name: /upgrade required/i })).toBeInTheDocument();
+  });
+
+  it("routes Accessibility through the settings section page", () => {
+    setSession(soloDirector);
+
+    renderRouter("/settings/accessibility");
+
+    expect(screen.getByRole("heading", { name: "Settings section page" })).toBeInTheDocument();
+  });
+
+  it("does not expose the removed Branding settings route", () => {
+    setSession({ ...soloDirector, plan: "Business" });
+
+    renderRouter("/settings/branding");
+
+    expect(screen.getByRole("heading", { name: "Not found" })).toBeInTheDocument();
   });
 
   it("allows an internal Director to visit Studio", () => {

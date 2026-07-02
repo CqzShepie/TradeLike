@@ -172,6 +172,23 @@ public sealed class CustomerStaffController : ControllerBase
             return BadRequest(new { error = "Another staff member already uses this email for this company." });
         }
 
+        var existingMember = await _context.CustomerStaffMembers
+            .AsNoTracking()
+            .FirstOrDefaultAsync(member => member.Id == id && member.CompanyUserId == companyUserId);
+
+        if (existingMember is null)
+        {
+            return NotFound();
+        }
+
+        var nextStatus = CleanStatus(request.Status);
+        if (existingMember.Status == "InvitePending" &&
+            existingMember.InviteAcceptedAt is null &&
+            nextStatus is not "InvitePending" and not "Cancelled")
+        {
+            return BadRequest(new { error = "Pending invites can only become Active after the invite link is accepted." });
+        }
+
         await ExecuteNonQueryAsync(
             """
             UPDATE CustomerStaffMembers
@@ -197,7 +214,7 @@ public sealed class CustomerStaffController : ControllerBase
             ("@Email", email),
             ("@Phone", CleanOptional(request.Phone, 80) ?? string.Empty),
             ("@RoleName", CleanRequired(request.RoleName, "Role", 120)),
-            ("@Status", CleanStatus(request.Status)),
+            ("@Status", nextStatus),
             ("@PermissionPresetName", CleanOptional(request.PermissionPresetName, 120) ?? request.RoleName),
             ("@Skills", CleanOptional(request.Skills, 500) ?? string.Empty),
             ("@ServiceArea", CleanOptional(request.ServiceArea, 250) ?? string.Empty),
@@ -396,7 +413,7 @@ public sealed class CustomerStaffController : ControllerBase
             """
             SELECT COUNT(*)
             FROM CustomerStaffMembers
-            WHERE CompanyUserId = @CompanyUserId AND Status <> 'Left'
+            WHERE CompanyUserId = @CompanyUserId AND Status NOT IN ('Left', 'Cancelled')
             """,
             ("@CompanyUserId", companyUserId));
     }
@@ -505,7 +522,9 @@ public sealed class CustomerStaffController : ControllerBase
     private static string CleanStatus(string value)
     {
         var cleaned = string.IsNullOrWhiteSpace(value) ? "Active" : value.Trim();
-        return new[] { "InvitePending", "Active", "Suspended", "Left" }.Contains(cleaned, StringComparer.OrdinalIgnoreCase) ? cleaned : "Active";
+        return new[] { "InvitePending", "Active", "Suspended", "Left", "Cancelled" }
+            .FirstOrDefault(status => string.Equals(status, cleaned, StringComparison.OrdinalIgnoreCase))
+            ?? "Active";
     }
 }
 
@@ -591,8 +610,6 @@ public static class CustomerStaffDefaults
     public static readonly IReadOnlyList<string> QualityOfLifeItems =
     [
         "Unassigned jobs queue",
-        "Team colours on calendar",
-        "Working hours and holiday visibility",
         "Skill tags and postcode coverage",
         "Double-booking and travel-time warnings",
         "Drag-and-drop calendar reassignment",

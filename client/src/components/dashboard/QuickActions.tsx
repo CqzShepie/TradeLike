@@ -28,6 +28,11 @@ const actions: QuickAction[] = [
         description: "View the weekly dispatch planner.",
         to: "/calendar",
     },
+    {
+        label: "Send Invoice",
+        description: "Open invoice records and send customer billing.",
+        to: "/invoices",
+    },
 ];
 
 function QuickActions() {
@@ -40,7 +45,7 @@ function QuickActions() {
                 className="mb-5"
             />
 
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
                 {actions.map(action => (
                     <Link
                         key={action.to}

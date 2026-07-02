@@ -24,7 +24,20 @@ public class StaffLeaveRequest
 
     [Required]
     [MaxLength(30)]
+    public string LeaveType { get; set; } = "Paid";
+
+    [Required]
+    [MaxLength(30)]
     public string Status { get; set; } = "Pending";
+
+    [MaxLength(500)]
+    public string DecisionNote { get; set; } = string.Empty;
+
+    public int? DecidedByUserId { get; set; }
+
+    public DateTime? DecidedAt { get; set; }
+
+    public DateTime? CancelledAt { get; set; }
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

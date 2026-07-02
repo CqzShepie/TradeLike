@@ -373,10 +373,9 @@ describe("Jobs", () => {
     }
   );
 
-  it("shows an assignment action for Team+ job rows", async () => {
+  it("shows assignment actions and assigned staff for Team+ job rows", async () => {
     setStoredUser("Team", "CustomerManager");
-    vi.mocked(jobAssignmentsService.getAll).mockResolvedValue([]);
-    vi.mocked(jobAssignmentsService.update).mockResolvedValue([
+    vi.mocked(jobAssignmentsService.getAll).mockResolvedValue([
       {
         jobId: 1,
         assignedTeamId: null,
@@ -419,12 +418,11 @@ describe("Jobs", () => {
       </MemoryRouter>
     );
 
-    const assignButtons = await screen.findAllByRole("button", { name: /^assign$/i });
+    expect((await screen.findAllByText("Ava Engineer")).length).toBeGreaterThan(0);
+    const assignButtons = await screen.findAllByRole("button", { name: /change assignment/i });
     fireEvent.click(assignButtons[0]);
 
-    await waitFor(() => expect(jobAssignmentsService.update).toHaveBeenCalledWith(1, expect.objectContaining({
-      leadStaffMemberId: 10,
-    })));
+    expect(jobAssignmentsService.update).not.toHaveBeenCalled();
   });
 
   it("renders job stat cards", () => {

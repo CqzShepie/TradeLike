@@ -63,7 +63,7 @@ function Login() {
     <AuthShell
       eyebrow="Welcome back"
       title="Run today's trade work from one focused dashboard."
-      description="Sign in to manage jobs, customers, quotes and team admin with the same polished workspace introduced on the homepage."
+        description="Sign in to manage jobs, customers, quotes and invoices with the same polished workspace introduced on the homepage."
       highlights={["Schedule jobs", "Track quotes", "Manage customers"]}
     >
       <div>
@@ -130,15 +130,6 @@ function Login() {
           className="font-semibold text-blue-300 hover:text-blue-200 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
         >
           Start 14-day free trial
-        </Link>
-      </p>
-
-      <p className="mt-4 text-center">
-        <Link
-          to="/staff-login"
-          className="text-xs font-medium text-slate-500 hover:text-slate-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
-        >
-          Staff admin portal
         </Link>
       </p>
     </AuthShell>

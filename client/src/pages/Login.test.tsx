@@ -85,4 +85,27 @@ describe("Login", () => {
       "/forgot-password"
     );
   });
+
+  it("keeps customer login focused on the customer workspace", () => {
+    render(
+      <MemoryRouter>
+        <Login />
+      </MemoryRouter>
+    );
+
+    expect(screen.queryByRole("link", { name: /staff admin portal/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/internal|staff admin/i)).not.toBeInTheDocument();
+  });
+
+  it("centres readable login feature cards", () => {
+    render(
+      <MemoryRouter>
+        <Login />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByText("Schedule jobs")).toHaveClass("text-center");
+    expect(screen.getByText("Track quotes")).toHaveClass("text-center");
+    expect(screen.getByText("Manage customers")).toHaveClass("text-center");
+  });
 });

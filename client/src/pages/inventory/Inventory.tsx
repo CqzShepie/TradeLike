@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, Boxes, ClipboardList, PackagePlus, Truck } from "lucide-react";
+import type { FormEvent, ReactNode } from "react";
+import { AlertTriangle, Boxes, ClipboardList, History, Truck } from "lucide-react";
 
 import {
   EmptyState,
@@ -33,10 +34,12 @@ type Product = {
 
 type Supplier = {
   id: number;
+  branchId?: number | null;
   name: string;
   email?: string | null;
   phone?: string | null;
   leadTimeDays: number;
+  createdAt?: string;
 };
 
 type StockMovement = {
@@ -51,12 +54,15 @@ type StockMovement = {
 
 type PurchaseOrder = {
   id: number;
+  supplierId: number;
   supplierName: string;
   status: string;
   expectedAt?: string | null;
   createdAt: string;
   total: number;
 };
+
+type Modal = "product" | "supplier" | "po" | "movement" | "product-detail" | "supplier-detail" | "po-detail" | null;
 
 type ProductForm = {
   sku: string;
@@ -65,6 +71,7 @@ type ProductForm = {
   unit: string;
   reorderLevel: string;
   openingStock: string;
+  isActive: boolean;
 };
 
 type SupplierForm = {
@@ -74,7 +81,55 @@ type SupplierForm = {
   leadTimeDays: string;
 };
 
+type PurchaseOrderForm = {
+  supplierId: string;
+  productId: string;
+  quantity: string;
+  unitCost: string;
+  expectedAt: string;
+};
+
+type MovementForm = {
+  productId: string;
+  quantityChange: string;
+  reason: string;
+  reference: string;
+};
+
 const money = new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" });
+const SYSTEM_PO_PREFIX = "PO";
+
+const blankProductForm: ProductForm = {
+  sku: "",
+  name: "",
+  description: "",
+  unit: "each",
+  reorderLevel: "5",
+  openingStock: "0",
+  isActive: true,
+};
+
+const blankSupplierForm: SupplierForm = {
+  name: "",
+  email: "",
+  phone: "",
+  leadTimeDays: "3",
+};
+
+const blankPurchaseOrderForm: PurchaseOrderForm = {
+  supplierId: "",
+  productId: "",
+  quantity: "1",
+  unitCost: "0",
+  expectedAt: "",
+};
+
+const blankMovementForm: MovementForm = {
+  productId: "",
+  quantityChange: "",
+  reason: "Adjustment",
+  reference: "",
+};
 
 export default function Inventory() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -83,26 +138,29 @@ export default function Inventory() {
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
   const [error, setError] = useState<Error | null>(null);
   const [loading, setLoading] = useState(true);
-  const [savingMessage, setSavingMessage] = useState("");
-  const [productForm, setProductForm] = useState<ProductForm>({
-    sku: "",
-    name: "",
-    description: "",
-    unit: "each",
-    reorderLevel: "5",
-    openingStock: "0",
-  });
-  const [supplierForm, setSupplierForm] = useState<SupplierForm>({
-    name: "",
-    email: "",
-    phone: "",
-    leadTimeDays: "3",
-  });
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState("");
+  const [modal, setModal] = useState<Modal>(null);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
+  const [selectedOrder, setSelectedOrder] = useState<PurchaseOrder | null>(null);
+  const [productForm, setProductForm] = useState<ProductForm>(blankProductForm);
+  const [supplierForm, setSupplierForm] = useState<SupplierForm>(blankSupplierForm);
+  const [purchaseOrderForm, setPurchaseOrderForm] = useState<PurchaseOrderForm>(blankPurchaseOrderForm);
+  const [movementForm, setMovementForm] = useState<MovementForm>(blankMovementForm);
 
   const lowStock = useMemo(
     () => products.filter(product => product.isActive && Number(product.onHand) <= Number(product.reorderLevel)),
     [products]
   );
+  const openPurchaseOrders = purchaseOrders.filter(order => order.status !== "Received");
+  const lastMovementByProduct = useMemo(() => {
+    const map = new Map<number, StockMovement>();
+    movements.forEach(movement => {
+      if (!map.has(movement.productId)) map.set(movement.productId, movement);
+    });
+    return map;
+  }, [movements]);
 
   useEffect(() => {
     void loadInventory();
@@ -131,34 +189,174 @@ export default function Inventory() {
     }
   }
 
-  async function createProduct(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setSavingMessage("");
-    await apiClient.post<Product>("/inventory/products", {
-      sku: productForm.sku,
-      name: productForm.name,
-      description: productForm.description,
-      unit: productForm.unit,
-      reorderLevel: Number(productForm.reorderLevel || 0),
-      openingStock: Number(productForm.openingStock || 0),
-    });
-    setProductForm({ sku: "", name: "", description: "", unit: "each", reorderLevel: "5", openingStock: "0" });
-    setSavingMessage("Product created.");
-    await loadInventory();
+  function openAddProduct() {
+    setSelectedProduct(null);
+    setProductForm(blankProductForm);
+    setModal("product");
   }
 
-  async function createSupplier(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setSavingMessage("");
-    await apiClient.post<Supplier>("/inventory/suppliers", {
-      name: supplierForm.name,
-      email: supplierForm.email,
-      phone: supplierForm.phone,
-      leadTimeDays: Number(supplierForm.leadTimeDays || 0),
+  function openEditProduct(product: Product) {
+    setSelectedProduct(product);
+    setProductForm({
+      sku: product.sku,
+      name: product.name,
+      description: product.description ?? "",
+      unit: product.unit,
+      reorderLevel: String(product.reorderLevel),
+      openingStock: String(product.onHand),
+      isActive: product.isActive,
     });
-    setSupplierForm({ name: "", email: "", phone: "", leadTimeDays: "3" });
-    setSavingMessage("Supplier created.");
-    await loadInventory();
+    setModal("product");
+  }
+
+  function openProductDetail(product: Product) {
+    setSelectedProduct(product);
+    setModal("product-detail");
+  }
+
+  function openAddSupplier() {
+    setSelectedSupplier(null);
+    setSupplierForm(blankSupplierForm);
+    setModal("supplier");
+  }
+
+  function openEditSupplier(supplier: Supplier) {
+    setSelectedSupplier(supplier);
+    setSupplierForm({
+      name: supplier.name,
+      email: supplier.email ?? "",
+      phone: supplier.phone ?? "",
+      leadTimeDays: String(supplier.leadTimeDays),
+    });
+    setModal("supplier");
+  }
+
+  async function saveProduct(event: FormEvent) {
+    event.preventDefault();
+    setSaving(true);
+    setMessage("");
+
+    try {
+      const payload = {
+        sku: productForm.sku,
+        name: productForm.name,
+        description: productForm.description,
+        unit: productForm.unit,
+        reorderLevel: Number(productForm.reorderLevel || 0),
+        openingStock: Number(productForm.openingStock || 0),
+        isActive: productForm.isActive,
+      };
+
+      if (selectedProduct) {
+        await apiClient.put<Product>(`/inventory/products/${selectedProduct.id}`, payload);
+        setMessage("Product updated.");
+      } else {
+        await apiClient.post<Product>("/inventory/products", payload);
+        setMessage("Product created.");
+      }
+
+      setModal(null);
+      await loadInventory();
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error("Unable to save product."));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function saveSupplier(event: FormEvent) {
+    event.preventDefault();
+    setSaving(true);
+    setMessage("");
+
+    try {
+      const payload = {
+        name: supplierForm.name,
+        email: supplierForm.email,
+        phone: supplierForm.phone,
+        leadTimeDays: Number(supplierForm.leadTimeDays || 0),
+      };
+
+      if (selectedSupplier) {
+        await apiClient.put<Supplier>(`/inventory/suppliers/${selectedSupplier.id}`, payload);
+        setMessage("Supplier updated.");
+      } else {
+        await apiClient.post<Supplier>("/inventory/suppliers", payload);
+        setMessage("Supplier created.");
+      }
+
+      setModal(null);
+      await loadInventory();
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error("Unable to save supplier."));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function createPurchaseOrder(event: FormEvent) {
+    event.preventDefault();
+    setSaving(true);
+    setMessage("");
+
+    try {
+      await apiClient.post<PurchaseOrder>("/inventory/purchase-orders", {
+        supplierId: Number(purchaseOrderForm.supplierId),
+        expectedAt: purchaseOrderForm.expectedAt || null,
+        lines: [{
+          productId: Number(purchaseOrderForm.productId),
+          quantity: Number(purchaseOrderForm.quantity || 0),
+          unitCost: Number(purchaseOrderForm.unitCost || 0),
+        }],
+      });
+      setPurchaseOrderForm(blankPurchaseOrderForm);
+      setModal(null);
+      setMessage("Purchase order created.");
+      await loadInventory();
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error("Unable to create purchase order."));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function createMovement(event: FormEvent) {
+    event.preventDefault();
+    setSaving(true);
+    setMessage("");
+
+    try {
+      await apiClient.post<StockMovement>("/inventory/stock-movements", {
+        productId: Number(movementForm.productId),
+        quantityChange: Number(movementForm.quantityChange || 0),
+        reason: movementForm.reason,
+        reference: movementForm.reference,
+      });
+      setMovementForm(blankMovementForm);
+      setModal(null);
+      setMessage("Stock movement recorded.");
+      await loadInventory();
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error("Unable to record stock movement."));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function receiveOrder(order: PurchaseOrder) {
+    setSaving(true);
+    setMessage("");
+
+    try {
+      await apiClient.post(`/inventory/purchase-orders/${order.id}/receive`, {});
+      setMessage(`${formatPo(order.id)} received.`);
+      setModal(null);
+      await loadInventory();
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error("Unable to receive purchase order."));
+    } finally {
+      setSaving(false);
+    }
   }
 
   if (isApiError(error) && error.status === 403) {
@@ -174,17 +372,20 @@ export default function Inventory() {
       <ProductPageHeader
         eyebrow="Stock control"
         title="Inventory"
-        description="Track products, low-stock alerts, suppliers, purchase orders, and stock movement from one workspace."
+        description="Track products, suppliers, purchase orders, stock movement and low-stock risk from one clean workspace."
         actions={
-          <SecondaryButton type="button" onClick={() => void loadInventory()} className="border-white/10 bg-white/5 text-slate-100 hover:bg-white/10">
-            Refresh
-          </SecondaryButton>
+          <>
+            <SecondaryButton type="button" onClick={() => void loadInventory()} className="border-white/10 bg-white/5 text-slate-100 hover:bg-white/10">
+              Refresh
+            </SecondaryButton>
+            <PrimaryButton type="button" onClick={openAddProduct}>Add product</PrimaryButton>
+          </>
         }
       />
 
-      {savingMessage && (
+      {message && (
         <ProductPanel className="border-emerald-400/30 bg-emerald-500/10">
-          <p className="text-sm font-semibold text-emerald-100">{savingMessage}</p>
+          <p className="text-sm font-semibold text-emerald-100">{message}</p>
         </ProductPanel>
       )}
 
@@ -205,44 +406,66 @@ export default function Inventory() {
       {!loading && !error && (
         <>
           <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-            <ProductStat label="Products" value={products.length} helper="active catalogue" icon={<Boxes className="h-5 w-5" />} />
-            <ProductStat label="Low stock" value={lowStock.length} helper="below reorder level" icon={<AlertTriangle className="h-5 w-5" />} />
-            <ProductStat label="Suppliers" value={suppliers.length} helper="available vendors" icon={<Truck className="h-5 w-5" />} />
-            <ProductStat label="Open purchase orders" value={purchaseOrders.length} helper="tracked POs" icon={<ClipboardList className="h-5 w-5" />} />
-            <ProductStat label="Stock value" value={money.format(0)} helper="ready for valuation data" icon={<Boxes className="h-5 w-5" />} />
+            <ProductStat label="Products" value={products.length} helper="catalogue items" icon={<Boxes className="h-5 w-5" />} />
+            <ProductStat label="Low stock" value={lowStock.length} helper="at or below threshold" icon={<AlertTriangle className="h-5 w-5" />} />
+            <ProductStat label="Suppliers" value={suppliers.length} helper="vendor records" icon={<Truck className="h-5 w-5" />} />
+            <ProductStat label="Open POs" value={openPurchaseOrders.length} helper={`${SYSTEM_PO_PREFIX} purchase orders`} icon={<ClipboardList className="h-5 w-5" />} />
+            <ProductStat label="Movements" value={movements.length} helper="recent stock history" icon={<History className="h-5 w-5" />} />
           </section>
 
-          <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
+          <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
             <div className="space-y-6">
               <ProductPanel>
-                <h2 className="text-lg font-bold text-white">Products</h2>
+                <SectionHeading title="Products" action={<SecondaryButton type="button" onClick={openAddProduct} className="border-white/10 bg-white/5 text-slate-100 hover:bg-white/10">Add product</SecondaryButton>} />
                 <div className="mt-4 overflow-hidden rounded-2xl border border-white/10">
                   {products.length === 0 ? (
-                    <EmptyState title="No products yet" description="Products will appear here once stock is created." />
+                    <EmptyState title="No products yet" description="Create your first stock item to start tracking quantity and reorder status." action={<PrimaryButton type="button" onClick={openAddProduct}>Add product</PrimaryButton>} />
                   ) : (
-                    products.map(product => (
-                      <div key={product.id} className="grid gap-3 border-b border-white/10 p-4 last:border-b-0 md:grid-cols-[1fr_120px_140px]">
-                        <div>
-                          <p className="font-bold text-white">{product.name}</p>
-                          <p className="mt-1 text-sm text-slate-400">{product.sku} / {product.unit}</p>
-                        </div>
-                        <p className="text-sm font-semibold text-slate-200">{product.onHand} on hand</p>
-                        <p className={Number(product.onHand) <= Number(product.reorderLevel) ? "text-sm font-bold text-red-300" : "text-sm font-semibold text-emerald-300"}>
-                          Reorder {product.reorderLevel}
-                        </p>
-                      </div>
+                    products.map(product => {
+                      const lastMovement = lastMovementByProduct.get(product.id);
+                      return (
+                        <button key={product.id} type="button" onClick={() => openProductDetail(product)} className="grid w-full gap-3 border-b border-white/10 p-4 text-left transition hover:bg-white/[0.03] last:border-b-0 md:grid-cols-[1fr_120px_140px_160px]">
+                          <div>
+                            <p className="font-bold text-white">{product.name}</p>
+                            <p className="mt-1 text-sm text-slate-400">{product.sku} / {product.unit}</p>
+                          </div>
+                          <p className="text-sm font-semibold text-slate-200">{product.onHand} on hand</p>
+                          <p className={Number(product.onHand) <= Number(product.reorderLevel) ? "text-sm font-bold text-red-300" : "text-sm font-semibold text-emerald-300"}>
+                            {Number(product.onHand) <= Number(product.reorderLevel) ? "Reorder now" : "In stock"}
+                          </p>
+                          <p className="text-sm text-slate-400">{lastMovement ? formatDate(lastMovement.createdAt) : "No movement"}</p>
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+              </ProductPanel>
+
+              <ProductPanel>
+                <SectionHeading title="Purchase orders" action={<SecondaryButton type="button" onClick={() => setModal("po")} className="border-white/10 bg-white/5 text-slate-100 hover:bg-white/10">Create PO</SecondaryButton>} />
+                <p className="mt-2 text-sm text-slate-400">Purchase order prefix: <span className="font-semibold text-white">{SYSTEM_PO_PREFIX}</span></p>
+                <div className="mt-4 divide-y divide-white/10">
+                  {purchaseOrders.length === 0 ? (
+                    <EmptyState title="No purchase orders yet" description="Create a supplier purchase order when stock needs replenishing." action={<PrimaryButton type="button" onClick={() => setModal("po")}>Create purchase order</PrimaryButton>} />
+                  ) : (
+                    purchaseOrders.map(order => (
+                      <button key={order.id} type="button" onClick={() => { setSelectedOrder(order); setModal("po-detail"); }} className="grid w-full gap-2 py-3 text-left transition hover:bg-white/[0.03] md:grid-cols-[1fr_120px_140px]">
+                        <p className="font-semibold text-white">{formatPo(order.id)} / {order.supplierName}</p>
+                        <p className="text-sm font-bold text-slate-300">{order.status}</p>
+                        <p className="text-sm font-bold text-white">{money.format(Number(order.total))}</p>
+                      </button>
                     ))
                   )}
                 </div>
               </ProductPanel>
 
               <ProductPanel>
-                <h2 className="text-lg font-bold text-white">Recent stock movements</h2>
+                <SectionHeading title="Stock movement history" action={<SecondaryButton type="button" onClick={() => setModal("movement")} className="border-white/10 bg-white/5 text-slate-100 hover:bg-white/10">Adjust stock</SecondaryButton>} />
                 <div className="mt-4 divide-y divide-white/10">
                   {movements.length === 0 ? (
-                    <EmptyState title="No movements recorded" description="Stock adjustments and transfers will appear here." />
+                    <EmptyState title="No movements recorded" description="Adjustments, received purchase orders and corrections appear here." />
                   ) : (
-                    movements.slice(0, 8).map(movement => (
+                    movements.slice(0, 12).map(movement => (
                       <div key={movement.id} className="grid gap-2 py-3 md:grid-cols-[1fr_120px_160px]">
                         <p className="font-semibold text-white">{movement.productName}</p>
                         <p className={movement.quantityChange >= 0 ? "font-bold text-emerald-300" : "font-bold text-red-300"}>
@@ -254,102 +477,218 @@ export default function Inventory() {
                   )}
                 </div>
               </ProductPanel>
-
-              <ProductPanel>
-                <h2 className="text-lg font-bold text-white">Purchase orders</h2>
-                <div className="mt-4 divide-y divide-white/10">
-                  {purchaseOrders.length === 0 ? (
-                    <EmptyState title="No purchase orders yet" description="Supplier purchase orders will appear here once created." />
-                  ) : (
-                    purchaseOrders.map(order => (
-                      <div key={order.id} className="grid gap-2 py-3 md:grid-cols-[1fr_120px_140px]">
-                        <p className="font-semibold text-white">PO-{order.id} / {order.supplierName}</p>
-                        <p className="text-sm font-bold text-slate-300">{order.status}</p>
-                        <p className="text-sm font-bold text-white">{money.format(Number(order.total))}</p>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </ProductPanel>
-
-              <ProductPanel>
-                <h2 className="text-lg font-bold text-white">Suppliers</h2>
-                <div className="mt-4 divide-y divide-white/10">
-                  {suppliers.length === 0 ? (
-                    <EmptyState title="No suppliers yet" description="Suppliers will appear here once vendor records are created." />
-                  ) : (
-                    suppliers.map(supplier => (
-                      <div key={supplier.id} className="grid gap-2 py-3 md:grid-cols-[1fr_160px_120px]">
-                        <p className="font-semibold text-white">{supplier.name}</p>
-                        <p className="text-sm text-slate-300">{supplier.email || "No email"}</p>
-                        <p className="text-sm font-semibold text-slate-300">{supplier.leadTimeDays} days</p>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </ProductPanel>
             </div>
 
             <aside className="space-y-6">
-              <InventoryForm title="Add product" icon={<PackagePlus className="h-5 w-5" />} onSubmit={createProduct}>
-                <Field label="SKU" value={productForm.sku} onChange={value => setProductForm({ ...productForm, sku: value })} />
-                <Field label="Name" value={productForm.name} onChange={value => setProductForm({ ...productForm, name: value })} />
-                <Field label="Unit" value={productForm.unit} onChange={value => setProductForm({ ...productForm, unit: value })} />
-                <div className="grid gap-3 md:grid-cols-2">
-                  <Field label="Reorder" value={productForm.reorderLevel} onChange={value => setProductForm({ ...productForm, reorderLevel: value })} />
-                  <Field label="Opening stock" value={productForm.openingStock} onChange={value => setProductForm({ ...productForm, openingStock: value })} />
+              <ProductPanel>
+                <SectionHeading title="Low stock alerts" />
+                <div className="mt-4 space-y-3">
+                  {lowStock.length === 0 ? (
+                    <p className="rounded-xl border border-white/10 bg-slate-950/50 p-4 text-sm text-slate-400">No low-stock alerts.</p>
+                  ) : (
+                    lowStock.map(product => (
+                      <button key={product.id} type="button" onClick={() => openProductDetail(product)} className="w-full rounded-xl border border-red-400/20 bg-red-500/10 p-4 text-left">
+                        <p className="font-bold text-red-100">{product.name}</p>
+                        <p className="mt-1 text-sm text-red-100/80">{product.onHand} on hand, reorder at {product.reorderLevel}</p>
+                      </button>
+                    ))
+                  )}
                 </div>
-                <PrimaryButton type="submit" fullWidth>Create product</PrimaryButton>
-              </InventoryForm>
+              </ProductPanel>
 
-              <InventoryForm title="Add supplier" icon={<Truck className="h-5 w-5" />} onSubmit={createSupplier}>
-                <Field label="Name" value={supplierForm.name} onChange={value => setSupplierForm({ ...supplierForm, name: value })} />
-                <Field label="Email" value={supplierForm.email} onChange={value => setSupplierForm({ ...supplierForm, email: value })} />
-                <Field label="Phone" value={supplierForm.phone} onChange={value => setSupplierForm({ ...supplierForm, phone: value })} />
-                <Field label="Lead time days" value={supplierForm.leadTimeDays} onChange={value => setSupplierForm({ ...supplierForm, leadTimeDays: value })} />
-                <PrimaryButton type="submit" fullWidth>Create supplier</PrimaryButton>
-              </InventoryForm>
+              <ProductPanel>
+                <SectionHeading title="Suppliers" action={<SecondaryButton type="button" onClick={openAddSupplier} className="border-white/10 bg-white/5 text-slate-100 hover:bg-white/10">Add supplier</SecondaryButton>} />
+                <div className="mt-4 divide-y divide-white/10">
+                  {suppliers.length === 0 ? (
+                    <EmptyState title="No suppliers yet" description="Add suppliers before creating purchase orders." action={<PrimaryButton type="button" onClick={openAddSupplier}>Add supplier</PrimaryButton>} />
+                  ) : (
+                    suppliers.map(supplier => (
+                      <button key={supplier.id} type="button" onClick={() => { setSelectedSupplier(supplier); setModal("supplier-detail"); }} className="block w-full py-3 text-left">
+                        <p className="font-semibold text-white">{supplier.name}</p>
+                        <p className="text-sm text-slate-400">{supplier.email || supplier.phone || "No contact details"}</p>
+                      </button>
+                    ))
+                  )}
+                </div>
+              </ProductPanel>
             </aside>
           </div>
         </>
+      )}
+
+      {modal === "product" && (
+        <ModalShell title={selectedProduct ? "Edit product" : "Add product"} onClose={() => setModal(null)}>
+          <form onSubmit={saveProduct} className="space-y-4">
+            <Field label="SKU"><TextInput value={productForm.sku} onChange={event => setProductForm({ ...productForm, sku: event.target.value })} className="border-white/10 bg-slate-950/60 text-white" /></Field>
+            <Field label="Name"><TextInput value={productForm.name} onChange={event => setProductForm({ ...productForm, name: event.target.value })} className="border-white/10 bg-slate-950/60 text-white" /></Field>
+            <Field label="Description"><TextInput value={productForm.description} onChange={event => setProductForm({ ...productForm, description: event.target.value })} className="border-white/10 bg-slate-950/60 text-white" /></Field>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <Field label="Unit"><TextInput value={productForm.unit} onChange={event => setProductForm({ ...productForm, unit: event.target.value })} className="border-white/10 bg-slate-950/60 text-white" /></Field>
+              <Field label="Reorder level"><TextInput type="number" value={productForm.reorderLevel} onChange={event => setProductForm({ ...productForm, reorderLevel: event.target.value })} className="border-white/10 bg-slate-950/60 text-white" /></Field>
+              {!selectedProduct && <Field label="Opening stock"><TextInput type="number" value={productForm.openingStock} onChange={event => setProductForm({ ...productForm, openingStock: event.target.value })} className="border-white/10 bg-slate-950/60 text-white" /></Field>}
+            </div>
+            {selectedProduct && <Toggle checked={productForm.isActive} onChange={checked => setProductForm({ ...productForm, isActive: checked })}>Active product</Toggle>}
+            <PrimaryButton type="submit" disabled={saving} fullWidth>{saving ? "Saving..." : selectedProduct ? "Save product" : "Create product"}</PrimaryButton>
+          </form>
+        </ModalShell>
+      )}
+
+      {modal === "supplier" && (
+        <ModalShell title={selectedSupplier ? "Edit supplier" : "Add supplier"} onClose={() => setModal(null)}>
+          <form onSubmit={saveSupplier} className="space-y-4">
+            <Field label="Name"><TextInput value={supplierForm.name} onChange={event => setSupplierForm({ ...supplierForm, name: event.target.value })} className="border-white/10 bg-slate-950/60 text-white" /></Field>
+            <Field label="Email"><TextInput type="email" value={supplierForm.email} onChange={event => setSupplierForm({ ...supplierForm, email: event.target.value })} className="border-white/10 bg-slate-950/60 text-white" /></Field>
+            <Field label="Phone"><TextInput value={supplierForm.phone} onChange={event => setSupplierForm({ ...supplierForm, phone: event.target.value })} className="border-white/10 bg-slate-950/60 text-white" /></Field>
+            <Field label="Lead time days"><TextInput type="number" value={supplierForm.leadTimeDays} onChange={event => setSupplierForm({ ...supplierForm, leadTimeDays: event.target.value })} className="border-white/10 bg-slate-950/60 text-white" /></Field>
+            <PrimaryButton type="submit" disabled={saving} fullWidth>{saving ? "Saving..." : selectedSupplier ? "Save supplier" : "Create supplier"}</PrimaryButton>
+          </form>
+        </ModalShell>
+      )}
+
+      {modal === "po" && (
+        <ModalShell title="Create purchase order" onClose={() => setModal(null)}>
+          <form onSubmit={createPurchaseOrder} className="space-y-4">
+            <Field label="Supplier"><Select value={purchaseOrderForm.supplierId} onChange={value => setPurchaseOrderForm({ ...purchaseOrderForm, supplierId: value })}><option value="">Choose supplier</option>{suppliers.map(supplier => <option key={supplier.id} value={supplier.id}>{supplier.name}</option>)}</Select></Field>
+            <Field label="Product"><Select value={purchaseOrderForm.productId} onChange={value => setPurchaseOrderForm({ ...purchaseOrderForm, productId: value })}><option value="">Choose product</option>{products.map(product => <option key={product.id} value={product.id}>{product.name}</option>)}</Select></Field>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <Field label="Quantity"><TextInput type="number" value={purchaseOrderForm.quantity} onChange={event => setPurchaseOrderForm({ ...purchaseOrderForm, quantity: event.target.value })} className="border-white/10 bg-slate-950/60 text-white" /></Field>
+              <Field label="Unit cost"><TextInput type="number" value={purchaseOrderForm.unitCost} onChange={event => setPurchaseOrderForm({ ...purchaseOrderForm, unitCost: event.target.value })} className="border-white/10 bg-slate-950/60 text-white" /></Field>
+              <Field label="Expected"><TextInput type="date" value={purchaseOrderForm.expectedAt} onChange={event => setPurchaseOrderForm({ ...purchaseOrderForm, expectedAt: event.target.value })} className="border-white/10 bg-slate-950/60 text-white" /></Field>
+            </div>
+            <PrimaryButton type="submit" disabled={saving || !purchaseOrderForm.supplierId || !purchaseOrderForm.productId} fullWidth>Create purchase order</PrimaryButton>
+          </form>
+        </ModalShell>
+      )}
+
+      {modal === "movement" && (
+        <ModalShell title="Adjust stock" onClose={() => setModal(null)}>
+          <form onSubmit={createMovement} className="space-y-4">
+            <Field label="Product"><Select value={movementForm.productId} onChange={value => setMovementForm({ ...movementForm, productId: value })}><option value="">Choose product</option>{products.map(product => <option key={product.id} value={product.id}>{product.name}</option>)}</Select></Field>
+            <Field label="Quantity change"><TextInput type="number" value={movementForm.quantityChange} onChange={event => setMovementForm({ ...movementForm, quantityChange: event.target.value })} className="border-white/10 bg-slate-950/60 text-white" /></Field>
+            <Field label="Reason"><TextInput value={movementForm.reason} onChange={event => setMovementForm({ ...movementForm, reason: event.target.value })} className="border-white/10 bg-slate-950/60 text-white" /></Field>
+            <Field label="Reference"><TextInput value={movementForm.reference} onChange={event => setMovementForm({ ...movementForm, reference: event.target.value })} className="border-white/10 bg-slate-950/60 text-white" /></Field>
+            <PrimaryButton type="submit" disabled={saving || !movementForm.productId || !movementForm.quantityChange} fullWidth>Record movement</PrimaryButton>
+          </form>
+        </ModalShell>
+      )}
+
+      {modal === "product-detail" && selectedProduct && (
+        <ModalShell title={selectedProduct.name} onClose={() => setModal(null)}>
+          <DetailGrid rows={[
+            ["SKU", selectedProduct.sku],
+            ["Quantity on hand", String(selectedProduct.onHand)],
+            ["Low stock threshold", String(selectedProduct.reorderLevel)],
+            ["Reorder status", selectedProduct.onHand <= selectedProduct.reorderLevel ? "Reorder now" : "In stock"],
+            ["Last movement", lastMovementByProduct.get(selectedProduct.id) ? formatDate(lastMovementByProduct.get(selectedProduct.id)!.createdAt) : "No movement"],
+          ]} />
+          <div className="mt-5 flex flex-wrap gap-2">
+            <SecondaryButton type="button" onClick={() => openEditProduct(selectedProduct)} className="border-white/10 bg-white/5 text-slate-100 hover:bg-white/10">Edit product</SecondaryButton>
+            <SecondaryButton type="button" onClick={() => { setMovementForm({ ...blankMovementForm, productId: String(selectedProduct.id) }); setModal("movement"); }} className="border-white/10 bg-white/5 text-slate-100 hover:bg-white/10">Adjust stock</SecondaryButton>
+          </div>
+        </ModalShell>
+      )}
+
+      {modal === "supplier-detail" && selectedSupplier && (
+        <ModalShell title={selectedSupplier.name} onClose={() => setModal(null)}>
+          <DetailGrid rows={[
+            ["Email", selectedSupplier.email || "No email"],
+            ["Phone", selectedSupplier.phone || "No phone"],
+            ["Lead time", `${selectedSupplier.leadTimeDays} days`],
+          ]} />
+          <div className="mt-5">
+            <SecondaryButton type="button" onClick={() => openEditSupplier(selectedSupplier)} className="border-white/10 bg-white/5 text-slate-100 hover:bg-white/10">Edit supplier</SecondaryButton>
+          </div>
+        </ModalShell>
+      )}
+
+      {modal === "po-detail" && selectedOrder && (
+        <ModalShell title={formatPo(selectedOrder.id)} onClose={() => setModal(null)}>
+          <DetailGrid rows={[
+            ["Supplier", selectedOrder.supplierName],
+            ["Status", selectedOrder.status],
+            ["Expected", selectedOrder.expectedAt ? formatDate(selectedOrder.expectedAt) : "Not set"],
+            ["Total", money.format(Number(selectedOrder.total))],
+          ]} />
+          {selectedOrder.status !== "Received" && (
+            <div className="mt-5">
+              <PrimaryButton type="button" disabled={saving} onClick={() => void receiveOrder(selectedOrder)}>Receive stock</PrimaryButton>
+            </div>
+          )}
+        </ModalShell>
       )}
     </ProductPage>
   );
 }
 
-function InventoryForm({
-  title,
-  icon,
-  onSubmit,
-  children,
-}: {
-  title: string;
-  icon: React.ReactNode;
-  onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
-  children: React.ReactNode;
-}) {
+function SectionHeading({ title, action }: { title: string; action?: ReactNode }) {
   return (
-    <ProductPanel>
-      <form onSubmit={onSubmit} className="space-y-4">
-        <div className="flex items-center gap-2 text-blue-300">
-          {icon}
-          <h2 className="text-lg font-bold text-white">{title}</h2>
-        </div>
-        {children}
-      </form>
-    </ProductPanel>
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <h2 className="text-lg font-bold text-white">{title}</h2>
+      {action}
+    </div>
   );
 }
 
-function Field({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+function ModalShell({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4">
+      <div className="w-full max-w-2xl rounded-2xl border border-white/10 bg-slate-900 p-6 shadow-2xl shadow-slate-950/60">
+        <div className="mb-5 flex items-start justify-between gap-4">
+          <h2 className="text-xl font-bold text-white">{title}</h2>
+          <button type="button" onClick={onClose} className="rounded px-2 text-xl leading-none text-slate-400 hover:bg-white/10" aria-label="Close">
+            x
+          </button>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="block">
       <span className="mb-1 block text-sm font-semibold text-slate-300">{label}</span>
-      <TextInput
-        value={value}
-        onChange={event => onChange(event.target.value)}
-        className="border-white/10 bg-slate-950/60 text-white placeholder:text-slate-500"
-      />
+      {children}
     </label>
   );
+}
+
+function Select({ value, onChange, children }: { value: string; onChange: (value: string) => void; children: ReactNode }) {
+  return (
+    <select value={value} onChange={event => onChange(event.target.value)} className="w-full rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/40">
+      {children}
+    </select>
+  );
+}
+
+function Toggle({ checked, onChange, children }: { checked: boolean; onChange: (checked: boolean) => void; children: ReactNode }) {
+  return (
+    <label className="flex items-center gap-3 rounded-xl border border-white/10 bg-slate-950/50 px-4 py-3 text-sm text-slate-200">
+      <input type="checkbox" checked={checked} onChange={event => onChange(event.target.checked)} className="h-4 w-4 rounded border-white/20 bg-slate-950" />
+      {children}
+    </label>
+  );
+}
+
+function DetailGrid({ rows }: { rows: Array<[string, string]> }) {
+  return (
+    <div className="grid gap-3 sm:grid-cols-2">
+      {rows.map(([label, value]) => (
+        <div key={label} className="rounded-xl border border-white/10 bg-slate-950/50 p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{label}</p>
+          <p className="mt-1 text-sm font-semibold text-white">{value}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function formatPo(id: number) {
+  return `${SYSTEM_PO_PREFIX}-${String(id).padStart(4, "0")}`;
+}
+
+function formatDate(value: string) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "Not recorded" : date.toLocaleDateString("en-GB");
 }

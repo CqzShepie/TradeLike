@@ -39,17 +39,13 @@ export default function AuthShell({
               {highlights.map(highlight => (
                 <div
                   key={highlight}
-                  className="w-full rounded-xl border border-white/10 bg-white/5 p-4 text-sm font-semibold text-slate-100 shadow-sm shadow-slate-950/20 sm:w-[10rem]"
+                  className="flex min-h-16 w-full items-center justify-center rounded-xl border border-white/10 bg-white/5 p-4 text-center text-sm font-semibold leading-5 text-slate-100 shadow-sm shadow-slate-950/20 sm:w-[10rem]"
                 >
                   {highlight}
                 </div>
               ))}
             </div>
           </div>
-
-          <p className="hidden text-sm text-slate-400 lg:block">
-            Job scheduling, quotes, customers and admin in one calm workspace.
-          </p>
         </section>
 
         <section className="flex items-center justify-center border-l border-white/10 bg-slate-900/70 px-6 py-10 text-white shadow-2xl shadow-slate-950/40 sm:px-10 lg:rounded-l-[2rem]">

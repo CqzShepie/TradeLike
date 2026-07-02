@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import WeekGrid from "./WeekGrid";
 import WeekNavigation from "./WeekNavigation";
@@ -34,10 +35,18 @@ export default function WeekCalendar() {
     const showStaffScheduling = canUseStaffScheduling(user);
 
     useEffect(() => {
+        if (!showStaffScheduling) {
+            setMembers([]);
+            setTeams([]);
+            setAssignments([]);
+            setLeaveRequests([]);
+            return;
+        }
+
         let cancelled = false;
         Promise.all([customerStaffService.getWorkspace(), jobAssignmentsService.getAll(), staffLeaveService.getAll()]).then(([workspace, assignmentRows, leaveRows]) => {
             if (cancelled) return;
-            setMembers(workspace.members.filter(member => member.status !== "Left"));
+            setMembers(workspace.members.filter(member => member.status === "Active"));
             setTeams(workspace.teams);
             setAssignments(assignmentRows);
             setLeaveRequests(leaveRows);
@@ -49,7 +58,7 @@ export default function WeekCalendar() {
             setLeaveRequests([]);
         });
         return () => { cancelled = true; };
-    }, []);
+    }, [showStaffScheduling]);
 
     useEffect(() => {
         if (!showStaffScheduling && selectedCalendar !== "all") {
@@ -118,6 +127,23 @@ export default function WeekCalendar() {
         } catch {
             setOptimisticJobs(previousJobs => previousJobs.filter(existingJob => existingJob.id !== job.id));
             toast.error("Could not move the job. It has been returned to its original date.");
+        }
+    }
+
+    async function updateJobLead(job: Job, memberId: number | null) {
+        const current = assignmentMap.get(job.id);
+        try {
+            const updated = await jobAssignmentsService.update(job.id, {
+                assignedTeamId: current?.assignedTeamId ?? null,
+                leadStaffMemberId: memberId,
+                assignedStaffMemberIds: (current?.assignedStaffMemberIds ?? []).filter(id => id !== memberId),
+                scheduledEndDate: current?.scheduledEndDate ?? null,
+                calendarColour: current?.calendarColour ?? job.calendarColour ?? "blue",
+            });
+            setAssignments(updated);
+            toast.success(memberId ? "Job assignment updated." : "Job unassigned.");
+        } catch {
+            toast.error("Could not update the job assignment.");
         }
     }
 
@@ -198,16 +224,18 @@ export default function WeekCalendar() {
                 const leadEngineer = members.find(member => member.id === selectedAssignment?.leadStaffMemberId || member.id === selectedJob.engineerId);
                 const extraStaff = members.filter(member => selectedAssignment?.assignedStaffMemberIds.includes(member.id));
                 const detailRows = [
-                    ["Customer Name", selectedJob.customer],
-                    ["Customer #ID", String(selectedJob.customerId ?? selectedJob.sourceQuote?.customerId ?? "Not linked")],
-                    ["Customer Phone Number", selectedJob.phone || "Not recorded"],
-                    ["Customer Address", selectedJob.address || "Not recorded"],
-                    ["Job Status", selectedJob.status === "InProgress" ? "In Progress" : selectedJob.status],
-                    ["Job Urgency", selectedJob.priority],
+                    ["Job number", `#${selectedJob.jobNumber ?? selectedJob.id}`],
+                    ["Customer", selectedJob.customer],
+                    ["Date and time", formatDateTime(selectedJob.scheduledDate)],
+                    ["Phone", selectedJob.phone || "Not recorded"],
+                    ["Address", selectedJob.address || "Not recorded"],
+                    ["Status", selectedJob.status === "InProgress" ? "In Progress" : selectedJob.status],
+                    ["Priority", selectedJob.priority],
+                    ["Linked quote", selectedJob.quoteId ? `Quote #${selectedJob.quoteId}` : "No quote linked"],
                     ...(showStaffScheduling ? [
                         ["Lead Engineer", leadEngineer ? `${leadEngineer.firstName} ${leadEngineer.lastName}` : "No lead engineer"],
-                        ["Staff Assigned To Job", extraStaff.length ? extraStaff.map(member => `${member.firstName} ${member.lastName}`).join(", ") : "No extra staff"],
-                        ["Team Assigned To Job", selectedTeam?.name ?? selectedJob.assignedTeamName ?? "No team recorded"],
+                        ["Extra staff", extraStaff.length ? extraStaff.map(member => `${member.firstName} ${member.lastName}`).join(", ") : "No extra staff"],
+                        ["Team", selectedTeam?.name ?? selectedJob.assignedTeamName ?? "No team recorded"],
                     ] : []),
                 ];
 
@@ -231,11 +259,43 @@ export default function WeekCalendar() {
                                 </div>
                             ))}
                         </div>
+                        <div className="mt-5 flex flex-wrap gap-2">
+                            <Link to={`/jobs/${selectedJob.id}`} className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-500">
+                                View job
+                            </Link>
+                            {selectedJob.quoteId && (
+                                <Link to={`/quotes/${selectedJob.quoteId}`} className="rounded-lg border border-white/10 px-3 py-2 text-xs font-semibold text-slate-100 hover:bg-white/10">
+                                    View quote
+                                </Link>
+                            )}
+                        </div>
+                        {showStaffScheduling && (
+                            <div className="mt-5 rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                                <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400" htmlFor="calendar-job-lead">
+                                    Change assignment
+                                </label>
+                                <select
+                                    id="calendar-job-lead"
+                                    value={selectedAssignment?.leadStaffMemberId ?? selectedJob.engineerId ?? ""}
+                                    onChange={event => void updateJobLead(selectedJob, event.target.value ? Number(event.target.value) : null)}
+                                    className="mt-2 w-full rounded-lg border border-white/10 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/40"
+                                >
+                                    <option value="">Unassigned</option>
+                                    {members.map(member => <option key={member.id} value={member.id}>{member.firstName} {member.lastName}</option>)}
+                                </select>
+                            </div>
+                        )}
                     </div>
                 );
             })()}
         </div>
     );
+}
+
+function formatDateTime(value: string) {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "Not scheduled";
+    return date.toLocaleString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
 function startOfWeek(date: Date): Date {

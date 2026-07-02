@@ -176,7 +176,7 @@ public sealed class JobAssignmentsController : ControllerBase
 
         var matchingCount = await _context.CustomerStaffMembers
             .AsNoTracking()
-            .CountAsync(member => member.CompanyUserId == tenantId && ids.Contains(member.Id));
+            .CountAsync(member => member.CompanyUserId == tenantId && member.Status == "Active" && ids.Contains(member.Id));
 
         return matchingCount == ids.Count;
     }

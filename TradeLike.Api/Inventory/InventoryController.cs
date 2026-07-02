@@ -93,6 +93,57 @@ public class InventoryController : ControllerBase
         return CreatedAtAction(nameof(GetProducts), new { id = product.Id }, product);
     }
 
+    [HttpPut("products/{id:int}")]
+    public async Task<ActionResult<ProductResponse>> UpdateProduct(int id, UpdateProductRequest request, CancellationToken cancellationToken)
+    {
+        if (id <= 0 || string.IsNullOrWhiteSpace(request.Name) || string.IsNullOrWhiteSpace(request.Sku))
+        {
+            return BadRequest(new { error = "Product name and SKU are required." });
+        }
+
+        var tenantId = TenantHelpers.GetTenantId(HttpContext);
+        var updatedRows = await InventorySql.ExecuteNonQueryAsync(
+            _db,
+            """
+            UPDATE Products
+            SET Sku = @sku,
+                Name = @name,
+                Description = @description,
+                Unit = @unit,
+                ReorderLevel = @reorderLevel,
+                IsActive = @isActive
+            WHERE Id = @id AND TenantId = @tenantId
+            """,
+            cancellationToken,
+            ("@id", id),
+            ("@tenantId", tenantId),
+            ("@sku", request.Sku.Trim()),
+            ("@name", request.Name.Trim()),
+            ("@description", DbValue(request.Description)),
+            ("@unit", string.IsNullOrWhiteSpace(request.Unit) ? "each" : request.Unit.Trim()),
+            ("@reorderLevel", request.ReorderLevel),
+            ("@isActive", request.IsActive));
+
+        if (updatedRows == 0)
+        {
+            return NotFound(new { error = "Product was not found." });
+        }
+
+        var rows = await InventorySql.QueryAsync(
+            _db,
+            """
+            SELECT Id, BranchId, Sku, Name, Description, Unit, ReorderLevel, OnHand, IsActive, CreatedAt
+            FROM Products
+            WHERE Id = @id AND TenantId = @tenantId
+            """,
+            ProductReader,
+            cancellationToken,
+            ("@id", id),
+            ("@tenantId", tenantId));
+
+        return Ok(rows.Single());
+    }
+
     [HttpGet("suppliers")]
     public async Task<ActionResult<IReadOnlyList<SupplierResponse>>> GetSuppliers(CancellationToken cancellationToken)
     {
@@ -155,6 +206,53 @@ public class InventoryController : ControllerBase
             ("@leadTimeDays", request.LeadTimeDays));
 
         return CreatedAtAction(nameof(GetSuppliers), new { id = supplier.Id }, supplier);
+    }
+
+    [HttpPut("suppliers/{id:int}")]
+    public async Task<ActionResult<SupplierResponse>> UpdateSupplier(int id, CreateSupplierRequest request, CancellationToken cancellationToken)
+    {
+        if (id <= 0 || string.IsNullOrWhiteSpace(request.Name))
+        {
+            return BadRequest(new { error = "Supplier name is required." });
+        }
+
+        var tenantId = TenantHelpers.GetTenantId(HttpContext);
+        var updatedRows = await InventorySql.ExecuteNonQueryAsync(
+            _db,
+            """
+            UPDATE Suppliers
+            SET Name = @name,
+                Email = @email,
+                Phone = @phone,
+                LeadTimeDays = @leadTimeDays
+            WHERE Id = @id AND TenantId = @tenantId
+            """,
+            cancellationToken,
+            ("@id", id),
+            ("@tenantId", tenantId),
+            ("@name", request.Name.Trim()),
+            ("@email", DbValue(request.Email)),
+            ("@phone", DbValue(request.Phone)),
+            ("@leadTimeDays", request.LeadTimeDays));
+
+        if (updatedRows == 0)
+        {
+            return NotFound(new { error = "Supplier was not found." });
+        }
+
+        var rows = await InventorySql.QueryAsync(
+            _db,
+            """
+            SELECT Id, BranchId, Name, Email, Phone, LeadTimeDays, CreatedAt
+            FROM Suppliers
+            WHERE Id = @id AND TenantId = @tenantId
+            """,
+            SupplierReader,
+            cancellationToken,
+            ("@id", id),
+            ("@tenantId", tenantId));
+
+        return Ok(rows.Single());
     }
 
     [HttpGet("stock-movements")]
@@ -466,6 +564,33 @@ public class InventoryController : ControllerBase
     {
         return string.IsNullOrWhiteSpace(value) ? DBNull.Value : value.Trim();
     }
+
+    private static ProductResponse ProductReader(IDataReader reader)
+    {
+        return new ProductResponse(
+            reader.GetInt32(0),
+            reader.IsDBNull(1) ? null : reader.GetInt32(1),
+            reader.GetString(2),
+            reader.GetString(3),
+            reader.IsDBNull(4) ? null : reader.GetString(4),
+            reader.GetString(5),
+            reader.GetDecimal(6),
+            reader.GetDecimal(7),
+            reader.GetBoolean(8),
+            reader.GetDateTime(9));
+    }
+
+    private static SupplierResponse SupplierReader(IDataReader reader)
+    {
+        return new SupplierResponse(
+            reader.GetInt32(0),
+            reader.IsDBNull(1) ? null : reader.GetInt32(1),
+            reader.GetString(2),
+            reader.IsDBNull(3) ? null : reader.GetString(3),
+            reader.IsDBNull(4) ? null : reader.GetString(4),
+            reader.GetInt32(5),
+            reader.GetDateTime(6));
+    }
 }
 
 public class LowStockAlertJob
@@ -623,6 +748,7 @@ public record StockMovementResponse(int Id, int? BranchId, int ProductId, string
 public record PurchaseOrderResponse(int Id, int? BranchId, int SupplierId, string SupplierName, string Status, DateTime? ExpectedAt, DateTime CreatedAt, decimal Total);
 public record LowStockAlert(int TenantId, int? BranchId, int ProductId, string Sku, string Name, decimal OnHand, decimal ReorderLevel);
 public record CreateProductRequest(string Sku, string Name, string? Description, string? Unit, decimal ReorderLevel, decimal OpeningStock, int? BranchId);
+public record UpdateProductRequest(string Sku, string Name, string? Description, string? Unit, decimal ReorderLevel, bool IsActive);
 public record CreateSupplierRequest(string Name, string? Email, string? Phone, int LeadTimeDays, int? BranchId);
 public record CreateStockMovementRequest(int ProductId, decimal QuantityChange, string? Reason, string? Reference, int? BranchId);
 public record CreatePurchaseOrderRequest(int SupplierId, DateTime? ExpectedAt, int? BranchId, List<CreatePurchaseOrderLineRequest> Lines);

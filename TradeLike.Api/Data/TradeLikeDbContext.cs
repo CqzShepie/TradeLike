@@ -698,10 +698,20 @@ public class TradeLikeDbContext : DbContext
                 .IsRequired()
                 .HasMaxLength(500);
 
+            entity.Property(request => request.LeaveType)
+                .IsRequired()
+                .HasMaxLength(30)
+                .HasDefaultValue("Paid");
+
             entity.Property(request => request.Status)
                 .IsRequired()
                 .HasMaxLength(30)
                 .HasDefaultValue("Pending");
+
+            entity.Property(request => request.DecisionNote)
+                .IsRequired()
+                .HasMaxLength(500)
+                .HasDefaultValue(string.Empty);
 
             entity.HasOne(request => request.StaffMember)
                 .WithMany()
