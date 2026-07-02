@@ -155,13 +155,13 @@ export default function AdminPortal() {
   const [accountSource, setAccountSource] = useState("");
   const [cancelReason, setCancelReason] = useState("");
   const [adminNotes, setAdminNotes] = useState("");
+  const [accountChangeReason, setAccountChangeReason] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [requirePasswordReset, setRequirePasswordReset] = useState(true);
 
   const [createStaffFirstName, setCreateStaffFirstName] = useState("");
   const [createStaffLastName, setCreateStaffLastName] = useState("");
   const [createStaffEmail, setCreateStaffEmail] = useState("");
-  const [createStaffPassword, setCreateStaffPassword] = useState("");
   const [createStaffRole, setCreateStaffRole] = useState<StaffRole>("Support");
   const [createStaffPaTo, setCreateStaffPaTo] = useState("");
   const [createStaffPermissions, setCreateStaffPermissions] = useState<PermissionFlags>(blankPermissions);
@@ -327,6 +327,7 @@ export default function AdminPortal() {
     setAccountSource(user.accountSource ?? "");
     setCancelReason(user.cancelReason ?? "");
     setAdminNotes(user.adminNotes ?? "");
+    setAccountChangeReason("");
     setNewPassword("");
     setRequirePasswordReset(true);
   }
@@ -452,6 +453,10 @@ export default function AdminPortal() {
       showError("Cancel reason is required when cancelling an account.");
       return;
     }
+    if (accountChangeReason.trim() === "") {
+      showError("Reason is required before saving sensitive Studio account changes.");
+      return;
+    }
     try {
       setSaving(true);
       setError("");
@@ -474,6 +479,7 @@ export default function AdminPortal() {
         accountSource,
         cancelReason,
         adminNotes,
+        reason: accountChangeReason,
       });
       upsertUser(updated);
       setSelectedUser(updated);
@@ -613,10 +619,6 @@ export default function AdminPortal() {
       showError("A valid staff email address is required.");
       return;
     }
-    if (createStaffPassword.trim().length < 8) {
-      showError("Staff password must be at least 8 characters.");
-      return;
-    }
     if (createStaffRole === "Personal Assistant" && createStaffPaTo.trim() === "") {
       showError("Personal Assistant accounts must say who they are PA to.");
       return;
@@ -629,7 +631,6 @@ export default function AdminPortal() {
         firstName: createStaffFirstName,
         lastName: createStaffLastName,
         email: createStaffEmail,
-        password: createStaffPassword,
         role: createStaffRole,
         personalAssistantTo: createStaffPaTo,
         ...createStaffPermissions,
@@ -641,12 +642,11 @@ export default function AdminPortal() {
       setCreateStaffFirstName("");
       setCreateStaffLastName("");
       setCreateStaffEmail("");
-      setCreateStaffPassword("");
       setCreateStaffRole("Support");
       setCreateStaffPaTo("");
       setCreateStaffPermissions(blankPermissions);
       setCreateStaffNotes("");
-      showMessage(`Created staff account for ${created.email}.`);
+      showMessage(`Invite created for ${created.email}. The invite link was copied where possible.`);
       await refreshAuditLogs();
     } catch (err) {
       showError(getErrorMessage(err, "Unable to create staff account."));
@@ -698,18 +698,18 @@ export default function AdminPortal() {
       <header className="border-b border-slate-800 bg-slate-950/95">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
           <div>
-            <Link to="/" className="text-xl font-bold text-blue-400">TradeLike</Link>
+            <Link to="/" className="text-xl font-bold text-blue-400">TradeLike Studio</Link>
             <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-slate-500">{staffRole}{paTo ? ` · PA to ${paTo}` : ""}</p>
           </div>
           <nav className="flex items-center gap-3">
             <Link to="/login" className="rounded-lg border border-slate-700 px-3 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-900">Back to Login</Link>
-            <Link to="/dashboard" className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700">Open App</Link>
+            <Link to="/dashboard" className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700">Open customer app</Link>
           </nav>
         </div>
       </header>
 
       <section className="mx-auto max-w-7xl px-6 py-8">
-        <p className="text-xs font-semibold uppercase tracking-wide text-blue-400">Staff Admin Portal</p>
+        <p className="text-xs font-semibold uppercase tracking-wide text-blue-400">TradeLike Studio</p>
         <h1 className="mt-1 text-3xl font-bold text-white">Hello {staffFirstName}</h1>
         <p className="mt-2 text-sm font-semibold uppercase tracking-wide text-slate-300">{staffRole}{paTo ? ` · PA to ${paTo}` : ""}</p>
         <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-400">Manage SaaS customer accounts, staff permissions, free months, discounts, verification status, passwords, and audit logs.</p>
@@ -792,12 +792,13 @@ export default function AdminPortal() {
                             <Field label="Trial end date"><DarkInput value={trialEndsAt} onChange={setTrialEndsAt} type="date" /></Field>
                             <Field label="Discount type"><DarkSelect value={discountType} onChange={value => setDiscountType(value as AdminDiscountType)}>{discountTypes.map(type => <option key={type} value={type}>{type === "None" ? "No discount" : type === "Amount" ? "£ amount" : "% percentage"}</option>)}</DarkSelect></Field>
                             <Field label={discountType === "Percentage" ? "Discount value (%)" : "Discount value (£)"}><DarkInput value={discountValue} onChange={setDiscountValue} type="number" min="0" max={discountType === "Percentage" ? 100 : undefined} step="1" disabled={discountType === "None"} /></Field>
-                            <Field label="Free months"><DarkInput value={freeMonths} onChange={setFreeMonths} type="number" min="0" max="120" step="1" /></Field>
+                            <Field label="Free months"><DarkInput value={freeMonths} onChange={setFreeMonths} type="number" min="0" max="24" step="1" /></Field>
                             <Field label="Free months expiry"><DarkInput value={freeMonthsExpireAt} onChange={setFreeMonthsExpireAt} type="date" /></Field>
                             <Field label="Tags"><DarkInput value={adminTags} onChange={setAdminTags} placeholder="High Value, Setup Help, Churn Risk" /></Field>
                             {(accountStatus === "Cancelled" || billingStatus === "Cancelled") && <Field label="Cancel reason"><DarkTextarea value={cancelReason} onChange={setCancelReason} rows={4} /></Field>}
                             <Field label="Support notes"><DarkTextarea value={supportNotes} onChange={setSupportNotes} rows={6} /></Field>
                             <Field label="Internal admin notes"><DarkTextarea value={adminNotes} onChange={setAdminNotes} rows={5} /></Field>
+                            <Field label="Reason for change"><DarkTextarea value={accountChangeReason} onChange={setAccountChangeReason} placeholder="Required for audit log. Example: Customer requested Team plan during support call." rows={4} /></Field>
                             <button type="submit" disabled={saving} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-600">{saving ? "Saving..." : "Save Customer Changes"}</button>
                             {(selectedUser.accountStatus === "Cancelled" || selectedUser.billingStatus === "Cancelled") && <button type="button" onClick={handleReactivateCustomer} disabled={saving} className="rounded-lg border border-green-500/50 px-4 py-2 text-sm font-semibold text-green-200 hover:bg-green-500/10 disabled:cursor-not-allowed disabled:opacity-50">Reactivate Customer</button>}
                           </div>
@@ -817,7 +818,7 @@ export default function AdminPortal() {
             )}
 
             {activeSection === "staff" && canSeeStaff && (
-              <div className="space-y-6"><div className="grid gap-6 xl:grid-cols-[420px_1fr]"><aside className="space-y-6"><div className="rounded-xl border border-slate-800 bg-slate-900 p-5"><h2 className="text-lg font-bold text-white">Search staff</h2><DarkInput value={staffSearch} onChange={setStaffSearch} placeholder="Name, email, role, status, PA to" className="mt-4" /></div><form onSubmit={handleCreateStaff} className="rounded-xl border border-slate-800 bg-slate-900 p-5 shadow-sm"><h2 className="text-lg font-bold text-white">Create staff user</h2><div className="mt-4 grid gap-3"><DarkInput value={createStaffFirstName} onChange={setCreateStaffFirstName} placeholder="First name" /><DarkInput value={createStaffLastName} onChange={setCreateStaffLastName} placeholder="Last name" /><DarkInput value={createStaffEmail} onChange={setCreateStaffEmail} placeholder="Staff email" type="email" /><DarkInput value={createStaffPassword} onChange={setCreateStaffPassword} placeholder="Temporary password, minimum 8 characters" type="password" /><DarkSelect value={createStaffRole} onChange={value => setCreateStaffRole(value as StaffRole)}>{staffRoles.map(role => <option key={role} value={role}>{role}</option>)}</DarkSelect>{createStaffRole === "Personal Assistant" && <DarkInput value={createStaffPaTo} onChange={setCreateStaffPaTo} placeholder="PA to" />}<PermissionEditor title="Initial permissions" permissions={createStaffPermissions} setPermissions={setCreateStaffPermissions} /><DarkTextarea value={createStaffNotes} onChange={setCreateStaffNotes} placeholder="Internal staff notes" rows={4} /><button type="submit" disabled={saving} className="rounded-lg bg-white px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-slate-200 disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300">{saving ? "Creating..." : "Create Staff"}</button></div></form></aside><div className="space-y-6"><StaffList title="Current staff" subtitle="Active and suspended staff accounts. Click heading to hide selected details." users={filteredStaffUsers.current} selectedStaff={selectedStaff} loading={loadingStaff} onSelect={selectStaff} onHeaderClick={() => setSelectedStaff(null)} onAuditClick={searchAuditForStaff} emptyText="No current staff found." /><StaffList title="Previous staff" subtitle="Cancelled staff accounts are kept here for history. Click heading to hide selected details." users={filteredStaffUsers.previous} selectedStaff={selectedStaff} loading={loadingStaff} onSelect={selectStaff} onHeaderClick={() => setSelectedStaff(null)} onAuditClick={searchAuditForStaff} emptyText="No previous staff found." />{selectedStaff && <form onSubmit={handleSaveStaffPermissions} className="rounded-xl border border-slate-800 bg-slate-900 p-5 shadow-sm"><h2 className="text-lg font-bold text-white">Staff permissions</h2><p className="mt-1 text-sm text-slate-400">{selectedStaff.email}</p>{selectedStaff.email.toLowerCase() === permanentDirectorEmail && <div className="mt-4 rounded-lg border border-blue-500/40 bg-blue-500/10 p-3 text-sm text-blue-100">This is Thomas Kennington’s permanent Director account. It always keeps full permissions.</div>}<div className="mt-5 grid gap-4"><Field label="Role"><DarkSelect value={selectedStaff.email.toLowerCase() === permanentDirectorEmail ? "Director" : staffEditRole} onChange={value => setStaffEditRole(value as StaffRole)} disabled={selectedStaff.email.toLowerCase() === permanentDirectorEmail}>{staffRoles.map(role => <option key={role} value={role}>{role}</option>)}</DarkSelect></Field>{staffEditRole === "Personal Assistant" && <Field label="PA to"><DarkInput value={staffEditPaTo} onChange={setStaffEditPaTo} disabled={selectedStaff.email.toLowerCase() === permanentDirectorEmail} /></Field>}<Field label="Status"><DarkSelect value={selectedStaff.email.toLowerCase() === permanentDirectorEmail ? "Active" : staffEditStatus} onChange={value => setStaffEditStatus(value as AdminAccountStatus)} disabled={selectedStaff.email.toLowerCase() === permanentDirectorEmail}>{staffStatuses.map(status => <option key={status} value={status}>{formatStatus(status)}</option>)}</DarkSelect></Field><PermissionEditor title="Permissions" permissions={selectedStaff.email.toLowerCase() === permanentDirectorEmail ? allPermissions() : staffEditPermissions} setPermissions={setStaffEditPermissions} disabled={selectedStaff.email.toLowerCase() === permanentDirectorEmail} /><Field label="Internal staff notes"><DarkTextarea value={staffEditNotes} onChange={setStaffEditNotes} rows={5} /></Field></div><button type="submit" disabled={saving} className="mt-5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-600">{saving ? "Saving..." : "Save Staff Permissions"}</button></form>}</div></div></div>
+              <div className="space-y-6"><div className="grid gap-6 xl:grid-cols-[420px_1fr]"><aside className="space-y-6"><div className="rounded-xl border border-slate-800 bg-slate-900 p-5"><h2 className="text-lg font-bold text-white">Search staff</h2><DarkInput value={staffSearch} onChange={setStaffSearch} placeholder="Name, email, role, status, PA to" className="mt-4" /></div><form onSubmit={handleCreateStaff} className="rounded-xl border border-slate-800 bg-slate-900 p-5 shadow-sm"><h2 className="text-lg font-bold text-white">Invite staff user</h2><p className="mt-1 text-sm text-slate-400">The invitee sets their own password from the invite link.</p><div className="mt-4 grid gap-3"><DarkInput value={createStaffFirstName} onChange={setCreateStaffFirstName} placeholder="First name" /><DarkInput value={createStaffLastName} onChange={setCreateStaffLastName} placeholder="Last name" /><DarkInput value={createStaffEmail} onChange={setCreateStaffEmail} placeholder="Staff email" type="email" /><DarkSelect value={createStaffRole} onChange={value => setCreateStaffRole(value as StaffRole)}>{staffRoles.map(role => <option key={role} value={role}>{role}</option>)}</DarkSelect>{createStaffRole === "Personal Assistant" && <DarkInput value={createStaffPaTo} onChange={setCreateStaffPaTo} placeholder="PA to" />}<PermissionEditor title="Initial permissions" permissions={createStaffPermissions} setPermissions={setCreateStaffPermissions} /><DarkTextarea value={createStaffNotes} onChange={setCreateStaffNotes} placeholder="Internal staff notes" rows={4} /><button type="submit" disabled={saving} className="rounded-lg bg-white px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-slate-200 disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300">{saving ? "Creating invite..." : "Create invite"}</button></div></form></aside><div className="space-y-6"><StaffList title="Current staff" subtitle="Active and suspended staff accounts. Click heading to hide selected details." users={filteredStaffUsers.current} selectedStaff={selectedStaff} loading={loadingStaff} onSelect={selectStaff} onHeaderClick={() => setSelectedStaff(null)} onAuditClick={searchAuditForStaff} emptyText="No current staff found." /><StaffList title="Previous staff" subtitle="Cancelled staff accounts are kept here for history. Click heading to hide selected details." users={filteredStaffUsers.previous} selectedStaff={selectedStaff} loading={loadingStaff} onSelect={selectStaff} onHeaderClick={() => setSelectedStaff(null)} onAuditClick={searchAuditForStaff} emptyText="No previous staff found." />{selectedStaff && <form onSubmit={handleSaveStaffPermissions} className="rounded-xl border border-slate-800 bg-slate-900 p-5 shadow-sm"><h2 className="text-lg font-bold text-white">Staff permissions</h2><p className="mt-1 text-sm text-slate-400">{selectedStaff.email}</p>{selectedStaff.email.toLowerCase() === permanentDirectorEmail && <div className="mt-4 rounded-lg border border-blue-500/40 bg-blue-500/10 p-3 text-sm text-blue-100">Permanent Director account. Full access is protected.</div>}<div className="mt-5 grid gap-4"><Field label="Role"><DarkSelect value={selectedStaff.email.toLowerCase() === permanentDirectorEmail ? "Director" : staffEditRole} onChange={value => setStaffEditRole(value as StaffRole)} disabled={selectedStaff.email.toLowerCase() === permanentDirectorEmail}>{staffRoles.map(role => <option key={role} value={role}>{role}</option>)}</DarkSelect></Field>{staffEditRole === "Personal Assistant" && <Field label="PA to"><DarkInput value={staffEditPaTo} onChange={setStaffEditPaTo} disabled={selectedStaff.email.toLowerCase() === permanentDirectorEmail} /></Field>}<Field label="Status"><DarkSelect value={selectedStaff.email.toLowerCase() === permanentDirectorEmail ? "Active" : staffEditStatus} onChange={value => setStaffEditStatus(value as AdminAccountStatus)} disabled={selectedStaff.email.toLowerCase() === permanentDirectorEmail}>{staffStatuses.map(status => <option key={status} value={status}>{formatStatus(status)}</option>)}</DarkSelect></Field><PermissionEditor title="Permissions" permissions={selectedStaff.email.toLowerCase() === permanentDirectorEmail ? allPermissions() : staffEditPermissions} setPermissions={setStaffEditPermissions} disabled={selectedStaff.email.toLowerCase() === permanentDirectorEmail} /><Field label="Internal staff notes"><DarkTextarea value={staffEditNotes} onChange={setStaffEditNotes} rows={5} /></Field></div><button type="submit" disabled={saving} className="mt-5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-600">{saving ? "Saving..." : "Save Staff Permissions"}</button></form>}</div></div></div>
             )}
 
             {activeSection === "audit" && canSeeAuditLogs && (

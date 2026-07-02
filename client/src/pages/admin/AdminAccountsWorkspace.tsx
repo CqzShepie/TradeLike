@@ -32,6 +32,7 @@ export default function AdminAccountsWorkspace() {
   const [accountSource, setAccountSource] = useState("");
   const [cancelReason, setCancelReason] = useState("");
   const [adminNotes, setAdminNotes] = useState("");
+  const [changeReason, setChangeReason] = useState("");
 
   const stats = useMemo(() => ({
     total: users.length,
@@ -88,11 +89,17 @@ export default function AdminAccountsWorkspace() {
     setAccountSource(user.accountSource ?? "");
     setCancelReason(user.cancelReason ?? "");
     setAdminNotes(user.adminNotes ?? "");
+    setChangeReason("");
   }
 
   async function saveAccount(event: React.FormEvent) {
     event.preventDefault();
     if (!selected) return;
+    if (changeReason.trim() === "") {
+      setError("Reason is required before saving sensitive Studio account changes.");
+      setMessage("");
+      return;
+    }
 
     try {
       setSaving(true);
@@ -115,6 +122,7 @@ export default function AdminAccountsWorkspace() {
         accountSource,
         cancelReason,
         adminNotes,
+        reason: changeReason,
       });
       setUsers(previous => previous.map(user => user.id === updated.id ? updated : user));
       setSelected(updated);
@@ -240,6 +248,7 @@ export default function AdminAccountsWorkspace() {
                 <Field label="Tags"><DarkInput value={adminTags} onChange={setAdminTags} /></Field>
                 <Field label="Support notes"><DarkTextarea value={supportNotes} onChange={setSupportNotes} rows={5} /></Field>
                 <Field label="Admin notes"><DarkTextarea value={adminNotes} onChange={setAdminNotes} rows={5} /></Field>
+                <Field label="Reason for change"><DarkTextarea value={changeReason} onChange={setChangeReason} rows={4} /></Field>
               </div>
               <button type="submit" disabled={saving} className="mt-5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:bg-slate-600">{saving ? "Saving..." : "Save customer"}</button>
             </section>

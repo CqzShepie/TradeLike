@@ -6,6 +6,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using TradeLike.Api.Api.Payments;
 using TradeLike.Api.Api.RoutePlanner;
+using TradeLike.Api.Contracts.Admin;
 using TradeLike.Api.Controllers;
 using TradeLike.Api.Data;
 using TradeLike.Api.Models;
@@ -123,6 +124,80 @@ public sealed class AuthorizationHardeningTests
     }
 
     [Fact]
+    public async Task CustomerDirectorCannotAccessStudioCustomerList()
+    {
+        await using var context = CreateContext();
+        context.Users.Add(BuildUser(
+            id: 1,
+            email: "owner@example.com",
+            role: CustomerRoles.Director,
+            tenantId: 1,
+            plan: "Solo"));
+        await context.SaveChangesAsync();
+
+        var controller = new AdminUserController(context)
+        {
+            ControllerContext = new ControllerContext
+            {
+                HttpContext = HttpContextForStudioUser("owner@example.com")
+            }
+        };
+
+        var result = await controller.GetUsers(null);
+
+        Assert.IsType<ForbidResult>(result.Result);
+    }
+
+    [Fact]
+    public async Task StudioCustomerListIncludesCustomerRolesAndExcludesInternalStaff()
+    {
+        await using var context = CreateContext();
+        context.Users.AddRange(
+            BuildUser(
+                id: 1,
+                email: "studio@example.com",
+                role: "Director",
+                tenantId: 100,
+                plan: "Internal",
+                canManageAccounts: true),
+            BuildUser(
+                id: 2,
+                email: "director@example.com",
+                role: CustomerRoles.Director,
+                tenantId: 2,
+                plan: "Solo"),
+            BuildUser(
+                id: 3,
+                email: "manager@example.com",
+                role: CustomerRoles.Manager,
+                tenantId: 3,
+                plan: "Team"),
+            BuildUser(
+                id: 4,
+                email: "support@example.com",
+                role: "Support",
+                tenantId: 100,
+                plan: "Internal"));
+        await context.SaveChangesAsync();
+
+        var controller = new AdminUserController(context)
+        {
+            ControllerContext = new ControllerContext
+            {
+                HttpContext = HttpContextForStudioUser("studio@example.com")
+            }
+        };
+
+        var result = await controller.GetUsers(null);
+        var ok = Assert.IsType<OkObjectResult>(result.Result);
+        var users = Assert.IsAssignableFrom<IReadOnlyList<AdminUserResponse>>(ok.Value);
+
+        Assert.Contains(users, user => user.Email == "director@example.com");
+        Assert.Contains(users, user => user.Email == "manager@example.com");
+        Assert.DoesNotContain(users, user => user.Email == "support@example.com");
+    }
+
+    [Fact]
     [Trait("Category", "Route")]
     public async Task DailyRouteRequiresDate()
     {
@@ -188,6 +263,34 @@ public sealed class AuthorizationHardeningTests
         return new TradeLikeDbContext(options);
     }
 
+    private static User BuildUser(
+        int id,
+        string email,
+        string role,
+        int tenantId,
+        string plan,
+        bool canManageAccounts = false)
+    {
+        return new User
+        {
+            Id = id,
+            TenantId = tenantId,
+            FirstName = "Test",
+            LastName = "User",
+            Email = email,
+            PasswordHash = "hash",
+            Role = role,
+            AccountStatus = "Active",
+            SubscriptionPlan = plan,
+            BillingStatus = plan == "Internal" ? "Internal" : "Active",
+            DiscountType = "None",
+            HealthStatus = "Green",
+            CanManageAccounts = canManageAccounts,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+    }
+
     private static HttpContext HttpContextForTenant(int tenantId, string role)
     {
         var identity = new ClaimsIdentity(new[]
@@ -195,6 +298,19 @@ public sealed class AuthorizationHardeningTests
             new Claim("tid", tenantId.ToString()),
             new Claim(ClaimTypes.NameIdentifier, "1"),
             new Claim(ClaimTypes.Role, role)
+        }, "Test");
+
+        return new DefaultHttpContext
+        {
+            User = new ClaimsPrincipal(identity)
+        };
+    }
+
+    private static HttpContext HttpContextForStudioUser(string email)
+    {
+        var identity = new ClaimsIdentity(new[]
+        {
+            new Claim(ClaimTypes.Email, email)
         }, "Test");
 
         return new DefaultHttpContext

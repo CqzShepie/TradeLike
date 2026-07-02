@@ -74,6 +74,55 @@ public sealed class UpdateAdminUserAccountRequest
     public string CancelReason { get; init; } = string.Empty;
 
     public string AdminNotes { get; init; } = string.Empty;
+
+    public string Reason { get; init; } = string.Empty;
+}
+
+public sealed class UpdateCustomerPlanRequest
+{
+    public string Plan { get; init; } = "Solo";
+
+    public int SeatsPurchased { get; init; } = 1;
+
+    public string? BillingStatus { get; init; }
+
+    public string Reason { get; init; } = string.Empty;
+}
+
+public sealed class UpdateCustomerDiscountRequest
+{
+    public string DiscountType { get; init; } = "None";
+
+    public decimal DiscountValue { get; init; }
+
+    public DateTime? ExpiresAtUtc { get; init; }
+
+    public string Reason { get; init; } = string.Empty;
+}
+
+public sealed class UpdateCustomerFreeMonthsRequest
+{
+    public int FreeMonths { get; init; }
+
+    public DateTime? ExpiresAtUtc { get; init; }
+
+    public string Reason { get; init; } = string.Empty;
+}
+
+public sealed class UpdateCustomerStatusRequest
+{
+    public string AccountStatus { get; init; } = "Active";
+
+    public string? BillingStatus { get; init; }
+
+    public string Reason { get; init; } = string.Empty;
+}
+
+public sealed class AddCustomerSupportNoteRequest
+{
+    public string Note { get; init; } = string.Empty;
+
+    public string[] Tags { get; init; } = Array.Empty<string>();
 }
 
 public sealed class ResetAdminUserPasswordRequest

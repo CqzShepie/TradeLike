@@ -71,6 +71,16 @@ const soloDirector: AuthUser = {
   canViewSecurityLogs: false,
 };
 
+const internalDirector: AuthUser = {
+  ...soloDirector,
+  id: 99,
+  email: "studio@example.com",
+  name: "Studio Director",
+  role: "Director",
+  plan: "Internal",
+  canViewAuditLogs: true,
+};
+
 describe("AppRouter entitlement guards", () => {
   beforeEach(() => {
     localStorage.clear();
@@ -127,6 +137,22 @@ describe("AppRouter entitlement guards", () => {
     renderRouter("/reports/overview");
 
     expect(screen.getByRole("heading", { name: /upgrade required/i })).toBeInTheDocument();
+  });
+
+  it("allows an internal Director to visit Studio", () => {
+    setSession(internalDirector);
+
+    renderRouter("/admin");
+
+    expect(screen.getByRole("heading", { name: "Admin page" })).toBeInTheDocument();
+  });
+
+  it("shows AccessDenied when a customer Director visits Studio", () => {
+    setSession(soloDirector);
+
+    renderRouter("/admin");
+
+    expect(screen.getByRole("heading", { name: /access denied/i })).toBeInTheDocument();
   });
 });
 

@@ -119,4 +119,8 @@ describe("navigation entitlements", () => {
       "Automations",
     ]));
   });
+
+  it("does not treat internal Studio Directors as customer app Directors", () => {
+    expect(access("/jobs", user({ role: "Director", plan: "Internal" }))).toBe("denied");
+  });
 });
