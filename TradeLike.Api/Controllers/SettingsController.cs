@@ -204,8 +204,6 @@ public sealed class SettingsController : ControllerBase
         {
             var settings = await GetOrCreateSettingsAsync(tenantId, currentUser);
             settings.DefaultVatRate = ClampVat(request.DefaultVatRate);
-            settings.QuotePrefix = Required(request.QuotePrefix, "Quote prefix", 20).ToUpperInvariant();
-            settings.InvoicePrefix = Required(request.InvoicePrefix, "Invoice prefix", 20).ToUpperInvariant();
             settings.QuoteExpiryDays = ClampDays(request.QuoteExpiryDays, "Quote expiry days");
             settings.PaymentTerms = Clean(request.PaymentTerms, 1000);
             settings.DefaultQuoteNotes = Clean(request.DefaultQuoteNotes, 2000);
@@ -279,7 +277,6 @@ public sealed class SettingsController : ControllerBase
         {
             var settings = await GetOrCreateSettingsAsync(tenantId, currentUser);
             settings.LowStockThreshold = ClampLowStockThreshold(request.LowStockThreshold);
-            settings.PurchaseOrderPrefix = Required(request.PurchaseOrderPrefix, "Purchase order prefix", 20).ToUpperInvariant();
             settings.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
 

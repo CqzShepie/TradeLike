@@ -69,7 +69,8 @@ describe("overnight regression smoke coverage", () => {
     const businessSettings = getSettingsNavigation({ ...baseUser, plan: "Business" }).map(item => item.label);
 
     expect(soloSidebar).not.toEqual(expect.arrayContaining(["Team", "Inventory", "API & Webhooks", "Branding", "Import / Export"]));
-    expect(businessSettings).toEqual(expect.arrayContaining(["API & Webhooks", "Branding", "Import / Export", "Full Data Export"]));
+    expect(businessSettings).toEqual(expect.arrayContaining(["API & Webhooks", "Import / Export", "Full Data Export"]));
+    expect(businessSettings).not.toContain("Branding");
   });
 
   it("renders UpgradeRequired with a clean plan message", () => {
@@ -111,7 +112,8 @@ describe("overnight regression smoke coverage", () => {
     );
 
     expect(screen.getByRole("button", { name: /sign in to studio/i })).toBeInTheDocument();
-    expect(screen.getByText(/internal staff access/i)).toBeInTheDocument();
+    expect(screen.getByText(/go to customer login/i)).toBeInTheDocument();
+    expect(screen.queryByText(/internal staff access/i)).not.toBeInTheDocument();
   });
 
   it("job form keeps Job needed wording and validates the required field", async () => {

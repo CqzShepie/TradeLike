@@ -88,6 +88,27 @@ describe("navigation entitlements", () => {
     expect(settingsLabels).not.toEqual(expect.arrayContaining(["API & Webhooks", "Webhooks", "Branding", "Import / Export"]));
   });
 
+  it.each(["Solo", "Team"] as const)(
+    "hides Inventory for %s plans",
+    plan => {
+      const sidebarLabels = getSidebarNavigation(user({ role: "CustomerDirector", plan })).map(item => item.label);
+
+      expect(sidebarLabels).not.toContain("Inventory");
+      expect(access("/inventory", user({ role: "CustomerDirector", plan }))).toBe("upgrade");
+    }
+  );
+
+  it.each(["Business", "Enterprise"] as const)(
+    "allows %s plans to access Inventory",
+    plan => {
+      const authUser = user({ role: "CustomerDirector", plan });
+      const sidebarLabels = getSidebarNavigation(authUser).map(item => item.label);
+
+      expect(sidebarLabels).toContain("Inventory");
+      expect(access("/inventory", authUser)).toBe("allowed");
+    }
+  );
+
   it("allows Team CustomerManager to see Team and staff scheduling", () => {
     const teamManager = user({ role: "CustomerManager", plan: "Team" });
     const sidebarLabels = getSidebarNavigation(teamManager).map(item => item.label);
@@ -122,6 +143,7 @@ describe("navigation entitlements", () => {
     const settingsLabels = getSettingsNavigation(businessDirector).map(item => item.label);
 
     expect(settingsLabels).toEqual(expect.arrayContaining(["API & Webhooks", "Webhooks"]));
+    expect(settingsLabels).not.toContain("Branding");
   });
 
   it("allows Enterprise directors to see plan-gated sections", () => {
@@ -133,11 +155,11 @@ describe("navigation entitlements", () => {
     expect(settingsLabels).toEqual(expect.arrayContaining([
       "API & Webhooks",
       "Webhooks",
-      "Branding",
       "Import / Export",
       "Full Data Export",
       "Automations",
     ]));
+    expect(settingsLabels).not.toContain("Branding");
   });
 
   it("does not treat internal Studio Directors as customer app Directors", () => {

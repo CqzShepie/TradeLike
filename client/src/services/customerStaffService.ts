@@ -20,7 +20,7 @@ export type CustomerStaffMember = {
   email: string;
   phone: string;
   roleName: string;
-  status: "InvitePending" | "Active" | "Suspended" | "Left";
+  status: "InvitePending" | "Active" | "Suspended" | "Left" | "Cancelled";
   permissionPresetName: string;
   skills: string;
   serviceArea: string;

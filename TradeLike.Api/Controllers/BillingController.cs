@@ -1,11 +1,15 @@
 using System.Security.Cryptography;
+using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
+using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TradeLike.Api.Data;
+using TradeLike.Api.Models;
 using TradeLike.Api.Security;
+using TradeLike.Api.Services.Plans;
 
 namespace TradeLike.Api.Controllers;
 
@@ -45,6 +49,91 @@ public sealed class BillingController : ControllerBase
             subscription.BillingStartUtc,
             subscription.NextInvoiceDateUtc,
             subscription.Status));
+    }
+
+    [Authorize(Policy = "RequireDirectorRole")]
+    [PlanGuard(Feature.Billing)]
+    [HttpPost("plan-change")]
+    public async Task<ActionResult<BillingPlanChangeResponse>> RequestPlanChange(
+        BillingPlanChangeRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(request.PlanName))
+        {
+            return BadRequest(new { error = "Choose a plan before confirming." });
+        }
+
+        if (!request.Confirmed)
+        {
+            return BadRequest(new { error = "Confirm the plan change request before submitting." });
+        }
+
+        var tenantId = TenantHelpers.GetTenantId(HttpContext);
+        var userId = TryGetCurrentUserId();
+        if (userId is null)
+        {
+            return Unauthorized();
+        }
+
+        var user = await _context.Users.FirstOrDefaultAsync(
+            existingUser => existingUser.Id == userId.Value && (existingUser.TenantId == tenantId || existingUser.Id == tenantId),
+            cancellationToken);
+
+        if (user is null)
+        {
+            return Unauthorized();
+        }
+
+        try
+        {
+            var planService = new SubscriptionPlanService(_context);
+            var seats = await planService.GetCompatibleSeatCountAsync(user, request.PlanName, cancellationToken);
+            var planChange = await planService.ApplyCustomerPlanChangeAsync(
+                user,
+                request.PlanName,
+                seats,
+                "Active",
+                cancellationToken);
+
+            await _context.AdminAuditLogs.AddAsync(new AdminAuditLog
+            {
+                TenantId = tenantId,
+                ActorUserId = user.Id,
+                ActorEmail = user.Email,
+                ActorName = $"{user.FirstName} {user.LastName}".Trim(),
+                ActorRole = user.Role,
+                Action = "Billing plan change request",
+                TargetType = "Subscription",
+                TargetId = tenantId,
+                TargetEmail = user.Email,
+                Summary = $"Plan change requested: {planChange.OldPlan} to {planChange.NewPlan}.",
+                Details = planChange.ToAuditDetails("Customer settings billing modal"),
+                IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
+                UserAgent = Request.Headers["User-Agent"].ToString()
+            }, cancellationToken);
+
+            await _context.SaveChangesAsync(cancellationToken);
+
+            var subscription = await GetSubscriptionAsync(tenantId);
+            if (subscription?.Plan is null)
+            {
+                return StatusCode(StatusCodes.Status500InternalServerError, new { error = "Plan changed, but subscription could not be reloaded." });
+            }
+
+            return Ok(new BillingPlanChangeResponse(
+                "Plan change request saved. No payment has been taken in this preview flow.",
+                subscription.Plan.Name,
+                subscription.Plan.MonthlyPricePence,
+                subscription.Plan.MaxIncludedUsers,
+                subscription.SeatsPurchased,
+                subscription.BillingStartUtc,
+                subscription.NextInvoiceDateUtc,
+                subscription.Status));
+        }
+        catch (ValidationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
     }
 
     [HttpPost("stripe-webhook")]
@@ -94,6 +183,12 @@ public sealed class BillingController : ControllerBase
             .FirstOrDefaultAsync(item => item.TenantId == tenantId);
     }
 
+    private int? TryGetCurrentUserId()
+    {
+        var rawUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        return int.TryParse(rawUserId, out var userId) ? userId : null;
+    }
+
     private static int? TryGetTenantId(JsonElement root)
     {
         if (!root.TryGetProperty("data", out var data) ||
@@ -140,6 +235,18 @@ public sealed class BillingController : ControllerBase
 }
 
 public sealed record BillingSubscriptionResponse(
+    string PlanName,
+    int? MonthlyPricePence,
+    int? MaxIncludedUsers,
+    int SeatsPurchased,
+    DateTime BillingStartUtc,
+    DateTime NextInvoiceDateUtc,
+    string Status);
+
+public sealed record BillingPlanChangeRequest(string PlanName, bool Confirmed);
+
+public sealed record BillingPlanChangeResponse(
+    string Message,
     string PlanName,
     int? MonthlyPricePence,
     int? MaxIncludedUsers,

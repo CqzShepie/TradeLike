@@ -68,7 +68,10 @@ describe("staff access", () => {
     );
 
     expect(screen.getAllByText("TradeLike Studio")).toHaveLength(2);
-    expect(screen.getByText("Internal staff access")).toBeInTheDocument();
+    expect(screen.queryByText("Internal staff access")).not.toBeInTheDocument();
+    expect(screen.queryByText("Use your internal TradeLike credentials.")).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Go to customer login" })).toHaveAttribute("href", "/login");
+    expect(screen.queryByText(/Customer workspace/i)).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /sign in to studio/i })).toBeInTheDocument();
   });
 
@@ -141,17 +144,14 @@ describe("staff access", () => {
     expect(screen.getByText("This login is for TradeLike staff only.")).toBeInTheDocument();
   });
 
-  it("shows the staff portal link on customer login", () => {
+  it("does not show the staff portal link on customer login", () => {
     render(
       <MemoryRouter>
         <Login />
       </MemoryRouter>
     );
 
-    expect(screen.getByRole("link", { name: /staff admin portal/i })).toHaveAttribute(
-      "href",
-      "/staff-login"
-    );
+    expect(screen.queryByRole("link", { name: /staff admin portal/i })).not.toBeInTheDocument();
   });
 });
 

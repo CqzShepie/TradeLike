@@ -3,6 +3,7 @@ import FeatureGrid from "../components/home/FeatureGrid";
 import HeroSection from "../components/home/HeroSection";
 import HomeFooter from "../components/home/HomeFooter";
 import HomeHeader from "../components/home/HomeHeader";
+import PricingSection from "../components/home/PricingSection";
 import ProblemSection from "../components/home/ProblemSection";
 import ProductPreview from "../components/home/ProductPreview";
 import RoleBenefits from "../components/home/RoleBenefits";
@@ -20,6 +21,7 @@ export default function Home() {
         <ProblemSection />
         <FeatureGrid />
         <WorkflowSection />
+        <PricingSection />
         <RoleBenefits />
         <TrialCta />
         <FaqSection />

@@ -40,7 +40,7 @@ export default function JobDetailsAssignmentPanel({ job }: Props) {
         return;
       }
 
-      setMembers(workspace.members.filter(member => member.status !== "Left"));
+      setMembers(workspace.members.filter(member => member.status === "Active"));
       setTeams(workspace.teams);
       setAssignments(rows);
     }
@@ -54,6 +54,7 @@ export default function JobDetailsAssignmentPanel({ job }: Props) {
 
   const assignment = useMemo(() => assignments.find(item => item.jobId === job.id), [assignments, job.id]);
   const leadStaffMemberId = assignment?.leadStaffMemberId ?? null;
+  const leadMember = members.find(member => member.id === leadStaffMemberId);
   const selectedStaffIds = (assignment?.assignedStaffMemberIds ?? []).filter(id => id !== leadStaffMemberId);
   const staffOptions = members.filter(member => member.id !== leadStaffMemberId);
 
@@ -98,6 +99,15 @@ export default function JobDetailsAssignmentPanel({ job }: Props) {
     });
   }
 
+  function clearAssignment() {
+    update({
+      assignedTeamId: null,
+      leadStaffMemberId: null,
+      assignedStaffMemberIds: [],
+      calendarColour: "blue",
+    });
+  }
+
   if (!showStaffScheduling) {
     return null;
   }
@@ -108,6 +118,19 @@ export default function JobDetailsAssignmentPanel({ job }: Props) {
       <p className="mt-1 text-sm text-slate-400">
         Assign a team, one lead engineer, and several extra staff members.
       </p>
+
+      <div className="mt-4 rounded-lg border border-white/10 bg-white/[0.03] p-3 text-sm text-slate-300">
+        <p className="font-semibold text-slate-100">Current assignment</p>
+        <p className="mt-1">
+          {leadStaffMemberId
+            ? leadMember
+              ? `${leadMember.firstName} ${leadMember.lastName}`
+              : "Lead engineer selected"
+            : selectedStaffIds.length
+              ? `${selectedStaffIds.length} staff assigned`
+              : "Unassigned"}
+        </p>
+      </div>
 
       <div className="mt-4 grid gap-3">
         <select
@@ -148,6 +171,15 @@ export default function JobDetailsAssignmentPanel({ job }: Props) {
         </div>
 
         {saving && <p className="text-xs text-slate-500">Saving...</p>}
+
+        <button
+          type="button"
+          onClick={clearAssignment}
+          disabled={saving || (!assignment?.assignedTeamId && !assignment?.leadStaffMemberId && (assignment?.assignedStaffMemberIds.length ?? 0) === 0)}
+          className="rounded-lg border border-white/10 px-3 py-2 text-sm font-semibold text-slate-100 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Unassign job
+        </button>
       </div>
     </section>
   );

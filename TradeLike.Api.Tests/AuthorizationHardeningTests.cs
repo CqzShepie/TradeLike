@@ -452,6 +452,200 @@ public sealed class AuthorizationHardeningTests
     }
 
     [Fact]
+    public async Task CustomerSettingsUpdatesPreserveSystemDocumentAndPurchaseOrderPrefixes()
+    {
+        await using var context = CreateContext();
+        context.Users.Add(BuildUser(1, "owner@example.com", CustomerRoles.Director, 1, "Business"));
+        context.BusinessSettings.Add(new BusinessSettings
+        {
+            TenantId = 1,
+            BusinessName = "Acme Heating",
+            QuotePrefix = "Q",
+            InvoicePrefix = "INV",
+            DefaultVatRate = 20m,
+            QuoteExpiryDays = 30,
+            DefaultJobPriority = "Normal",
+            DefaultScheduleView = "Week",
+            DefaultReportRange = "30d",
+            LowStockThreshold = 5,
+            PurchaseOrderPrefix = "PO"
+        });
+        await SeedSubscriptionRowAsync(context, 1, "Business", 1, 10);
+        await context.SaveChangesAsync();
+
+        var controller = new SettingsController(context)
+        {
+            ControllerContext = new ControllerContext
+            {
+                HttpContext = HttpContextForUser(1, 1, CustomerRoles.Director)
+            }
+        };
+
+        var documentResult = await controller.UpdateDocumentDefaults(new UpdateDocumentDefaultsSettingsRequest(
+            20m,
+            "CUSTOMQ",
+            "CUSTOMINV",
+            30,
+            "14 days",
+            null,
+            null,
+            null,
+            null));
+        var inventoryResult = await controller.UpdateInventoryDefaults(new UpdateInventoryDefaultsSettingsRequest(
+            8,
+            "CUSTOMPO"));
+
+        Assert.IsType<OkObjectResult>(documentResult.Result);
+        Assert.IsType<OkObjectResult>(inventoryResult.Result);
+
+        var settings = await context.BusinessSettings.SingleAsync(setting => setting.TenantId == 1);
+        Assert.Equal("Q", settings.QuotePrefix);
+        Assert.Equal("INV", settings.InvoicePrefix);
+        Assert.Equal("PO", settings.PurchaseOrderPrefix);
+        Assert.Equal(8, settings.LowStockThreshold);
+    }
+
+    [Fact]
+    public async Task BusinessSettingsUpdatePreservesSystemPrefixes()
+    {
+        await using var context = CreateContext();
+        context.BusinessSettings.Add(new BusinessSettings
+        {
+            TenantId = 1,
+            BusinessName = "Acme Heating",
+            QuotePrefix = "Q",
+            InvoicePrefix = "INV",
+            DefaultVatRate = 20m,
+            QuoteExpiryDays = 30,
+            DefaultJobPriority = "Normal",
+            DefaultScheduleView = "Week",
+            DefaultReportRange = "30d",
+            LowStockThreshold = 5,
+            PurchaseOrderPrefix = "PO"
+        });
+        await context.SaveChangesAsync();
+
+        var controller = new BusinessSettingsController(context)
+        {
+            ControllerContext = new ControllerContext
+            {
+                HttpContext = HttpContextForTenant(1, CustomerRoles.Director)
+            }
+        };
+
+        var result = await controller.Update(new UpdateBusinessSettingsRequest(
+            "Acme Heating",
+            "Acme Heating Ltd",
+            null,
+            "1 Trade Street",
+            null,
+            "London",
+            null,
+            "E1 1AA",
+            "United Kingdom",
+            "02070000000",
+            "office@acme.test",
+            "https://acme.test",
+            "GB123",
+            "12345678",
+            20m,
+            "CUSTOMQ",
+            "CUSTOMINV",
+            "14 days",
+            30,
+            null,
+            null,
+            null,
+            "Normal",
+            "Week",
+            "30d",
+            true,
+            false,
+            8,
+            "CUSTOMPO",
+            null,
+            null,
+            null,
+            null,
+            null));
+
+        Assert.IsType<OkObjectResult>(result.Result);
+
+        var settings = await context.BusinessSettings.SingleAsync(setting => setting.TenantId == 1);
+        Assert.Equal("Q", settings.QuotePrefix);
+        Assert.Equal("INV", settings.InvoicePrefix);
+        Assert.Equal("PO", settings.PurchaseOrderPrefix);
+        Assert.Equal(8, settings.LowStockThreshold);
+    }
+
+    [Fact]
+    public async Task BillingPlanChangeRequiresConfirmation()
+    {
+        await using var context = CreateContext();
+        context.Users.Add(BuildUser(1, "owner@example.com", CustomerRoles.Director, 1, "Solo"));
+        await SeedSubscriptionRowAsync(context, 1, "Solo", 1, 1);
+
+        var controller = new BillingController(
+            context,
+            new ConfigurationBuilder().Build(),
+            NullLogger<BillingController>.Instance)
+        {
+            ControllerContext = new ControllerContext
+            {
+                HttpContext = HttpContextForUser(1, 1, CustomerRoles.Director)
+            }
+        };
+
+        var result = await controller.RequestPlanChange(new BillingPlanChangeRequest("Team", false), CancellationToken.None);
+
+        Assert.IsType<BadRequestObjectResult>(result.Result);
+    }
+
+    [Fact]
+    public async Task BillingPlanChangeKeepsUserAndSubscriptionPlanConsistent()
+    {
+        await using var context = CreateContext();
+        context.Plans.AddRange(
+            new Plan { Id = 1, Name = "Solo", MonthlyPricePence = 3500, MaxIncludedUsers = 1 },
+            new Plan { Id = 2, Name = "Team", MonthlyPricePence = 7500, MaxIncludedUsers = 10 });
+        context.Users.Add(BuildUser(1, "owner@example.com", CustomerRoles.Director, 1, "Solo"));
+        context.Subscriptions.Add(new Subscription
+        {
+            TenantId = 1,
+            PlanId = 1,
+            SeatsPurchased = 1,
+            BillingStartUtc = DateTime.UtcNow.AddDays(-14),
+            NextInvoiceDateUtc = DateTime.UtcNow.AddDays(14),
+            Status = "Active"
+        });
+        await context.SaveChangesAsync();
+
+        var controller = new BillingController(
+            context,
+            new ConfigurationBuilder().Build(),
+            NullLogger<BillingController>.Instance)
+        {
+            ControllerContext = new ControllerContext
+            {
+                HttpContext = HttpContextForUser(1, 1, CustomerRoles.Director)
+            }
+        };
+
+        var result = await controller.RequestPlanChange(new BillingPlanChangeRequest("Team", true), CancellationToken.None);
+
+        var ok = Assert.IsType<OkObjectResult>(result.Result);
+        var payload = Assert.IsType<BillingPlanChangeResponse>(ok.Value);
+        var user = await context.Users.SingleAsync(existingUser => existingUser.Id == 1);
+        var subscription = await context.Subscriptions.SingleAsync(existingSubscription => existingSubscription.TenantId == 1);
+
+        Assert.Equal("Team", payload.PlanName);
+        Assert.Equal("Team", user.SubscriptionPlan);
+        Assert.Equal(2, subscription.PlanId);
+        Assert.Equal(2, subscription.SeatsPurchased);
+        Assert.Contains(await context.AdminAuditLogs.ToListAsync(), log => log.Action == "Billing plan change request");
+    }
+
+    [Fact]
     public async Task TeamMemberListExcludesInternalStaff()
     {
         await using var context = CreateContext();
@@ -502,6 +696,147 @@ public sealed class AuthorizationHardeningTests
         var badRequest = Assert.IsType<BadRequestObjectResult>(result.Result);
         Assert.Equal("CustomerEmployee", (await context.Users.SingleAsync(user => user.Id == 2)).Role);
         Assert.Contains("CustomerManager or CustomerEmployee", badRequest.Value!.ToString());
+    }
+
+    [Fact]
+    public async Task JobAssignmentRejectsNonTenantOrInternalStaff()
+    {
+        await using var context = CreateContext();
+        context.Jobs.Add(new Job
+        {
+            Id = 10,
+            TenantId = 1,
+            Customer = "Customer",
+            Phone = "07123456789",
+            JobTitle = "Boiler service",
+            Address = "1 Trade Street",
+            ScheduledDate = DateTime.Today.AddDays(1),
+            Status = "Scheduled",
+            Priority = "Normal"
+        });
+        context.Users.Add(BuildUser(99, "studio@example.com", CustomerRoles.LegacyDirector, 1, "Internal"));
+        context.CustomerStaffMembers.Add(new CustomerStaffMember
+        {
+            Id = 20,
+            CompanyUserId = 2,
+            FirstName = "Other",
+            LastName = "Tenant",
+            Email = "other@example.com",
+            Phone = "07123456789",
+            RoleName = "Engineer",
+            Status = "Active",
+            PermissionPresetName = "Engineer",
+            Skills = string.Empty,
+            ServiceArea = string.Empty,
+            WorkingHours = string.Empty,
+            CalendarColour = "blue"
+        });
+        await context.SaveChangesAsync();
+
+        var controller = new JobAssignmentsController(context)
+        {
+            ControllerContext = new ControllerContext
+            {
+                HttpContext = HttpContextForTenant(1, CustomerRoles.Manager)
+            }
+        };
+
+        var internalStaffResult = await controller.UpdateAssignment(
+            10,
+            new UpdateJobAssignmentRequest(null, 99, [], null, "blue"));
+        var otherTenantResult = await controller.UpdateAssignment(
+            10,
+            new UpdateJobAssignmentRequest(null, 20, [], null, "blue"));
+
+        Assert.IsType<NotFoundResult>(internalStaffResult.Result);
+        Assert.IsType<NotFoundResult>(otherTenantResult.Result);
+    }
+
+    [Fact]
+    public async Task JobAssignmentCanAssignChangeAndUnassignTenantStaff()
+    {
+        await using var context = CreateContext();
+        context.Jobs.Add(new Job
+        {
+            Id = 11,
+            TenantId = 1,
+            Customer = "Customer",
+            Phone = "07123456789",
+            JobTitle = "Boiler service",
+            Address = "1 Trade Street",
+            ScheduledDate = DateTime.Today.AddDays(1),
+            Status = "Scheduled",
+            Priority = "Normal"
+        });
+        context.CustomerStaffMembers.AddRange(
+            BuildStaffMember(30, 1, "Amy"),
+            BuildStaffMember(31, 1, "Ben"));
+        await context.SaveChangesAsync();
+
+        var controller = new JobAssignmentsController(context)
+        {
+            ControllerContext = new ControllerContext
+            {
+                HttpContext = HttpContextForTenant(1, CustomerRoles.Manager)
+            }
+        };
+
+        var assigned = await controller.UpdateAssignment(11, new UpdateJobAssignmentRequest(null, 30, [31], null, "blue"));
+        var changed = await controller.UpdateAssignment(11, new UpdateJobAssignmentRequest(null, 31, [], null, "blue"));
+        var unassigned = await controller.UpdateAssignment(11, new UpdateJobAssignmentRequest(null, null, [], null, "blue"));
+
+        Assert.IsType<OkObjectResult>(assigned.Result);
+        Assert.IsType<OkObjectResult>(changed.Result);
+        var ok = Assert.IsType<OkObjectResult>(unassigned.Result);
+        var rows = Assert.IsAssignableFrom<IReadOnlyList<JobAssignmentResponse>>(ok.Value);
+        var row = Assert.Single(rows);
+        Assert.Null(row.LeadStaffMemberId);
+        Assert.Empty(row.AssignedStaffMemberIds);
+    }
+
+    [Fact]
+    public async Task StaffLeaveIsTenantScopedAndRecordsDecision()
+    {
+        await using var context = CreateContext();
+        context.CustomerStaffMembers.AddRange(
+            BuildStaffMember(40, 1, "Tenant"),
+            BuildStaffMember(41, 2, "Other"));
+        await context.SaveChangesAsync();
+
+        var controller = new StaffLeaveRequestsController(context)
+        {
+            ControllerContext = new ControllerContext
+            {
+                HttpContext = HttpContextForUser(1, 7, CustomerRoles.Manager)
+            }
+        };
+
+        var invalidCreate = await controller.CreateLeaveRequest(new CreateStaffLeaveRequest(
+            41,
+            DateTime.Today.AddDays(7),
+            DateTime.Today.AddDays(8),
+            "Holiday",
+            "Paid"));
+        var created = await controller.CreateLeaveRequest(new CreateStaffLeaveRequest(
+            40,
+            DateTime.Today.AddDays(7),
+            DateTime.Today.AddDays(8),
+            "Holiday",
+            "Unpaid"));
+
+        Assert.IsType<BadRequestObjectResult>(invalidCreate.Result);
+        var createdResult = Assert.IsType<CreatedAtActionResult>(created.Result);
+        var createdLeave = Assert.IsType<StaffLeaveRequestResponse>(createdResult.Value);
+
+        var approved = await controller.ApproveLeaveRequest(createdLeave.Id, new LeaveDecisionRequest("Approved by manager"));
+        var ok = Assert.IsType<OkObjectResult>(approved.Result);
+        var response = Assert.IsType<StaffLeaveRequestResponse>(ok.Value);
+
+        Assert.Equal("Approved", response.Status);
+        Assert.Equal("Unpaid", response.LeaveType);
+        Assert.Equal("Approved by manager", response.DecisionNote);
+        Assert.Equal(7, response.DecidedByUserId);
+        Assert.NotNull(response.DecidedAt);
     }
 
     [Fact]
@@ -886,6 +1221,27 @@ public sealed class AuthorizationHardeningTests
             ScheduledDate = scheduledDate,
             Status = status,
             Priority = "Normal"
+        };
+    }
+
+    private static CustomerStaffMember BuildStaffMember(int id, int tenantId, string firstName)
+    {
+        return new CustomerStaffMember
+        {
+            Id = id,
+            CompanyUserId = tenantId,
+            FirstName = firstName,
+            LastName = "Engineer",
+            Email = $"{firstName.ToLowerInvariant()}-{tenantId}@example.com",
+            Phone = "07123456789",
+            RoleName = "Engineer",
+            Status = "Active",
+            PermissionPresetName = "Engineer",
+            Skills = string.Empty,
+            ServiceArea = string.Empty,
+            WorkingHours = string.Empty,
+            CalendarColour = "blue",
+            CreatedAt = DateTime.UtcNow
         };
     }
 

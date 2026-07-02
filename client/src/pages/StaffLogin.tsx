@@ -45,9 +45,6 @@ export default function StaffLogin() {
           <h1 className="mt-5 text-5xl font-bold tracking-tight text-white sm:text-6xl">
             TradeLike Studio
           </h1>
-          <p className="mt-5 text-xl font-medium text-slate-200">
-            Internal staff access
-          </p>
           <p className="mt-5 max-w-xl text-sm leading-6 text-slate-400">
             For TradeLike staff only.
           </p>
@@ -58,9 +55,6 @@ export default function StaffLogin() {
             <h2 className="text-2xl font-bold tracking-tight text-white">
               Sign in to Studio
             </h2>
-            <p className="mt-2 text-sm text-slate-400">
-              Use your internal TradeLike credentials.
-            </p>
           </div>
 
           <form onSubmit={handleSubmit} className="mt-8 space-y-5">
@@ -119,7 +113,7 @@ export default function StaffLogin() {
               to="/login"
               className="font-semibold text-blue-300 hover:text-blue-200 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400"
             >
-              Customer workspace? Go to customer login
+              Go to customer login
             </Link>
             <span className="text-xs text-slate-500">
               For TradeLike staff only.

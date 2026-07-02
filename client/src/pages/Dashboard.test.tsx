@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import Dashboard from "./Dashboard";
 import { ApiError } from "../services/apiClient";
@@ -15,6 +15,11 @@ vi.mock("../hooks/useDashboardSummary", () => ({
 const mockedUseDashboardSummary = vi.mocked(useDashboardSummary);
 
 describe("Dashboard", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    setStoredUser("Solo");
+  });
+
   it("renders AccessDenied for a 403 API response", () => {
     mockedUseDashboardSummary.mockReturnValue({
       summary: null,
@@ -98,7 +103,53 @@ describe("Dashboard", () => {
     expect(screen.getByRole("heading", { name: "Today's schedule" })).toHaveClass("text-white");
     expect(screen.getByRole("heading", { name: "Upcoming jobs" })).toHaveClass("text-white");
     expect(screen.getByRole("heading", { name: "Recent activity" })).toHaveClass("text-white");
+    expect(screen.getByRole("heading", { name: "Quick actions" })).toHaveClass("text-white");
     expect(screen.getByText("Total jobs")).toHaveClass("text-slate-100");
+    expect(screen.getByText("New Job")).toHaveClass("text-white");
+    expect(screen.getByText("Add Customer")).toHaveClass("text-white");
+    expect(screen.getByText("Create Quote")).toHaveClass("text-white");
+    expect(screen.getByText("Open Calendar")).toHaveClass("text-white");
+    expect(screen.getByText("Send Invoice")).toHaveClass("text-white");
+  });
+
+  it("saves dashboard widget preferences locally", () => {
+    mockSummary();
+
+    renderDashboard();
+
+    fireEvent.click(screen.getByLabelText("Recent activity"));
+
+    expect(JSON.parse(localStorage.getItem("tradelike_dashboard_widgets") || "{}").activity).toBe(false);
+    expect(screen.queryByRole("heading", { name: "Recent activity" })).not.toBeInTheDocument();
+  });
+
+  it("keeps Team and Business widgets plan-aware", () => {
+    mockSummary();
+    setStoredUser("Solo");
+    const { rerender } = renderDashboard();
+
+    expect(screen.queryByRole("heading", { name: "Team workload" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Reports preview" })).not.toBeInTheDocument();
+
+    setStoredUser("Team");
+    rerender(
+      <MemoryRouter>
+        <Dashboard />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByRole("heading", { name: "Team workload" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Reports preview" })).not.toBeInTheDocument();
+
+    setStoredUser("Business");
+    rerender(
+      <MemoryRouter>
+        <Dashboard />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByRole("heading", { name: "Team workload" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Reports preview" })).toBeInTheDocument();
   });
 });
 
@@ -108,4 +159,48 @@ function renderDashboard() {
       <Dashboard />
     </MemoryRouter>
   );
+}
+
+function mockSummary() {
+  mockedUseDashboardSummary.mockReturnValue({
+    summary: {
+      totalJobs: 2,
+      scheduledJobs: 1,
+      inProgressJobs: 0,
+      completedJobs: 1,
+      todayJobs: [{
+        id: 1,
+        customer: "Sarah Johnson",
+        phone: "07981 125031",
+        jobTitle: "Boiler service",
+        address: "1 Trade Street",
+        scheduledDate: "2026-07-02T09:00:00.000Z",
+        status: "Scheduled",
+        priority: "Normal",
+      }],
+      upcomingJobs: [],
+      recentActivity: [{
+        jobId: 1,
+        title: "Job scheduled",
+        description: "Boiler service was scheduled.",
+        type: "Scheduled",
+        timestamp: "2026-07-02T09:00:00.000Z",
+      }],
+    },
+    loading: false,
+    error: null,
+    refresh: vi.fn(),
+  });
+}
+
+function setStoredUser(plan: string) {
+  localStorage.setItem("tradelike_user", JSON.stringify({
+    id: 1,
+    email: "owner@example.com",
+    name: "Owner",
+    role: "CustomerDirector",
+    plan,
+    accountStatus: "Active",
+    passwordResetRequired: false,
+  }));
 }

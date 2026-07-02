@@ -57,8 +57,6 @@ public class BusinessSettingsController : ControllerBase
             settings.VatNumber = Clean(request.VatNumber);
             settings.CompanyNumber = Clean(request.CompanyNumber);
             settings.DefaultVatRate = ClampVat(request.DefaultVatRate);
-            settings.QuotePrefix = Required(request.QuotePrefix, "Quote prefix").ToUpperInvariant();
-            settings.InvoicePrefix = Required(request.InvoicePrefix, "Invoice prefix").ToUpperInvariant();
             settings.PaymentTerms = Clean(request.PaymentTerms);
             settings.QuoteExpiryDays = ClampDays(request.QuoteExpiryDays, "Quote expiry days");
             settings.DefaultQuoteNotes = Clean(request.DefaultQuoteNotes);
@@ -70,7 +68,6 @@ public class BusinessSettingsController : ControllerBase
             settings.IncludeCompletedInReports = request.IncludeCompletedInReports;
             settings.IncludeArchivedInReports = request.IncludeArchivedInReports;
             settings.LowStockThreshold = ClampLowStockThreshold(request.LowStockThreshold);
-            settings.PurchaseOrderPrefix = Required(request.PurchaseOrderPrefix, "Purchase order prefix").ToUpperInvariant();
             settings.BankName = Clean(request.BankName);
             settings.BankAccountName = Clean(request.BankAccountName);
             settings.BankSortCode = Clean(request.BankSortCode);

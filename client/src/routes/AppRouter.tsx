@@ -9,7 +9,6 @@ import PreviousJobs from "../pages/PreviousJobs";
 import Customers from "../pages/Customers";
 import CustomerDetails from "../pages/CustomerDetails";
 import CalendarPage from "../pages/Calendar";
-import A11ySettings from "../pages/AccessibilitySettings";
 import Signup from "../pages/Signup";
 import Login from "../pages/Login";
 import StaffAccessDenied from "../pages/StaffAccessDenied";
@@ -28,7 +27,6 @@ import CustomerStaff from "../pages/CustomerStaff";
 import Reports from "../pages/Reports";
 import ReportsOverview from "../pages/ReportsOverview";
 import ApiDeveloperPage from "../pages/api-dev/ApiDeveloperPage";
-import BrandingPage from "../pages/branding/BrandingPage";
 import ImportExportPage from "../pages/import/ImportExportPage";
 import Inventory from "../pages/inventory/Inventory";
 import SupportCenter from "../pages/SupportCenter";
@@ -83,9 +81,8 @@ function AppRouter() {
         <Route path="/quotes/:id" element={<NavigationAccessRoute path="/quotes"><QuoteDetails /></NavigationAccessRoute>} />
         <Route path="/invoices" element={<NavigationAccessRoute path="/invoices"><Invoices /></NavigationAccessRoute>} />
         <Route path="/settings" element={<NavigationAccessRoute path="/settings"><Settings /></NavigationAccessRoute>} />
-        <Route path="/settings/accessibility" element={<NavigationAccessRoute path="/settings/accessibility"><A11ySettings /></NavigationAccessRoute>} />
+        <Route path="/settings/accessibility" element={<SettingsRoute path="/settings/accessibility" />} />
         <Route path="/settings/api" element={<NavigationAccessRoute path="/settings/api"><ApiDeveloperPage /></NavigationAccessRoute>} />
-        <Route path="/settings/branding" element={<NavigationAccessRoute path="/settings/branding"><BrandingPage /></NavigationAccessRoute>} />
         <Route path="/settings/import-export" element={<NavigationAccessRoute path="/settings/import-export"><ImportExportPage /></NavigationAccessRoute>} />
         <Route path="/settings/billing" element={<SettingsRoute path="/settings/billing" />} />
         <Route path="/settings/billing/usage" element={<SettingsRoute path="/settings/billing/usage" />} />

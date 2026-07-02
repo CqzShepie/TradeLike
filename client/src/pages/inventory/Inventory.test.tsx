@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 
 import Inventory from "./Inventory";
@@ -52,6 +52,101 @@ describe("Inventory", () => {
     expect(await screen.findByText("Unable to load inventory")).toBeInTheDocument();
     expect(screen.getByText("Inventory could not be loaded. Please try again.")).toBeInTheDocument();
     expect(screen.queryByText(/PurchaseOrders|SqlCommand/i)).not.toBeInTheDocument();
+  });
+
+  it("creates a product from the empty inventory state", async () => {
+    vi.mocked(apiClient.post).mockResolvedValue({
+      id: 1,
+      branchId: null,
+      sku: "PIPE-15",
+      name: "15mm pipe",
+      unit: "m",
+      reorderLevel: 5,
+      onHand: 10,
+      isActive: true,
+      createdAt: new Date().toISOString(),
+    });
+
+    renderInventory();
+
+    fireEvent.click(await screen.findByRole("button", { name: /add product/i }));
+    fireEvent.change(screen.getByLabelText("SKU"), { target: { value: "PIPE-15" } });
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "15mm pipe" } });
+    fireEvent.change(screen.getByLabelText("Opening stock"), { target: { value: "10" } });
+    fireEvent.click(screen.getByRole("button", { name: /create product/i }));
+
+    await waitFor(() => {
+      expect(apiClient.post).toHaveBeenCalledWith("/inventory/products", expect.objectContaining({
+        sku: "PIPE-15",
+        name: "15mm pipe",
+        openingStock: 10,
+      }));
+    });
+  });
+
+  it("edits an existing product", async () => {
+    vi.mocked(apiClient.get).mockImplementation(endpoint => {
+      if (endpoint === "/inventory/products") {
+        return Promise.resolve([{
+          id: 2,
+          branchId: null,
+          sku: "VALVE-1",
+          name: "Valve",
+          description: "",
+          unit: "each",
+          reorderLevel: 3,
+          onHand: 8,
+          isActive: true,
+          createdAt: new Date().toISOString(),
+        }]);
+      }
+      if (endpoint === "/inventory/suppliers") return Promise.resolve([]);
+      if (endpoint === "/inventory/stock-movements") return Promise.resolve([]);
+      if (endpoint === "/inventory/purchase-orders") return Promise.resolve([]);
+      return Promise.reject(new Error(`Unexpected endpoint: ${endpoint}`));
+    });
+    vi.mocked(apiClient.put).mockResolvedValue({});
+
+    renderInventory();
+
+    fireEvent.click(await screen.findByRole("button", { name: /valve/i }));
+    fireEvent.click(screen.getByRole("button", { name: /edit product/i }));
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Isolation valve" } });
+    fireEvent.click(screen.getByRole("button", { name: /save product/i }));
+
+    await waitFor(() => {
+      expect(apiClient.put).toHaveBeenCalledWith("/inventory/products/2", expect.objectContaining({
+        sku: "VALVE-1",
+        name: "Isolation valve",
+      }));
+    });
+  });
+
+  it("renders purchase order details and receive action", async () => {
+    vi.mocked(apiClient.get).mockImplementation(endpoint => {
+      if (endpoint === "/inventory/products") return Promise.resolve([]);
+      if (endpoint === "/inventory/suppliers") return Promise.resolve([]);
+      if (endpoint === "/inventory/stock-movements") return Promise.resolve([]);
+      if (endpoint === "/inventory/purchase-orders") {
+        return Promise.resolve([{
+          id: 7,
+          supplierId: 1,
+          supplierName: "Acme Supplies",
+          status: "Open",
+          expectedAt: null,
+          createdAt: new Date().toISOString(),
+          total: 125,
+        }]);
+      }
+      return Promise.reject(new Error(`Unexpected endpoint: ${endpoint}`));
+    });
+
+    renderInventory();
+
+    fireEvent.click(await screen.findByRole("button", { name: /PO-0007/i }));
+
+    expect(screen.getByRole("heading", { name: "PO-0007" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /receive stock/i })).toBeInTheDocument();
   });
 });
 

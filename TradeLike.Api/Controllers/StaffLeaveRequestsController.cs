@@ -9,12 +9,14 @@ using TradeLike.Api.Security;
 namespace TradeLike.Api.Controllers;
 
 [ApiController]
-[Authorize(Policy = "RequireManagerRole")]
+[Authorize(Policy = "RequireEmployeeRole")]
 [PlanGuard(Feature.LeaveManagement)]
 [Route("api/staff/leave-requests")]
+[Route("api/team/leave-requests")]
 public sealed class StaffLeaveRequestsController : ControllerBase
 {
-    private static readonly string[] AllowedStatuses = ["Pending", "Approved", "Rejected"];
+    private static readonly string[] AllowedStatuses = ["Pending", "Approved", "Rejected", "Cancelled"];
+    private static readonly string[] AllowedLeaveTypes = ["Paid", "Unpaid"];
 
     private readonly TradeLikeDbContext _context;
 
@@ -53,6 +55,7 @@ public sealed class StaffLeaveRequestsController : ControllerBase
                 StartDate = request.StartDate.Date,
                 EndDate = request.EndDate.Date,
                 Reason = CleanOptional(request.Reason, 500),
+                LeaveType = CleanLeaveType(request.LeaveType),
                 Status = "Pending",
                 CreatedAt = DateTime.UtcNow
             };
@@ -71,6 +74,7 @@ public sealed class StaffLeaveRequestsController : ControllerBase
     }
 
     [HttpPut("{id:int}")]
+    [Authorize(Policy = "RequireManagerRole")]
     public async Task<ActionResult<StaffLeaveRequestResponse>> UpdateLeaveRequest(int id, UpdateStaffLeaveRequest request)
     {
         try
@@ -85,6 +89,64 @@ public sealed class StaffLeaveRequestsController : ControllerBase
             }
 
             leaveRequest.Status = CleanStatus(request.Status);
+            leaveRequest.DecisionNote = CleanOptional(request.DecisionNote, 500);
+            leaveRequest.DecidedByUserId = GetActorUserId();
+            leaveRequest.DecidedAt = DateTime.UtcNow;
+            leaveRequest.CancelledAt = leaveRequest.Status == "Cancelled" ? leaveRequest.DecidedAt : null;
+            leaveRequest.UpdatedAt = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+
+            return Ok(ToResponse(leaveRequest));
+        }
+        catch (ValidationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    [HttpPost("{id:int}/approve")]
+    [Authorize(Policy = "RequireManagerRole")]
+    public Task<ActionResult<StaffLeaveRequestResponse>> ApproveLeaveRequest(int id, LeaveDecisionRequest request)
+    {
+        return DecideLeaveRequest(id, "Approved", request);
+    }
+
+    [HttpPost("{id:int}/reject")]
+    [Authorize(Policy = "RequireManagerRole")]
+    public Task<ActionResult<StaffLeaveRequestResponse>> RejectLeaveRequest(int id, LeaveDecisionRequest request)
+    {
+        return DecideLeaveRequest(id, "Rejected", request);
+    }
+
+    [HttpPost("{id:int}/cancel")]
+    [Authorize(Policy = "RequireManagerRole")]
+    public Task<ActionResult<StaffLeaveRequestResponse>> CancelLeaveRequest(int id, LeaveDecisionRequest request)
+    {
+        return DecideLeaveRequest(id, "Cancelled", request);
+    }
+
+    private async Task<ActionResult<StaffLeaveRequestResponse>> DecideLeaveRequest(
+        int id,
+        string status,
+        LeaveDecisionRequest request)
+    {
+        try
+        {
+            var tenantId = TenantHelpers.GetTenantId(HttpContext);
+            var leaveRequest = await _context.StaffLeaveRequests
+                .FirstOrDefaultAsync(existing => existing.Id == id && existing.TenantId == tenantId);
+
+            if (leaveRequest is null)
+            {
+                return NotFound();
+            }
+
+            leaveRequest.Status = CleanStatus(status);
+            leaveRequest.DecisionNote = CleanOptional(request.Note, 500);
+            leaveRequest.DecidedByUserId = GetActorUserId();
+            leaveRequest.DecidedAt = DateTime.UtcNow;
+            leaveRequest.CancelledAt = status == "Cancelled" ? leaveRequest.DecidedAt : null;
             leaveRequest.UpdatedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
@@ -98,6 +160,7 @@ public sealed class StaffLeaveRequestsController : ControllerBase
     }
 
     [HttpDelete("{id:int}")]
+    [Authorize(Policy = "RequireManagerRole")]
     public async Task<IActionResult> DeleteLeaveRequest(int id)
     {
         var tenantId = TenantHelpers.GetTenantId(HttpContext);
@@ -149,6 +212,15 @@ public sealed class StaffLeaveRequestsController : ControllerBase
             ?? throw new ValidationException("Leave status is invalid.");
     }
 
+    private static string CleanLeaveType(string? value)
+    {
+        var cleaned = string.IsNullOrWhiteSpace(value) ? "Paid" : value.Trim();
+
+        return AllowedLeaveTypes.FirstOrDefault(type =>
+            string.Equals(type, cleaned, StringComparison.OrdinalIgnoreCase))
+            ?? throw new ValidationException("Leave type is invalid.");
+    }
+
     private static string CleanOptional(string? value, int maxLength)
     {
         if (string.IsNullOrWhiteSpace(value))
@@ -160,6 +232,12 @@ public sealed class StaffLeaveRequestsController : ControllerBase
         return cleaned.Length > maxLength ? cleaned[..maxLength] : cleaned;
     }
 
+    private int? GetActorUserId()
+    {
+        var value = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        return int.TryParse(value, out var userId) ? userId : null;
+    }
+
     private static StaffLeaveRequestResponse ToResponse(StaffLeaveRequest request)
     {
         return new StaffLeaveRequestResponse(
@@ -168,15 +246,22 @@ public sealed class StaffLeaveRequestsController : ControllerBase
             request.StartDate,
             request.EndDate,
             request.Reason,
+            request.LeaveType,
             request.Status,
+            request.DecisionNote,
+            request.DecidedByUserId,
+            request.DecidedAt,
+            request.CancelledAt,
             request.CreatedAt,
             request.UpdatedAt);
     }
 }
 
-public sealed record CreateStaffLeaveRequest(int StaffMemberId, DateTime StartDate, DateTime EndDate, string? Reason);
+public sealed record CreateStaffLeaveRequest(int StaffMemberId, DateTime StartDate, DateTime EndDate, string? Reason, string? LeaveType);
 
-public sealed record UpdateStaffLeaveRequest(string Status);
+public sealed record UpdateStaffLeaveRequest(string Status, string? DecisionNote);
+
+public sealed record LeaveDecisionRequest(string? Note);
 
 public sealed record StaffLeaveRequestResponse(
     int Id,
@@ -184,6 +269,11 @@ public sealed record StaffLeaveRequestResponse(
     DateTime StartDate,
     DateTime EndDate,
     string Reason,
+    string LeaveType,
     string Status,
+    string DecisionNote,
+    int? DecidedByUserId,
+    DateTime? DecidedAt,
+    DateTime? CancelledAt,
     DateTime CreatedAt,
     DateTime? UpdatedAt);

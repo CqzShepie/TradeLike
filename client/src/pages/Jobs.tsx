@@ -76,7 +76,7 @@ function Jobs() {
           return;
         }
 
-        setMembers(workspace.members.filter(member => member.status !== "Left"));
+        setMembers(workspace.members.filter(member => member.status === "Active"));
         setTeams(workspace.teams);
         setAssignments(assignmentRows);
       } catch {
@@ -148,22 +148,8 @@ function Jobs() {
     { label: "Completed", value: countStatus(jobs, "Completed"), helper: "finished jobs", icon: <CheckCircle2 className="h-5 w-5" /> },
   ];
 
-  async function assignFirstAvailableMember(job: Job) {
-    if (members.length === 0) {
-      window.alert("Add team members first.");
-      return;
-    }
-
-    const current = assignmentMap.get(job.id);
-    const updated = await jobAssignmentsService.update(job.id, {
-      assignedTeamId: current?.assignedTeamId ?? null,
-      leadStaffMemberId: current?.leadStaffMemberId ?? members[0].id,
-      assignedStaffMemberIds: current?.assignedStaffMemberIds ?? [],
-      scheduledEndDate: current?.scheduledEndDate ?? null,
-      calendarColour: current?.calendarColour ?? null,
-    });
-
-    setAssignments(updated);
+  function openAssignment(job: Job) {
+    navigate(`/jobs/${job.id}`);
   }
 
   if (isApiError(error) && error.status === 403) {
@@ -353,7 +339,7 @@ function Jobs() {
                             members={members}
                             showStaffScheduling={showStaffScheduling}
                             onView={() => navigate(`/jobs/${job.id}`)}
-                            onAssign={() => void assignFirstAvailableMember(job)}
+                            onAssign={() => openAssignment(job)}
                           />
                         ))}
                       </tbody>
@@ -368,7 +354,7 @@ function Jobs() {
                         assignment={assignmentMap.get(job.id)}
                         members={members}
                         showStaffScheduling={showStaffScheduling}
-                        onAssign={() => void assignFirstAvailableMember(job)}
+                        onAssign={() => openAssignment(job)}
                       />
                     ))}
                   </div>
@@ -414,7 +400,7 @@ function JobRow({
           <button type="button" onClick={onView} className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-slate-100 hover:bg-white/10">View</button>
           {showStaffScheduling && (
             <button type="button" onClick={onAssign} className="rounded-lg border border-blue-400/30 px-3 py-1.5 text-xs font-semibold text-blue-200 hover:bg-blue-500/10">
-              {members.length === 0 ? "Add team members first" : getAssignmentLabel(job, assignment, members) === "Unassigned" ? "Assign" : "Change"}
+              {members.length === 0 ? "Open team setup" : getAssignmentLabel(job, assignment, members) === "Unassigned" ? "Assign" : "Change assignment"}
             </button>
           )}
         </div>
@@ -458,7 +444,7 @@ function JobMobileCard({
         </Link>
         {showStaffScheduling && (
           <button type="button" onClick={onAssign} className="rounded-lg border border-blue-400/30 px-3 py-2 text-xs font-semibold text-blue-200 hover:bg-blue-500/10">
-            {members.length === 0 ? "Add team members first" : getAssignmentLabel(job, assignment, members) === "Unassigned" ? "Assign" : "Change"}
+            {members.length === 0 ? "Open team setup" : getAssignmentLabel(job, assignment, members) === "Unassigned" ? "Assign" : "Change assignment"}
           </button>
         )}
       </div>
