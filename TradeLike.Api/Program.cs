@@ -29,6 +29,7 @@ using TradeLike.Api.PublicApi;
 using TradeLike.Api.Security;
 using TradeLike.Api.Services;
 using TradeLike.Api.Services.Email;
+using TradeLike.Api.Services.Storage;
 
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Information()
@@ -107,6 +108,7 @@ builder.Services.AddDbContext<TradeLikeDbContext>(options =>
 builder.Services.AddScoped<ICustomerService, CustomerService>();
 builder.Services.AddScoped<IJobService, JobService>();
 builder.Services.AddScoped<IQuoteService, QuoteService>();
+builder.Services.AddScoped<StorageQuotaService>();
 builder.Services.AddScoped<PasswordResetService>();
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("Email"));
 builder.Services.Configure<TradeLikeEmailAddresses>(builder.Configuration.GetSection("TradeLike:Emails"));

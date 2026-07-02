@@ -3,6 +3,7 @@ import type { AdminUser } from "../../types/admin";
 import { Badge, StatCard } from "./adminPortalComponents";
 import { formatDateTime, formatStatus } from "./adminPortalHelpers";
 import { countByPlan, customerAccounts, customerDisplayName } from "./studioData";
+import StudioStorageTools from "./StudioStorageTools";
 
 type BillingFilter = "all" | "pastDue" | "trials" | "business" | "enterprise" | "freeMonths" | "discounts";
 
@@ -102,6 +103,8 @@ export default function StudioBillingPlans({
           </aside>
         </div>
       </section>
+
+      <StudioStorageTools />
 
       <section className="rounded-xl border border-slate-800 bg-slate-900 p-5 shadow-sm">
         <h2 className="text-lg font-bold text-white">Trial and free-month watchlist</h2>

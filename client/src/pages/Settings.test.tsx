@@ -7,6 +7,7 @@ import type { AuthUser } from "../services/authService";
 import type { CustomerSettings } from "../types/settings";
 import { settingsService } from "../services/settingsService";
 import { billingService } from "../services/billingService";
+import { storageService } from "../services/storageService";
 
 vi.mock("../services/settingsService", () => ({
   settingsService: {
@@ -27,8 +28,18 @@ vi.mock("../services/billingService", () => ({
   },
 }));
 
+vi.mock("../services/storageService", () => ({
+  STORAGE_LIMIT_BLOCKED_MESSAGE: "Storage limit reached. Existing files remain available, but new uploads are blocked.",
+  storageService: {
+    getUsage: vi.fn(),
+    requestAddOn: vi.fn(),
+    cancelAddOn: vi.fn(),
+  },
+}));
+
 const mockedSettingsService = vi.mocked(settingsService);
 const mockedBillingService = vi.mocked(billingService);
+const mockedStorageService = vi.mocked(storageService);
 
 const baseUser: AuthUser = {
   id: 1,
@@ -133,7 +144,7 @@ describe("Settings", () => {
     renderSettings();
 
     await screen.findByRole("heading", { name: /plan & billing/i });
-    expect(screen.getByText("£44.95")).toBeInTheDocument();
+    expect(screen.getByText("£32.95")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /manage billing/i }));
     fireEvent.click(screen.getByRole("button", { name: /team/i }));
 
@@ -141,7 +152,7 @@ describe("Settings", () => {
     expect(screen.getByText(/current plan: solo/i)).toBeInTheDocument();
     expect(screen.getByText(/requested plan: team/i)).toBeInTheDocument();
     expect(screen.getByText(/requested seats: up to 10 users/i)).toBeInTheDocument();
-    expect(screen.getByText(/£44\.95 \/ month/i)).toBeInTheDocument();
+    expect(screen.getByText(/£32\.95 \/ month/i)).toBeInTheDocument();
     expect(screen.getByText(/£119\.95 \/ month/i)).toBeInTheDocument();
     expect(screen.getByText(/£229\.95 \/ month/i)).toBeInTheDocument();
     expect(screen.getByText(/Contact Sales/i)).toBeInTheDocument();
@@ -150,6 +161,7 @@ describe("Settings", () => {
     const pageText = document.body.textContent ?? "";
     [
       ["39", "95"],
+      ["44", "95"],
       ["99", "95"],
       ["159", "95"],
       ["40", ""],
@@ -160,6 +172,53 @@ describe("Settings", () => {
       expect(pageText).not.toContain(`£${pounds}${pence ? `.${pence}` : ""}`);
     });
     expect(screen.getByRole("button", { name: /submit request/i })).toBeDisabled();
+  });
+
+  it("shows storage usage, add-ons and fair usage copy", async () => {
+    arrange("Team", {
+      usedStorageBytes: 32_400_000_000,
+      effectiveLimitBytes: 50_000_000_000,
+      availableBytes: 17_600_000_000,
+      usedPercent: 64.8,
+      warningLevel: "OK",
+      canUpload: true,
+    });
+    renderSettings();
+
+    expect(await screen.findByText("32.4GB of 50GB used")).toBeInTheDocument();
+    expect(screen.getByText(/17\.6GB available across your account/i)).toBeInTheDocument();
+    expect(screen.getByText(/Extra 50GB/i)).toBeInTheDocument();
+    expect(screen.getByText(/Extra 1TB/i)).toBeInTheDocument();
+    expect(screen.getByText(/not for public file hosting, bulk file sharing, unrelated backups or resale of storage/i)).toBeInTheDocument();
+  });
+
+  it("shows blocked storage message at 100 percent usage", async () => {
+    arrange("Solo", {
+      usedStorageBytes: 10_000_000_000,
+      effectiveLimitBytes: 10_000_000_000,
+      availableBytes: 0,
+      usedPercent: 100,
+      warningLevel: "Blocked",
+      canUpload: false,
+    });
+    renderSettings();
+
+    expect(await screen.findByText("Storage limit reached. Existing files remain available, but new uploads are blocked.")).toBeInTheDocument();
+    expect(screen.getByText("Blocked")).toBeInTheDocument();
+  });
+
+  it("creates a pending storage add-on request before quota increases", async () => {
+    arrange("Solo");
+    mockedStorageService.requestAddOn.mockResolvedValue({
+      message: "Storage add-on request created. Your quota increases after payment is confirmed.",
+    });
+    renderSettings();
+
+    await screen.findByText("2GB of 10GB used");
+    fireEvent.click(screen.getAllByRole("button", { name: /add storage/i })[0]);
+
+    await waitFor(() => expect(mockedStorageService.requestAddOn).toHaveBeenCalledWith("extra-50gb"));
+    expect(await screen.findByText(/quota increases after payment is confirmed/i)).toBeInTheDocument();
   });
 
   it("submits a confirmed plan change request and keeps local billing state consistent", async () => {
@@ -248,10 +307,11 @@ describe("Settings", () => {
   });
 });
 
-function arrange(plan: "Solo" | "Team" | "Business" | "Enterprise") {
+function arrange(plan: "Solo" | "Team" | "Business" | "Enterprise", storagePatch: Partial<Awaited<ReturnType<typeof buildStorageUsage>>> = {}) {
   localStorage.setItem("tradelike_user", JSON.stringify({ ...baseUser, plan }));
   const settings = buildSettings(plan);
   mockedSettingsService.getSettings.mockResolvedValue(settings);
+  mockedStorageService.getUsage.mockResolvedValue(buildStorageUsage(storagePatch));
   return settings;
 }
 
@@ -332,7 +392,7 @@ function buildSettings(plan: "Solo" | "Team" | "Business" | "Enterprise"): Custo
     planBilling: {
       planName: plan,
       billingStatus: "Active",
-      monthlyPricePence: plan === "Enterprise" ? null : plan === "Business" ? 22995 : plan === "Team" ? 11995 : 4495,
+      monthlyPricePence: plan === "Enterprise" ? null : plan === "Business" ? 22995 : plan === "Team" ? 11995 : 3295,
       maxIncludedUsers: plan === "Enterprise" ? null : plan === "Business" ? 25 : plan === "Team" ? 10 : 1,
       seatsPurchased: plan === "Enterprise" ? 40 : plan === "Business" ? 12 : plan === "Team" ? 4 : 1,
       billingStartUtc: new Date().toISOString(),
@@ -398,5 +458,28 @@ function buildSettings(plan: "Solo" | "Team" | "Business" | "Enterprise"): Custo
         canEditStatus: true,
       },
     ],
+  };
+}
+
+function buildStorageUsage(patch = {}) {
+  return {
+    includedStorageBytes: 10_000_000_000,
+    purchasedStorageBytes: 0,
+    manualStorageOverrideBytes: null,
+    effectiveLimitBytes: 10_000_000_000,
+    usedStorageBytes: 2_000_000_000,
+    availableBytes: 8_000_000_000,
+    usedPercent: 20,
+    warningLevel: "OK",
+    canUpload: true,
+    addOnPlans: [
+      { code: "extra-50gb", label: "Extra 50GB", extraStorageBytes: 50_000_000_000, monthlyPricePence: 495, isActive: true },
+      { code: "extra-100gb", label: "Extra 100GB", extraStorageBytes: 100_000_000_000, monthlyPricePence: 895, isActive: true },
+      { code: "extra-250gb", label: "Extra 250GB", extraStorageBytes: 250_000_000_000, monthlyPricePence: 1795, isActive: true },
+      { code: "extra-500gb", label: "Extra 500GB", extraStorageBytes: 500_000_000_000, monthlyPricePence: 2995, isActive: true },
+      { code: "extra-1tb", label: "Extra 1TB", extraStorageBytes: 1_000_000_000_000, monthlyPricePence: 4995, isActive: true },
+    ],
+    activeAddOns: [],
+    ...patch,
   };
 }
