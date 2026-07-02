@@ -12,6 +12,8 @@ import CalendarPage from "../pages/Calendar";
 import A11ySettings from "../pages/AccessibilitySettings";
 import Signup from "../pages/Signup";
 import Login from "../pages/Login";
+import StaffAccessDenied from "../pages/StaffAccessDenied";
+import StaffLogin from "../pages/StaffLogin";
 import ForgotPassword from "../pages/ForgotPassword";
 import ResetPassword from "../pages/ResetPassword";
 import Quotes from "../pages/Quotes";
@@ -52,6 +54,8 @@ function AppRouter() {
         <Route path="/signup" element={<Signup />} />
         <Route path="/register" element={<Signup />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/staff-login" element={<StaffLogin />} />
+        <Route path="/staff-access-denied" element={<StaffAccessDenied />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/company-invite" element={<CompanyInvite />} />

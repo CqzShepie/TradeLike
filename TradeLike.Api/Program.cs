@@ -25,9 +25,11 @@ using TradeLike.Api.Api.Payments;
 using TradeLike.Api.Branding;
 using TradeLike.Api.Companies;
 using TradeLike.Api.Elastic;
+using TradeLike.Api.Integrations.Email;
 using TradeLike.Api.PublicApi;
 using TradeLike.Api.Security;
 using TradeLike.Api.Services;
+using TradeLike.Api.Services.Email;
 
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Information()
@@ -107,6 +109,11 @@ builder.Services.AddScoped<ICustomerService, CustomerService>();
 builder.Services.AddScoped<IJobService, JobService>();
 builder.Services.AddScoped<IQuoteService, QuoteService>();
 builder.Services.AddScoped<PasswordResetService>();
+builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("Email"));
+builder.Services.Configure<TradeLikeEmailAddresses>(builder.Configuration.GetSection("TradeLike:Emails"));
+builder.Services.AddSingleton<EmailTemplateService>();
+builder.Services.AddSingleton<DisabledEmailSender>();
+builder.Services.AddSingleton<IEmailSender, FoundationEmailSender>();
 builder.Services.AddHttpClient<NotificationQueue>();
 builder.Services.AddHttpClient(nameof(ElasticSyncHostedService));
 builder.Services.AddHttpClient(nameof(SearchController));
@@ -133,6 +140,7 @@ builder.Services.AddHttpClient<GoogleRoutePlanner>();
 builder.Services.AddHttpClient();
 builder.Services.AddHealthChecks()
     .AddCheck<SqlHealthCheck>("sql")
+    .AddCheck<EmailHealthCheck>("email")
     .AddCheck<KeyVaultHealthCheck>("key_vault")
     .AddCheck<StripeHealthCheck>("stripe")
     .AddCheck<ElasticSearchHealthCheck>("elasticsearch")

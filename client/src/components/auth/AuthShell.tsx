@@ -35,11 +35,11 @@ export default function AuthShell({
               {description}
             </p>
 
-            <div className="mt-8 grid gap-3 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
+            <div className="mt-8 flex flex-wrap justify-center gap-3">
               {highlights.map(highlight => (
                 <div
                   key={highlight}
-                  className="rounded-xl border border-white/10 bg-white/5 p-4 text-sm font-semibold text-slate-100 shadow-sm shadow-slate-950/20"
+                  className="w-full rounded-xl border border-white/10 bg-white/5 p-4 text-sm font-semibold text-slate-100 shadow-sm shadow-slate-950/20 sm:w-[10rem]"
                 >
                   {highlight}
                 </div>
