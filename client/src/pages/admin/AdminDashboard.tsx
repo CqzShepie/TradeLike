@@ -1,7 +1,6 @@
-import { useEffect } from "react";
-import { authService } from "../../services/authService";
 import type { AdminAuditLog, AdminUser } from "../../types/admin";
 import { formatDateTime, formatStatus } from "./adminPortalHelpers";
+import { countByPlan, customerAccounts } from "./studioData";
 
 export default function AdminDashboard({
   users,
@@ -16,51 +15,55 @@ export default function AdminDashboard({
   onOpenAccounts: () => void;
   onOpenAudit: () => void;
 }) {
-  const currentUser = authService.getUser();
-
-  useEffect(() => {
-    if (currentUser?.role !== "Director") {
-      onOpenAccounts();
-    }
-  }, [currentUser?.role, onOpenAccounts]);
-
-  if (currentUser?.role !== "Director") {
-    return null;
-  }
-
   const now = new Date();
   const weekFromNow = new Date(now);
   weekFromNow.setDate(now.getDate() + 7);
   const thirtyDaysAgo = new Date(now);
   thirtyDaysAgo.setDate(now.getDate() - 30);
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const customers = customerAccounts(users);
+  const planCounts = countByPlan(customers);
 
-  const trialsEndingThisWeek = users.filter(user => {
-    if (user.accountStatus !== "Trial" || !user.trialEndsAt) {
-      return false;
-    }
+  const trialsEndingThisWeek = customers.filter(user => {
+    if (user.accountStatus !== "Trial" || !user.trialEndsAt) return false;
     const trialEnd = new Date(user.trialEndsAt);
     return trialEnd >= now && trialEnd <= weekFromNow;
   });
 
-  const pastDueCustomers = users.filter(user => user.accountStatus === "PastDue" || user.billingStatus === "PastDue");
-  const pendingVerification = users.filter(user => !user.isEmailVerified);
-  const onboardingMissing = users.filter(user => !user.onboardingEmailSentAt);
-  const recentSignups = users.filter(user => new Date(user.createdAt) >= thirtyDaysAgo);
+  const pastDueCustomers = customers.filter(user => user.accountStatus === "PastDue" || user.billingStatus === "PastDue");
+  const pendingVerification = customers.filter(user => !user.isEmailVerified);
+  const onboardingMissing = customers.filter(user => !user.onboardingEmailSentAt);
+  const recentSignups = customers.filter(user => new Date(user.createdAt) >= thirtyDaysAgo);
+  const recentlyUpdated = customers.filter(user => user.updatedAt);
+  const recentSupportNotes = customers.filter(user => user.supportNotes?.trim()).slice(0, 6);
   const staffActionsToday = auditLogs.filter(log => new Date(log.createdAt) >= todayStart);
 
   const accountStatusRows = [
-    { label: "Trial", count: users.filter(user => user.accountStatus === "Trial").length },
-    { label: "Active", count: users.filter(user => user.accountStatus === "Active").length },
-    { label: "Past Due", count: users.filter(user => user.accountStatus === "PastDue").length },
-    { label: "Suspended", count: users.filter(user => user.accountStatus === "Suspended").length },
-    { label: "Cancelled", count: users.filter(user => user.accountStatus === "Cancelled").length },
+    { label: "Trial", count: customers.filter(user => user.accountStatus === "Trial").length },
+    { label: "Active", count: customers.filter(user => user.accountStatus === "Active").length },
+    { label: "Past Due", count: customers.filter(user => user.accountStatus === "PastDue").length },
+    { label: "Suspended", count: customers.filter(user => user.accountStatus === "Suspended").length },
+    { label: "Cancelled", count: customers.filter(user => user.accountStatus === "Cancelled").length },
   ];
 
   const maxStatusCount = Math.max(1, ...accountStatusRows.map(row => row.count));
 
   return (
     <div className="space-y-6">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <DashboardStat label="Total customers" value={customers.length} />
+        <DashboardStat label="Active customers" value={customers.filter(user => user.accountStatus === "Active").length} />
+        <DashboardStat label="Trial customers" value={customers.filter(user => user.accountStatus === "Trial").length} />
+        <DashboardStat label="Suspended customers" value={customers.filter(user => user.accountStatus === "Suspended").length} tone={customers.some(user => user.accountStatus === "Suspended") ? "amber" : "normal"} />
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <DashboardStat label="Solo accounts" value={planCounts.Solo} />
+        <DashboardStat label="Team accounts" value={planCounts.Team} />
+        <DashboardStat label="Business accounts" value={planCounts.Business} />
+        <DashboardStat label="Enterprise accounts" value={planCounts.Enterprise} />
+      </div>
+
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <DashboardStat label="New customers last 30 days" value={recentSignups.length} />
         <DashboardStat label="Trials ending this week" value={trialsEndingThisWeek.length} tone={trialsEndingThisWeek.length > 0 ? "amber" : "normal"} />
@@ -75,6 +78,7 @@ export default function AdminDashboard({
             <AttentionCard label="Onboarding emails not sent" value={onboardingMissing.length} />
             <AttentionCard label="Trials ending this week" value={trialsEndingThisWeek.length} />
             <AttentionCard label="Past-due customers" value={pastDueCustomers.length} danger={pastDueCustomers.length > 0} />
+            <AttentionCard label="Recently updated accounts" value={recentlyUpdated.length} />
           </div>
         </DashboardPanel>
 
@@ -113,6 +117,10 @@ export default function AdminDashboard({
           </div>
         </DashboardPanel>
       </div>
+
+      <DashboardPanel title="Recent support notes" actionLabel="Open accounts" onAction={onOpenAccounts}>
+        <MiniUserList users={recentSupportNotes} emptyText="No recent support notes." />
+      </DashboardPanel>
     </div>
   );
 }
@@ -141,5 +149,6 @@ function AuditList({ logs, emptyText = "No audit activity yet." }: { logs: Admin
   if (logs.length === 0) {
     return <p className="text-sm text-slate-400">{emptyText}</p>;
   }
-  return <div className="space-y-3">{logs.map(log => <div key={log.id} className="rounded-lg border border-slate-800 bg-slate-950 p-3"><p className="text-sm font-semibold text-white">{log.summary}</p><p className="mt-1 text-xs text-slate-500">{log.actorName || log.actorEmail} · {log.action} · {formatDateTime(log.createdAt)}</p></div>)}</div>;
+  return <div className="space-y-3">{logs.map(log => <div key={log.id} className="rounded-lg border border-slate-800 bg-slate-950 p-3"><p className="text-sm font-semibold text-white">{log.summary}</p><p className="mt-1 text-xs text-slate-500">{log.actorName || log.actorEmail} - {log.action} - {formatDateTime(log.createdAt)}</p></div>)}</div>;
 }
+

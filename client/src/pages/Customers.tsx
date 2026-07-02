@@ -22,12 +22,9 @@ function Customers() {
     loading,
     error,
     reloadCustomers,
-    editingCustomer,
     addCustomer,
     deleteCustomer,
     updateCustomer,
-    startEdit,
-    cancelEdit,
   } = useCustomers();
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
@@ -84,7 +81,7 @@ function Customers() {
     [customers.length, filteredCustomers.length, search]
   );
 
-  const showCustomerForm = showForm || Boolean(editingCustomer);
+  const showCustomerForm = showForm;
 
   function handleAddCustomerClick() {
     if (showCustomerForm) {
@@ -100,7 +97,6 @@ function Customers() {
   }
 
   function handleCloseForm() {
-    cancelEdit();
     setShowForm(false);
   }
 
@@ -194,10 +190,6 @@ function Customers() {
                   <CustomerList
                     customers={filteredCustomers}
                     onDeleteCustomer={deleteCustomer}
-                    onEditCustomer={customer => {
-                      startEdit(customer);
-                      setShowForm(true);
-                    }}
                     emptyTitle={customers.length === 0 ? "Add your first customer" : "No customers found"}
                     emptyDescription={customers.length === 0 ? "Create a customer record to start building your directory." : "Try widening your search or add a new customer record."}
                     emptyAction={customers.length === 0 ? (
@@ -222,7 +214,7 @@ function Customers() {
                     await updateCustomer(customer);
                     setShowForm(false);
                   }}
-                  editingCustomer={editingCustomer}
+                  editingCustomer={null}
                   onCancelEdit={handleCloseForm}
                 />
               ) : null}

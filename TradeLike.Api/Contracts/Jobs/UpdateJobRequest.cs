@@ -7,17 +7,17 @@ public sealed class UpdateJobRequest
 {
     public int? CustomerId { get; set; }
 
-    [MaxLength(100, ErrorMessage = "Customer must be 100 characters or fewer.")]
+    [MaxLength(180, ErrorMessage = "Customer must be 180 characters or fewer.")]
     public string? Customer { get; set; }
 
-    [RegularExpression(@"^\+?[0-9\s().-]{7,30}$", ErrorMessage = "Enter a valid phone number.")]
-    [MaxLength(30, ErrorMessage = "Phone number must be 30 characters or fewer.")]
+    [RegularExpression(@"^\+?[0-9\s().-]{7,40}$", ErrorMessage = "Enter a valid phone number.")]
+    [MaxLength(40, ErrorMessage = "Phone number must be 40 characters or fewer.")]
     public string? Phone { get; set; }
 
-    [MaxLength(150, ErrorMessage = "Job title must be 150 characters or fewer.")]
+    [MaxLength(220, ErrorMessage = "Job title must be 220 characters or fewer.")]
     public string? JobTitle { get; set; }
 
-    [MaxLength(250, ErrorMessage = "Address must be 250 characters or fewer.")]
+    [MaxLength(500, ErrorMessage = "Address must be 500 characters or fewer.")]
     public string? Address { get; set; }
 
     [NotPastDate(ErrorMessage = "Scheduled date cannot be in the past.")]

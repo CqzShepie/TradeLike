@@ -39,7 +39,6 @@ function Jobs() {
     editingJob,
     addJob,
     updateJob,
-    startEdit,
     cancelEdit,
   } = useJobs();
   const [search, setSearch] = useState("");
@@ -334,10 +333,6 @@ function Jobs() {
                             members={members}
                             showStaffScheduling={showStaffScheduling}
                             onView={() => navigate(`/jobs/${job.id}`)}
-                            onEdit={() => {
-                              startEdit(job);
-                              setShowForm(true);
-                            }}
                           />
                         ))}
                       </tbody>
@@ -352,10 +347,6 @@ function Jobs() {
                         assignment={assignmentMap.get(job.id)}
                         members={members}
                         showStaffScheduling={showStaffScheduling}
-                        onEdit={() => {
-                          startEdit(job);
-                          setShowForm(true);
-                        }}
                       />
                     ))}
                   </div>
@@ -375,14 +366,12 @@ function JobRow({
   members,
   showStaffScheduling,
   onView,
-  onEdit,
 }: {
   job: Job;
   assignment?: JobAssignment;
   members: CustomerStaffMember[];
   showStaffScheduling: boolean;
   onView: () => void;
-  onEdit: () => void;
 }) {
   return (
     <tr className="align-top text-slate-200 transition hover:bg-white/[0.03]">
@@ -399,7 +388,6 @@ function JobRow({
       <td className="px-4 py-4">
         <div className="flex justify-end gap-2">
           <button type="button" onClick={onView} className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-slate-100 hover:bg-white/10">View</button>
-          <button type="button" onClick={onEdit} className="rounded-lg border border-blue-400/30 px-3 py-1.5 text-xs font-semibold text-blue-200 hover:bg-blue-500/10">Edit</button>
         </div>
       </td>
     </tr>
@@ -411,13 +399,11 @@ function JobMobileCard({
   assignment,
   members,
   showStaffScheduling,
-  onEdit,
 }: {
   job: Job;
   assignment?: JobAssignment;
   members: CustomerStaffMember[];
   showStaffScheduling: boolean;
-  onEdit: () => void;
 }) {
   return (
     <article className="rounded-2xl border border-white/10 bg-slate-950/50 p-5">
@@ -435,9 +421,9 @@ function JobMobileCard({
         <Info label="Priority" value={job.priority} />
         <Info label="Quote" value={job.quoteId ? `Quote #${job.quoteId}` : "None"} />
       </div>
-      <button type="button" onClick={onEdit} className="mt-4 rounded-lg border border-blue-400/30 px-3 py-2 text-xs font-semibold text-blue-200 hover:bg-blue-500/10">
-        Edit job
-      </button>
+      <Link to={`/jobs/${job.id}`} className="mt-4 inline-flex rounded-lg border border-white/10 px-3 py-2 text-xs font-semibold text-slate-100 hover:bg-white/10">
+        View
+      </Link>
     </article>
   );
 }

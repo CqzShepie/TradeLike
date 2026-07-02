@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using Microsoft.EntityFrameworkCore;
 using TradeLike.Api.Contracts.Customers;
+using TradeLike.Api.Contracts.Pagination;
 using TradeLike.Api.Data;
 using TradeLike.Api.Models;
 
@@ -24,6 +25,45 @@ public class CustomerService : ICustomerService
             .ToListAsync();
     }
 
+    public async Task<PagedResponse<Customer>> GetPagedAsync(int tenantId, PagedQuery query)
+    {
+        var page = query.NormalizedPage;
+        var pageSize = query.NormalizedPageSize;
+        IQueryable<Customer> customers = _context.Customers
+            .AsNoTracking()
+            .Where(customer => customer.TenantId == tenantId);
+
+        if (!string.IsNullOrWhiteSpace(query.Search))
+        {
+            var search = query.Search.Trim();
+            customers = customers.Where(customer =>
+                customer.Name.Contains(search) ||
+                customer.Email.Contains(search) ||
+                customer.Phone.Contains(search) ||
+                customer.Address.Contains(search));
+        }
+
+        customers = (query.SortBy?.Trim().ToLowerInvariant(), query.SortDescending) switch
+        {
+            ("email", true) => customers.OrderByDescending(customer => customer.Email),
+            ("email", false) => customers.OrderBy(customer => customer.Email),
+            ("phone", true) => customers.OrderByDescending(customer => customer.Phone),
+            ("phone", false) => customers.OrderBy(customer => customer.Phone),
+            ("id", true) => customers.OrderByDescending(customer => customer.Id),
+            ("id", false) => customers.OrderBy(customer => customer.Id),
+            (_, true) => customers.OrderByDescending(customer => customer.Name),
+            _ => customers.OrderBy(customer => customer.Name)
+        };
+
+        var totalItems = await customers.CountAsync();
+        var items = await customers
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        return PagedResponse<Customer>.Create(items, page, pageSize, totalItems);
+    }
+
     public async Task<Customer?> GetByIdAsync(int id, int tenantId)
     {
         return await _context.Customers
@@ -42,6 +82,8 @@ public class CustomerService : ICustomerService
             Address = CleanRequired(request.Address, "Address"),
             Notes = CleanOptional(request.Notes)
         };
+
+        ValidateCustomer(customer);
 
         await _context.Customers.AddAsync(customer);
         await _context.SaveChangesAsync();
@@ -82,6 +124,7 @@ public class CustomerService : ICustomerService
         }
 
         customer.Notes = CleanOptional(request.Notes);
+        ValidateCustomer(customer);
 
         await _context.SaveChangesAsync();
 
@@ -100,6 +143,7 @@ public class CustomerService : ICustomerService
             return null;
         }
 
+        // TODO: Move customer removal to soft delete when a retention model is introduced.
         _context.Customers.Remove(customer);
         await _context.SaveChangesAsync();
 
@@ -114,6 +158,28 @@ public class CustomerService : ICustomerService
         }
 
         return value.Trim();
+    }
+
+    private static void ValidateCustomer(Customer customer)
+    {
+        ValidateMax(customer.Name, 180, "Customer name");
+        ValidateMax(customer.Email, 255, "Email address");
+        ValidateMax(customer.Phone, 40, "Phone number");
+        ValidateMax(customer.Address, 500, "Address");
+        ValidateMax(customer.Notes, 4000, "Notes");
+
+        if (!new EmailAddressAttribute().IsValid(customer.Email))
+        {
+            throw new ValidationException("Enter a valid email address.");
+        }
+    }
+
+    private static void ValidateMax(string? value, int maxLength, string label)
+    {
+        if (!string.IsNullOrWhiteSpace(value) && value.Length > maxLength)
+        {
+            throw new ValidationException($"{label} must be {maxLength} characters or fewer.");
+        }
     }
 
     private static string? CleanOptional(string? value)

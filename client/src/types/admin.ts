@@ -49,6 +49,7 @@ export type HealthStatus = "Green" | "Amber" | "Red";
 
 export type AdminUser = {
   id: number;
+  tenantId?: number;
   firstName: string;
   lastName: string;
   fullName: string;

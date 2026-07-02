@@ -183,7 +183,6 @@ export default function Invoices() {
         eyebrow="Billing workspace"
         title="Invoices"
         description="Create invoices from quotes or jobs, track status, and keep customer billing linked to operational work."
-        actions={<PrimaryButton type="button" onClick={refresh}>Refresh invoices</PrimaryButton>}
       />
 
       {message && (
@@ -383,14 +382,14 @@ function InvoiceRow({
         </div>
         <div className="flex flex-wrap gap-2 lg:justify-end">
           <button type="button" onClick={onViewEdit} className="rounded-lg border border-white/10 px-3 py-2 text-xs font-semibold text-slate-100 hover:bg-white/10">
-            View/Edit
+            View details
           </button>
           <button type="button" onClick={onSendInvoice} className="inline-flex items-center gap-1.5 rounded-lg border border-blue-400/30 px-3 py-2 text-xs font-semibold text-blue-200 hover:bg-blue-500/10">
             <Send className="h-3.5 w-3.5" />
             Send invoice
           </button>
           <button type="button" onClick={onMarkAsPaid} disabled={invoice.status === "Paid"} className="rounded-lg border border-emerald-400/30 px-3 py-2 text-xs font-semibold text-emerald-200 hover:bg-emerald-500/10 disabled:cursor-not-allowed disabled:border-white/5 disabled:bg-slate-900/70 disabled:text-slate-500">
-            {invoice.status === "Paid" ? "Payment recorded" : "Record payment"}
+            {invoice.status === "Paid" ? "Payment recorded" : invoice.status === "Draft" ? "Mark as paid" : "Record payment"}
           </button>
         </div>
       </div>

@@ -2,14 +2,13 @@ import { Link } from "react-router-dom";
 import type { ReactNode } from "react";
 
 import CustomerCard from "./CustomerCard";
-import { DangerButton, EmptyState, SecondaryButton, TableShell } from "../ui";
+import { DangerButton, EmptyState, TableShell } from "../ui";
 
 import type { Customer } from "../../types/customer";
 
 interface CustomerListProps {
   customers: Customer[];
   onDeleteCustomer: (id: number) => void;
-  onEditCustomer: (customer: Customer) => void;
   emptyTitle?: string;
   emptyDescription?: string;
   emptyAction?: ReactNode;
@@ -18,7 +17,6 @@ interface CustomerListProps {
 export default function CustomerList({
   customers,
   onDeleteCustomer,
-  onEditCustomer,
   emptyTitle = "No customers found",
   emptyDescription = "Try widening your search or add a new customer record to get started.",
   emptyAction,
@@ -41,7 +39,6 @@ export default function CustomerList({
             key={customer.id}
             customer={customer}
             onDeleteCustomer={onDeleteCustomer}
-            onEditCustomer={onEditCustomer}
           />
         ))}
       </div>
@@ -97,17 +94,20 @@ export default function CustomerList({
                 </td>
                 <td className="px-5 py-4 align-top">
                   <div className="flex justify-end gap-2">
-                    <SecondaryButton
-                      type="button"
-                      size="sm"
-                      onClick={() => onEditCustomer(customer)}
+                    <Link
+                      to={`/customers/${customer.id}`}
+                      className="inline-flex items-center justify-center rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold text-slate-100 transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
                     >
-                      Edit
-                    </SecondaryButton>
+                      View
+                    </Link>
                     <DangerButton
                       type="button"
                       size="sm"
-                      onClick={() => onDeleteCustomer(customer.id)}
+                      onClick={() => {
+                        if (window.confirm(`Delete ${customer.name}?`)) {
+                          onDeleteCustomer(customer.id);
+                        }
+                      }}
                     >
                       Delete
                     </DangerButton>

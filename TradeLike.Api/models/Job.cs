@@ -11,19 +11,19 @@ public class Job
     public int TenantId { get; set; }
 
     [Required]
-    [MaxLength(100)]
+    [MaxLength(180)]
     public string Customer { get; set; } = string.Empty;
 
     [Required]
-    [MaxLength(30)]
+    [MaxLength(40)]
     public string Phone { get; set; } = string.Empty;
 
     [Required]
-    [MaxLength(150)]
+    [MaxLength(220)]
     public string JobTitle { get; set; } = string.Empty;
 
     [Required]
-    [MaxLength(250)]
+    [MaxLength(500)]
     public string Address { get; set; } = string.Empty;
 
     [Required]

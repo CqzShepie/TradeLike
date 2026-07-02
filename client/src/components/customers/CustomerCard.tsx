@@ -8,13 +8,11 @@ import type { Customer } from "../../types/customer";
 type CustomerCardProps = {
   customer: Customer;
   onDeleteCustomer?: (id: number) => void;
-  onEditCustomer?: (customer: Customer) => void;
 };
 
 function CustomerCard({
   customer,
   onDeleteCustomer,
-  onEditCustomer,
 }: CustomerCardProps) {
   const [showConfirm, setShowConfirm] = useState(false);
 
@@ -59,13 +57,12 @@ function CustomerCard({
         </div>
 
         <div className="flex flex-col gap-2">
-          <SecondaryButton
-            type="button"
-            size="sm"
-            onClick={() => onEditCustomer?.(customer)}
+          <Link
+            to={`/customers/${customer.id}`}
+            className="inline-flex items-center justify-center rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold text-slate-100 transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
           >
-            Edit
-          </SecondaryButton>
+            View
+          </Link>
 
           {onDeleteCustomer && (
             <DangerButton

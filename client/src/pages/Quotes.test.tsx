@@ -80,7 +80,7 @@ describe("Quotes", () => {
     expect(screen.getByRole("listbox")).toHaveClass("bg-slate-950");
   });
 
-  it("does not render Delete in quote list row actions", () => {
+  it("renders View and Send, not Edit or Delete, in quote list row actions", () => {
     mockedUseQuotes.mockReturnValue({
       quotes: [buildQuote()],
       loading: false,
@@ -96,9 +96,9 @@ describe("Quotes", () => {
 
     renderQuotes();
 
-    expect(screen.getByRole("link", { name: /view/i })).toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: /view/i }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole("button", { name: /send/i }).length).toBeGreaterThan(0);
-    expect(screen.getAllByRole("button", { name: /edit/i }).length).toBeGreaterThan(0);
+    expect(screen.queryAllByRole("button", { name: /edit/i })).toHaveLength(0);
     expect(screen.queryAllByRole("button", { name: /delete/i })).toHaveLength(0);
   });
 });

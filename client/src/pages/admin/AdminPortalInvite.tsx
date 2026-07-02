@@ -224,7 +224,7 @@ export default function AdminPortalInvite() {
 
         <div className="mt-8 grid gap-6 xl:grid-cols-[260px_1fr]">
           <aside className="h-fit rounded-xl border border-slate-800 bg-slate-900 p-4">
-            <p className="px-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Admin sections</p>
+            <p className="px-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Studio sections</p>
             <div className="mt-3 flex flex-col gap-2">
               {isDirector && <NavButton active={section === "overview"} onClick={() => setSection("overview")}>Overview</NavButton>}
               {canSeeAccounts && <NavButton active={section === "accounts"} onClick={() => setSection("accounts")}>Customer Accounts</NavButton>}

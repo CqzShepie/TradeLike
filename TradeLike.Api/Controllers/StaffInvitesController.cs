@@ -493,6 +493,7 @@ public class StaffInvitesController : ControllerBase
         return new AdminUserResponse
         {
             Id = user.Id,
+            TenantId = user.TenantId,
             FirstName = user.FirstName,
             LastName = user.LastName,
             FullName = $"{user.FirstName} {user.LastName}".Trim(),

@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using Microsoft.EntityFrameworkCore;
+using TradeLike.Api.Contracts.Pagination;
 using TradeLike.Api.Contracts.Quotes;
 using TradeLike.Api.Data;
 using TradeLike.Api.Models;
@@ -54,6 +55,68 @@ public class QuoteService : IQuoteService
             .ToListAsync();
     }
 
+    public async Task<PagedResponse<Quote>> GetPagedAsync(int tenantId, PagedQuery query)
+    {
+        var page = query.NormalizedPage;
+        var pageSize = query.NormalizedPageSize;
+        IQueryable<Quote> quotes = _context.Quotes
+            .AsNoTracking()
+            .Include(quote => quote.LineItems)
+            .Where(quote => quote.TenantId == tenantId);
+
+        if (!string.IsNullOrWhiteSpace(query.Search))
+        {
+            var search = query.Search.Trim();
+            quotes = quotes.Where(quote =>
+                quote.CustomerName.Contains(search) ||
+                quote.Title.Contains(search) ||
+                (quote.Description != null && quote.Description.Contains(search)) ||
+                (quote.Notes != null && quote.Notes.Contains(search)));
+        }
+
+        if (!string.IsNullOrWhiteSpace(query.Status))
+        {
+            var status = Canonicalise(query.Status, AllowedStatuses);
+            quotes = quotes.Where(quote => quote.Status == status);
+        }
+
+        if (query.DateFrom.HasValue)
+        {
+            var dateFrom = query.DateFrom.Value.Date;
+            quotes = quotes.Where(quote => quote.CreatedAt >= dateFrom);
+        }
+
+        if (query.DateTo.HasValue)
+        {
+            var dateTo = query.DateTo.Value.Date.AddDays(1);
+            quotes = quotes.Where(quote => quote.CreatedAt < dateTo);
+        }
+
+        quotes = (query.SortBy?.Trim().ToLowerInvariant(), query.SortDescending) switch
+        {
+            ("customer", true) => quotes.OrderByDescending(quote => quote.CustomerName).ThenByDescending(quote => quote.CreatedAt),
+            ("customer", false) => quotes.OrderBy(quote => quote.CustomerName).ThenByDescending(quote => quote.CreatedAt),
+            ("title", true) => quotes.OrderByDescending(quote => quote.Title).ThenByDescending(quote => quote.CreatedAt),
+            ("title", false) => quotes.OrderBy(quote => quote.Title).ThenByDescending(quote => quote.CreatedAt),
+            ("status", true) => quotes.OrderByDescending(quote => quote.Status).ThenByDescending(quote => quote.CreatedAt),
+            ("status", false) => quotes.OrderBy(quote => quote.Status).ThenByDescending(quote => quote.CreatedAt),
+            ("total", true) => quotes.OrderByDescending(quote => quote.Total).ThenByDescending(quote => quote.CreatedAt),
+            ("total", false) => quotes.OrderBy(quote => quote.Total).ThenByDescending(quote => quote.CreatedAt),
+            ("id", true) => quotes.OrderByDescending(quote => quote.Id),
+            ("id", false) => quotes.OrderBy(quote => quote.Id),
+            (_, false) => quotes.OrderBy(quote => quote.CreatedAt),
+            _ => quotes.OrderByDescending(quote => quote.CreatedAt)
+        };
+
+        var totalItems = await quotes.CountAsync();
+        var items = await quotes
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        return PagedResponse<Quote>.Create(items, page, pageSize, totalItems);
+    }
+
     public async Task<Quote?> GetByIdAsync(int id, int tenantId)
     {
         return await _context.Quotes
@@ -93,6 +156,11 @@ public class QuoteService : IQuoteService
         if (quote is null)
         {
             return null;
+        }
+
+        if (IsFinanciallyLocked(quote, tenantId))
+        {
+            throw new ValidationException("Accepted or converted quotes cannot be edited. Reopen the quote before changing totals or line items.");
         }
 
         quote.CustomerId = updatedQuote.CustomerId;
@@ -144,6 +212,7 @@ public class QuoteService : IQuoteService
             return null;
         }
 
+        // TODO: Move quote removal to soft delete when a retention model is introduced.
         _context.Quotes.Remove(quote);
         await _context.SaveChangesAsync();
 
@@ -368,6 +437,11 @@ public class QuoteService : IQuoteService
             throw new ValidationException("Discount value cannot be negative.");
         }
 
+        if (quote.DiscountTotal < 0)
+        {
+            throw new ValidationException("Discount total cannot be negative.");
+        }
+
         if (quote.DiscountType == "Percentage" && quote.DiscountValue > 100)
         {
             throw new ValidationException("Percentage discount cannot be more than 100%.");
@@ -418,6 +492,12 @@ public class QuoteService : IQuoteService
                     $"Line {lineNumber} unit price cannot be negative.");
             }
 
+            if (item.LineTotal < 0)
+            {
+                throw new ValidationException(
+                    $"Line {lineNumber} total cannot be negative.");
+            }
+
             if (item.VatRate < 0 || item.VatRate > 100)
             {
                 throw new ValidationException(
@@ -458,6 +538,18 @@ public class QuoteService : IQuoteService
         quote.Amount = quote.Total;
     }
 
+    private bool IsFinanciallyLocked(Quote quote, int tenantId)
+    {
+        if (string.Equals(quote.Status, "Accepted", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return _context.Jobs
+            .AsNoTracking()
+            .Any(job => job.TenantId == tenantId && job.QuoteId == quote.Id);
+    }
+
     private static void ValidateConvertedJob(Job job)
     {
         if (job.ScheduledDate.Year < 2024 || job.ScheduledDate.Year > 2099)
@@ -470,10 +562,20 @@ public class QuoteService : IQuoteService
             throw new ValidationException("Customer is required.");
         }
 
+        if (job.Customer.Length > 180)
+        {
+            throw new ValidationException("Customer must be 180 characters or fewer.");
+        }
+
         if (string.IsNullOrWhiteSpace(job.Phone))
         {
             throw new ValidationException(
                 "Phone number is required. Add it to the conversion form or the customer record.");
+        }
+
+        if (job.Phone.Length > 40)
+        {
+            throw new ValidationException("Phone number must be 40 characters or fewer.");
         }
 
         if (string.IsNullOrWhiteSpace(job.JobTitle))
@@ -481,10 +583,20 @@ public class QuoteService : IQuoteService
             throw new ValidationException("Job title is required.");
         }
 
+        if (job.JobTitle.Length > 220)
+        {
+            throw new ValidationException("Job title must be 220 characters or fewer.");
+        }
+
         if (string.IsNullOrWhiteSpace(job.Address))
         {
             throw new ValidationException(
                 "Address is required. Add it to the conversion form or the customer record.");
+        }
+
+        if (job.Address.Length > 500)
+        {
+            throw new ValidationException("Address must be 500 characters or fewer.");
         }
 
         if (!AllowedJobPriorities.Contains(job.Priority, StringComparer.OrdinalIgnoreCase))

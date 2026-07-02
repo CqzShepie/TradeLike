@@ -8,20 +8,20 @@ public sealed class CreateJobRequest
     public int? CustomerId { get; set; }
 
     [Required(ErrorMessage = "Customer is required.")]
-    [MaxLength(100, ErrorMessage = "Customer must be 100 characters or fewer.")]
+    [MaxLength(180, ErrorMessage = "Customer must be 180 characters or fewer.")]
     public string Customer { get; set; } = string.Empty;
 
     [Required(ErrorMessage = "Phone number is required.")]
-    [RegularExpression(@"^\+?[0-9\s().-]{7,30}$", ErrorMessage = "Enter a valid phone number.")]
-    [MaxLength(30, ErrorMessage = "Phone number must be 30 characters or fewer.")]
+    [RegularExpression(@"^\+?[0-9\s().-]{7,40}$", ErrorMessage = "Enter a valid phone number.")]
+    [MaxLength(40, ErrorMessage = "Phone number must be 40 characters or fewer.")]
     public string Phone { get; set; } = string.Empty;
 
     [Required(ErrorMessage = "Job title is required.")]
-    [MaxLength(150, ErrorMessage = "Job title must be 150 characters or fewer.")]
+    [MaxLength(220, ErrorMessage = "Job title must be 220 characters or fewer.")]
     public string JobTitle { get; set; } = string.Empty;
 
     [Required(ErrorMessage = "Address is required.")]
-    [MaxLength(250, ErrorMessage = "Address must be 250 characters or fewer.")]
+    [MaxLength(500, ErrorMessage = "Address must be 500 characters or fewer.")]
     public string Address { get; set; } = string.Empty;
 
     [Required(ErrorMessage = "Scheduled date is required.")]
