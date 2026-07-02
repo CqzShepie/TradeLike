@@ -64,7 +64,8 @@ describe("Dashboard", () => {
 
     renderDashboard();
 
-    expect(screen.getByText("No dashboard activity yet")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Create your first job" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Create your first job" })).toHaveAttribute("href", "/jobs");
   });
 
   it("renders dashboard headings and stat labels with readable dark styling", () => {
@@ -100,6 +101,13 @@ describe("Dashboard", () => {
 
     renderDashboard();
 
+    expect(screen.getByRole("heading", { name: "Trade business at a glance" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Dashboard preview summary")).toBeInTheDocument();
+    expect(screen.getByText("Today")).toHaveClass("text-slate-400");
+    expect(screen.getByText("Upcoming")).toHaveClass("text-slate-400");
+    expect(screen.getByText("Quotes")).toHaveClass("text-slate-400");
+    expect(screen.getByText("Invoices")).toHaveClass("text-slate-400");
+    expect(screen.getByText("Activity")).toHaveClass("text-slate-400");
     expect(screen.getByRole("heading", { name: "Today's schedule" })).toHaveClass("text-white");
     expect(screen.getByRole("heading", { name: "Upcoming jobs" })).toHaveClass("text-white");
     expect(screen.getByRole("heading", { name: "Recent activity" })).toHaveClass("text-white");
@@ -117,10 +125,20 @@ describe("Dashboard", () => {
 
     renderDashboard();
 
+    expect(screen.queryByLabelText("Recent activity")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Customise" }));
     fireEvent.click(screen.getByLabelText("Recent activity"));
 
     expect(JSON.parse(localStorage.getItem("tradelike_dashboard_widgets") || "{}").activity).toBe(false);
     expect(screen.queryByRole("heading", { name: "Recent activity" })).not.toBeInTheDocument();
+  });
+
+  it("uses tenant-facing job numbers in dashboard job cards", () => {
+    mockSummary();
+
+    renderDashboard();
+
+    expect(screen.getByText("Job #44")).toBeInTheDocument();
   });
 
   it("keeps Team and Business widgets plan-aware", () => {
@@ -170,6 +188,7 @@ function mockSummary() {
       completedJobs: 1,
       todayJobs: [{
         id: 1,
+        jobNumber: 44,
         customer: "Sarah Johnson",
         phone: "07981 125031",
         jobTitle: "Boiler service",

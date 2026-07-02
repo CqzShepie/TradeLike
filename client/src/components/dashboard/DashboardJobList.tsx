@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { EmptyState, StatusBadge } from "../ui";
+import { StatusBadge } from "../ui";
 import type { Job } from "../../types/job";
 
 type DashboardJobListProps = {
@@ -14,7 +14,7 @@ export default function DashboardJobList({
   emptyDescription,
 }: DashboardJobListProps) {
   if (jobs.length === 0) {
-    return <EmptyState title={emptyTitle} description={emptyDescription} />;
+    return <CompactDashboardEmpty title={emptyTitle} description={emptyDescription} />;
   }
 
   return (
@@ -28,11 +28,12 @@ export default function DashboardJobList({
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <h3 className="text-sm font-bold text-white">
-                  {job.jobTitle}
-                </h3>
+                <h3 className="text-sm font-bold text-white">{job.jobTitle}</h3>
                 <StatusBadge status={job.status} />
               </div>
+              <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-blue-200">
+                Job #{job.jobNumber ?? job.id}
+              </p>
 
               <p className="mt-2 text-sm font-semibold text-slate-100">
                 {job.customer}
@@ -53,6 +54,15 @@ export default function DashboardJobList({
           </div>
         </Link>
       ))}
+    </div>
+  );
+}
+
+function CompactDashboardEmpty({ title, description }: { title: string; description: string }) {
+  return (
+    <div className="rounded-lg border border-dashed border-white/15 bg-slate-950/45 p-4">
+      <p className="text-sm font-bold text-white">{title}</p>
+      <p className="mt-2 text-sm leading-6 text-slate-400">{description}</p>
     </div>
   );
 }

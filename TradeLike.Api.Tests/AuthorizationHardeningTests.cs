@@ -795,6 +795,112 @@ public sealed class AuthorizationHardeningTests
     }
 
     [Fact]
+    public async Task JobAssignmentClearEndpointClearsAssignmentWithoutDeletingJob()
+    {
+        await using var context = CreateContext();
+        context.Jobs.Add(new Job
+        {
+            Id = 12,
+            TenantId = 1,
+            Customer = "Customer",
+            Phone = "07123456789",
+            JobTitle = "Boiler service",
+            Address = "1 Trade Street",
+            ScheduledDate = DateTime.Today.AddDays(1),
+            Status = "Scheduled",
+            Priority = "Normal",
+            AssignedTeamId = 70,
+            LeadStaffMemberId = 30,
+            EngineerId = 99,
+            CalendarColour = "green"
+        });
+        context.CustomerStaffTeams.Add(new CustomerStaffTeam
+        {
+            Id = 70,
+            CompanyUserId = 1,
+            Name = "Install team",
+            Description = "",
+            Colour = "green",
+            DefaultJobType = "",
+            ServiceArea = "",
+            WorkingHours = ""
+        });
+        context.CustomerStaffMembers.AddRange(
+            BuildStaffMember(30, 1, "Amy"),
+            BuildStaffMember(31, 1, "Ben"));
+        context.JobAssignments.Add(new JobAssignment
+        {
+            JobId = 12,
+            TenantId = 1,
+            LeadStaffMemberId = 30,
+            StaffMembers = [new JobAssignmentStaff { StaffMemberId = 31 }]
+        });
+        await context.SaveChangesAsync();
+
+        var controller = new JobAssignmentsController(context)
+        {
+            ControllerContext = new ControllerContext
+            {
+                HttpContext = HttpContextForTenant(1, CustomerRoles.Manager)
+            }
+        };
+
+        var cleared = await controller.ClearAssignment(12);
+        var clearedAgain = await controller.ClearAssignment(12);
+
+        Assert.IsType<OkObjectResult>(cleared.Result);
+        Assert.IsType<OkObjectResult>(clearedAgain.Result);
+
+        var job = await context.Jobs.SingleAsync(existingJob => existingJob.Id == 12);
+        Assert.Null(job.AssignedTeamId);
+        Assert.Null(job.LeadStaffMemberId);
+        Assert.Null(job.EngineerId);
+        Assert.Equal("Scheduled", job.Status);
+
+        var assignment = await context.JobAssignments
+            .Include(existingAssignment => existingAssignment.StaffMembers)
+            .SingleAsync(existingAssignment => existingAssignment.JobId == 12);
+        Assert.Null(assignment.LeadStaffMemberId);
+        Assert.Empty(assignment.StaffMembers);
+    }
+
+    [Fact]
+    public async Task JobAssignmentClearEndpointIsTenantScoped()
+    {
+        await using var context = CreateContext();
+        context.Jobs.Add(new Job
+        {
+            Id = 13,
+            TenantId = 2,
+            Customer = "Other Tenant",
+            Phone = "07123456789",
+            JobTitle = "Boiler service",
+            Address = "1 Other Street",
+            ScheduledDate = DateTime.Today.AddDays(1),
+            Status = "Scheduled",
+            Priority = "Normal",
+            AssignedTeamId = 70,
+            LeadStaffMemberId = 30
+        });
+        await context.SaveChangesAsync();
+
+        var controller = new JobAssignmentsController(context)
+        {
+            ControllerContext = new ControllerContext
+            {
+                HttpContext = HttpContextForTenant(1, CustomerRoles.Manager)
+            }
+        };
+
+        var result = await controller.ClearAssignment(13);
+
+        Assert.IsType<NotFoundResult>(result.Result);
+        var job = await context.Jobs.SingleAsync(existingJob => existingJob.Id == 13);
+        Assert.Equal(70, job.AssignedTeamId);
+        Assert.Equal(30, job.LeadStaffMemberId);
+    }
+
+    [Fact]
     public async Task StaffLeaveIsTenantScopedAndRecordsDecision()
     {
         await using var context = CreateContext();

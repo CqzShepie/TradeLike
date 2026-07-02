@@ -17,6 +17,8 @@ export default function JobDetailsAssignmentPanel({ job }: Props) {
   const [teams, setTeams] = useState<CustomerTeam[]>([]);
   const [assignments, setAssignments] = useState<JobAssignment[]>([]);
   const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
   const { user } = useAuth();
   const showStaffScheduling = canUseStaffScheduling(user);
 
@@ -68,17 +70,22 @@ export default function JobDetailsAssignmentPanel({ job }: Props) {
       calendarColour: "blue",
     };
     setSaving(true);
+    setMessage("");
+    setError("");
 
     try {
-      const nextTeamId = patch.assignedTeamId ?? current.assignedTeamId ?? null;
+      const nextTeamId = valueOrCurrent(patch, "assignedTeamId", current.assignedTeamId ?? null);
       const selectedTeam = nextTeamId ? teams.find(team => team.id === nextTeamId) : undefined;
       setAssignments(await jobAssignmentsService.update(job.id, {
         assignedTeamId: nextTeamId,
-        leadStaffMemberId: patch.leadStaffMemberId ?? current.leadStaffMemberId ?? null,
-        assignedStaffMemberIds: patch.assignedStaffMemberIds ?? current.assignedStaffMemberIds,
-        scheduledEndDate: patch.scheduledEndDate ?? current.scheduledEndDate ?? null,
-        calendarColour: patch.calendarColour ?? selectedTeam?.colour ?? current.calendarColour ?? "blue",
+        leadStaffMemberId: valueOrCurrent(patch, "leadStaffMemberId", current.leadStaffMemberId ?? null),
+        assignedStaffMemberIds: valueOrCurrent(patch, "assignedStaffMemberIds", current.assignedStaffMemberIds),
+        scheduledEndDate: valueOrCurrent(patch, "scheduledEndDate", current.scheduledEndDate ?? null),
+        calendarColour: valueOrCurrent(patch, "calendarColour", selectedTeam?.colour ?? current.calendarColour ?? "blue"),
       }));
+      setMessage("Assignment updated.");
+    } catch {
+      setError("Assignment could not be updated.");
     } finally {
       setSaving(false);
     }
@@ -99,13 +106,19 @@ export default function JobDetailsAssignmentPanel({ job }: Props) {
     });
   }
 
-  function clearAssignment() {
-    update({
-      assignedTeamId: null,
-      leadStaffMemberId: null,
-      assignedStaffMemberIds: [],
-      calendarColour: "blue",
-    });
+  async function clearAssignment() {
+    setSaving(true);
+    setMessage("");
+    setError("");
+
+    try {
+      setAssignments(await jobAssignmentsService.clear(job.id));
+      setMessage("Assignment cleared.");
+    } catch {
+      setError("Assignment could not be cleared.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   if (!showStaffScheduling) {
@@ -119,17 +132,11 @@ export default function JobDetailsAssignmentPanel({ job }: Props) {
         Assign a team, one lead engineer, and several extra staff members.
       </p>
 
-      <div className="mt-4 rounded-lg border border-white/10 bg-white/[0.03] p-3 text-sm text-slate-300">
-        <p className="font-semibold text-slate-100">Current assignment</p>
-        <p className="mt-1">
-          {leadStaffMemberId
-            ? leadMember
-              ? `${leadMember.firstName} ${leadMember.lastName}`
-              : "Lead engineer selected"
-            : selectedStaffIds.length
-              ? `${selectedStaffIds.length} staff assigned`
-              : "Unassigned"}
-        </p>
+      <div className="mt-4 grid gap-2 rounded-lg border border-white/10 bg-white/[0.03] p-3 text-sm text-slate-300 sm:grid-cols-2">
+        <AssignmentSummary label="Current assignment" value={leadMember ? getMemberName(leadMember) : selectedStaffIds.length ? `${selectedStaffIds.length} staff assigned` : "Unassigned"} />
+        <AssignmentSummary label="Team" value={teams.find(team => team.id === assignment?.assignedTeamId)?.name ?? "No team"} />
+        <AssignmentSummary label="Lead" value={leadMember ? getMemberName(leadMember) : "Unassigned"} />
+        <AssignmentSummary label="Extra staff" value={selectedStaffIds.length ? `${selectedStaffIds.length} selected` : "None"} />
       </div>
 
       <div className="mt-4 grid gap-3">
@@ -147,7 +154,7 @@ export default function JobDetailsAssignmentPanel({ job }: Props) {
           onChange={event => updateLead(event.target.value ? Number(event.target.value) : null)}
           className="rounded-lg border border-white/10 bg-slate-950 px-3 py-2 text-sm text-white"
         >
-          <option value="">No lead engineer</option>
+          <option value="">Unassigned</option>
           {members.map(member => <option key={member.id} value={member.id}>{member.firstName} {member.lastName}</option>)}
         </select>
 
@@ -171,6 +178,8 @@ export default function JobDetailsAssignmentPanel({ job }: Props) {
         </div>
 
         {saving && <p className="text-xs text-slate-500">Saving...</p>}
+        {message && <p className="rounded-lg border border-emerald-400/20 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-100">{message}</p>}
+        {error && <p role="alert" className="rounded-lg border border-red-400/30 bg-red-500/10 px-3 py-2 text-sm text-red-100">{error}</p>}
 
         <button
           type="button"
@@ -178,9 +187,30 @@ export default function JobDetailsAssignmentPanel({ job }: Props) {
           disabled={saving || (!assignment?.assignedTeamId && !assignment?.leadStaffMemberId && (assignment?.assignedStaffMemberIds.length ?? 0) === 0)}
           className="rounded-lg border border-white/10 px-3 py-2 text-sm font-semibold text-slate-100 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          Unassign job
+          Clear assignment
         </button>
       </div>
     </section>
   );
+}
+
+function AssignmentSummary({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</p>
+      <p className="mt-1 font-semibold text-slate-100">{value}</p>
+    </div>
+  );
+}
+
+function valueOrCurrent<TKey extends keyof JobAssignment>(
+  patch: Partial<JobAssignment>,
+  key: TKey,
+  currentValue: JobAssignment[TKey],
+) {
+  return Object.prototype.hasOwnProperty.call(patch, key) ? patch[key] as JobAssignment[TKey] : currentValue;
+}
+
+function getMemberName(member: CustomerStaffMember) {
+  return `${member.firstName} ${member.lastName}`.trim();
 }
