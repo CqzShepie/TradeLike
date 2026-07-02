@@ -19,7 +19,6 @@ describe("CalendarPage", () => {
     );
 
     expect(screen.queryByText("Week view")).not.toBeInTheDocument();
-    expect(screen.queryByText("Route tools")).not.toBeInTheDocument();
     expect(screen.getByText("Calendar board")).toBeInTheDocument();
   });
 });

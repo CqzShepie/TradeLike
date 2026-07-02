@@ -29,7 +29,7 @@ const blankWorkspace: CustomerStaffWorkspace = {
 };
 
 const statuses: CustomerStaffMember["status"][] = ["InvitePending", "Active", "Suspended", "Left", "Cancelled"];
-type Tab = "staff" | "teams" | "leave" | "future";
+type Tab = "staff" | "teams" | "leave";
 
 export default function CustomerStaff() {
   const location = useLocation();
@@ -342,7 +342,7 @@ export default function CustomerStaff() {
             </div>
             <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-sm shadow-sm">
               <p className="font-bold text-white">{workspace.entitlements.planName} plan</p>
-              <p className="mt-1 text-slate-300">{currentUserCount}/{maxUsers ?? "unlimited"} users</p>
+              <p className="mt-1 text-slate-300">{maxUsers == null ? "Unlimited users" : `${currentUserCount}/${maxUsers} users`}</p>
               <p className="text-slate-300">Support: {workspace.entitlements.supportLevel}</p>
             </div>
           </div>
@@ -350,11 +350,10 @@ export default function CustomerStaff() {
           {error && <Alert tone="error" onClose={() => setError("")}>{error}</Alert>}
           {message && <Alert tone="success" onClose={() => setMessage("")}>{message}</Alert>}
 
-          <div className="mt-8 grid gap-3 md:grid-cols-4">
+          <div className="mt-8 grid gap-3 md:grid-cols-3">
             <TabButton active={activeTab === "staff"} onClick={() => setActiveTab("staff")}>Staff</TabButton>
             <TabButton active={activeTab === "teams"} onClick={() => setActiveTab("teams")}>Teams</TabButton>
             <TabButton active={activeTab === "leave"} onClick={() => setActiveTab("leave")}>Annual leave</TabButton>
-            <TabButton active={activeTab === "future"} onClick={() => setActiveTab("future")}>Future QOL</TabButton>
           </div>
 
           {loading ? (
@@ -447,17 +446,6 @@ export default function CustomerStaff() {
                   addLeaveRequest={addLeaveRequest}
                   updateLeaveStatus={updateLeaveStatus}
                 />
-              )}
-              {activeTab === "future" && (
-                <Panel title="Planned quality-of-life and security">
-                  <div className="grid gap-3 md:grid-cols-2">
-                    {[...workspace.qualityOfLifeItems, ...workspace.futureSecurityItems].map(item => (
-                      <div key={item} className="rounded-lg border border-white/10 bg-slate-950/50 p-4 text-sm font-medium text-slate-200">
-                        {item}
-                      </div>
-                    ))}
-                  </div>
-                </Panel>
               )}
             </div>
           )}

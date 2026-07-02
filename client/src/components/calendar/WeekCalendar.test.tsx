@@ -21,7 +21,6 @@ vi.mock("./WeekGrid", () => ({
   ),
 }));
 vi.mock("./WeekNavigation", () => ({ default: () => <div>Week navigation</div> }));
-vi.mock("./RouteMapModal", () => ({ default: () => <div>Route map modal</div> }));
 vi.mock("../../hooks/useWeekJobs", () => ({
   useWeekJobs: () => ({ jobs: weekCalendarState.jobs }),
 }));
@@ -88,7 +87,6 @@ describe("WeekCalendar plan controls", () => {
 
     render(<WeekCalendar />);
 
-    expect(screen.queryByRole("button", { name: /optimise route/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("combobox", { name: /calendar dispatch filter/i })).not.toBeInTheDocument();
     expect(screen.queryByText(/Merged: everyone/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/dispatch view/i)).not.toBeInTheDocument();
@@ -101,7 +99,6 @@ describe("WeekCalendar plan controls", () => {
 
     render(<WeekCalendar />);
 
-    expect(screen.getByRole("button", { name: /optimise route/i })).toBeInTheDocument();
     expect(screen.getByRole("combobox")).not.toBeDisabled();
   });
 

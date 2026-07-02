@@ -62,7 +62,7 @@ export default function Reports() {
   const { user } = useAuth();
   const showTeamReports = hasFeature(user?.plan, "staff-scheduling");
   const showBusinessReports = isAtLeastPlan(user?.plan, "Business");
-  const reportTier = showBusinessReports ? "Advanced + Custom" : showTeamReports ? "Advanced" : "Basic";
+  const reportTier = showBusinessReports ? "Business" : showTeamReports ? "Advanced" : "Basic";
 
   useEffect(() => {
     void loadReports();

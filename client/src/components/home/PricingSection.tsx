@@ -15,13 +15,13 @@ const plans = [
     name: "Business",
     price: "£199/month",
     cta: "Start Business",
-    features: ["11-25 users", "Dedicated support", "Advanced + Custom reporting", "API access"],
+    features: ["11-25 users", "Dedicated support", "Business reporting", "API access"],
   },
   {
     name: "Enterprise",
     price: "Contact Sales",
     cta: "sales@tradelike.co.uk",
-    features: ["Unlimited users", "Dedicated support", "Advanced + Custom reporting", "API access"],
+    features: ["Unlimited users", "Dedicated support", "Enterprise reporting", "API access"],
   },
 ];
 

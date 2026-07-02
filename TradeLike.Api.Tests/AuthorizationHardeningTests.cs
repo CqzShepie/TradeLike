@@ -12,7 +12,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using TradeLike.Api;
 using TradeLike.Api.Api.Payments;
-using TradeLike.Api.Api.RoutePlanner;
 using TradeLike.Api.Contracts.Admin;
 using TradeLike.Api.Contracts.Jobs;
 using TradeLike.Api.Contracts.Settings;
@@ -1204,23 +1203,6 @@ public sealed class AuthorizationHardeningTests
         Assert.Contains(users, user => user.Email == "director@example.com");
         Assert.Contains(users, user => user.Email == "manager@example.com");
         Assert.DoesNotContain(users, user => user.Email == "support@example.com");
-    }
-
-    [Fact]
-    [Trait("Category", "Route")]
-    public async Task DailyRouteRequiresDate()
-    {
-        var controller = new RoutesController(null!)
-        {
-            ControllerContext = new ControllerContext
-            {
-                HttpContext = HttpContextForTenant(1, CustomerRoles.Employee)
-            }
-        };
-
-        var result = await controller.GetDailyRoute(default, null);
-
-        Assert.IsType<BadRequestObjectResult>(result.Result);
     }
 
     [Fact]

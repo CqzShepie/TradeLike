@@ -208,7 +208,7 @@ function Dashboard() {
 
                 {isBusinessPlus && widgetPreferences.inventoryAlerts && (
                   <DashboardPanel title="Inventory alerts" subtitle="Business+ stock follow-up.">
-                    <PreviewLink to="/inventory" title="Review inventory" description="Open Inventory to check low-stock items, suppliers and purchase orders." />
+                    <PreviewLink to="/inventory" title="Review inventory" description="Open Inventory to check low-stock items, suppliers and stock movement." />
                   </DashboardPanel>
                 )}
               </div>

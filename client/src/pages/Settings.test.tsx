@@ -105,11 +105,13 @@ describe("Settings", () => {
     expect(screen.queryByRole("heading", { name: /branding/i })).not.toBeInTheDocument();
   });
 
-  it("shows Business sections plus enterprise support language for Enterprise", async () => {
+  it("shows Business sections without enterprise support marketing copy for Enterprise", async () => {
     arrange("Enterprise");
     renderSettings();
 
-    expect(await screen.findByText(/enterprise workspace/i)).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: /inventory/i })).toBeInTheDocument();
+    expect(screen.queryByText(/enterprise workspace/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/priority support and compliance/i)).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /inventory/i })).toBeInTheDocument();
   });
 
@@ -122,8 +124,8 @@ describe("Settings", () => {
     expect(screen.queryByLabelText(/quote prefix/i)).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/invoice prefix/i)).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/purchase order prefix/i)).not.toBeInTheDocument();
-    expect(screen.getByText(/quote and invoice prefixes are system-defined/i)).toBeInTheDocument();
-    expect(screen.getByText(/purchase order prefix:/i)).toBeInTheDocument();
+    expect(screen.queryByText(/quote and invoice prefixes are system-defined/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/purchase order prefix:/i)).not.toBeInTheDocument();
   });
 
   it("opens billing modal and requires confirmation before a plan change request", async () => {
@@ -135,9 +137,10 @@ describe("Settings", () => {
     fireEvent.click(screen.getByRole("button", { name: /team/i }));
 
     expect(screen.getByRole("heading", { name: /manage billing/i })).toBeInTheDocument();
-    expect(screen.getByText(/current: £40\.00/i)).toBeInTheDocument();
-    expect(screen.getByText(/new: £99\.00/i)).toBeInTheDocument();
-    expect(screen.getByText(/estimated upgrade credit/i)).toBeInTheDocument();
+    expect(screen.getByText(/current plan: solo/i)).toBeInTheDocument();
+    expect(screen.getByText(/requested plan: team/i)).toBeInTheDocument();
+    expect(screen.getByText(/requested seats: 10/i)).toBeInTheDocument();
+    expect(screen.queryByText(/credit|proration|discount/i)).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /submit request/i })).toBeDisabled();
   });
 
@@ -158,11 +161,11 @@ describe("Settings", () => {
     await screen.findByRole("heading", { name: /plan & billing/i });
     fireEvent.click(screen.getByRole("button", { name: /manage billing/i }));
     fireEvent.click(screen.getByRole("button", { name: /team/i }));
-    fireEvent.click(screen.getByLabelText(/i understand this saves/i));
+    fireEvent.click(screen.getByLabelText(/i understand this submits/i));
     fireEvent.click(screen.getByRole("button", { name: /submit request/i }));
 
     await waitFor(() => expect(mockedBillingService.requestPlanChange).toHaveBeenCalledWith("Team"));
-    expect(await screen.findByText(/plan change request saved/i)).toBeInTheDocument();
+    expect(await screen.findByText(/plan change request submitted/i)).toBeInTheDocument();
     expect(JSON.parse(localStorage.getItem("tradelike_user") || "{}").plan).toBe("Team");
   });
 
@@ -174,7 +177,7 @@ describe("Settings", () => {
     await screen.findByRole("heading", { name: /plan & billing/i });
     fireEvent.click(screen.getByRole("button", { name: /manage billing/i }));
     fireEvent.click(screen.getByRole("button", { name: /team/i }));
-    fireEvent.click(screen.getByLabelText(/i understand this saves/i));
+    fireEvent.click(screen.getByLabelText(/i understand this submits/i));
     fireEvent.click(screen.getByRole("button", { name: /submit request/i }));
 
     expect(await screen.findByText("Plan change request could not be saved. Please try again or contact support.")).toBeInTheDocument();
@@ -193,6 +196,7 @@ describe("Settings", () => {
     const saved = JSON.parse(localStorage.getItem("tradelike_accessibility_preferences") || "{}");
     expect(saved.reduceMotion).toBe(true);
     expect(saved.textSize).toBe("large");
+    expect(screen.queryByText(/keyboard navigation is supported/i)).not.toBeInTheDocument();
   });
 
   it("uses clear notification copy without provider credential or support failure wording", async () => {
