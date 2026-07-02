@@ -2,6 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TradeLike.Api.Contracts.Customers;
+using TradeLike.Api.Contracts.Pagination;
 using TradeLike.Api.Security;
 using TradeLike.Api.Services;
 
@@ -23,6 +24,14 @@ public class CustomersController : ControllerBase
     public async Task<IActionResult> GetCustomers()
     {
         var customers = await _customerService.GetAllAsync(TenantHelpers.GetTenantId(HttpContext));
+
+        return Ok(customers);
+    }
+
+    [HttpGet("paged")]
+    public async Task<IActionResult> GetCustomersPaged([FromQuery] PagedQuery query)
+    {
+        var customers = await _customerService.GetPagedAsync(TenantHelpers.GetTenantId(HttpContext), query);
 
         return Ok(customers);
     }

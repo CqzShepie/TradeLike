@@ -1,4 +1,5 @@
 using TradeLike.Api.Contracts.Jobs;
+using TradeLike.Api.Contracts.Pagination;
 using TradeLike.Api.Models;
 
 namespace TradeLike.Api.Services;
@@ -6,6 +7,8 @@ namespace TradeLike.Api.Services;
 public interface IJobService
 {
     Task<IReadOnlyList<Job>> GetAllAsync(int tenantId);
+
+    Task<PagedResponse<Job>> GetPagedAsync(int tenantId, PagedQuery query);
 
     Task<Job?> GetByIdAsync(int id, int tenantId);
 

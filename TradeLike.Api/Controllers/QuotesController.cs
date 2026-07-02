@@ -1,6 +1,7 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using TradeLike.Api.Contracts.Pagination;
 using TradeLike.Api.Contracts.Quotes;
 using TradeLike.Api.Models;
 using TradeLike.Api.Security;
@@ -26,6 +27,18 @@ public class QuotesController : ControllerBase
         var quotes = await _quoteService.GetAllAsync(TenantHelpers.GetTenantId(HttpContext));
 
         return Ok(quotes.Select(ToResponse).ToList());
+    }
+
+    [HttpGet("paged")]
+    public async Task<ActionResult<object>> GetQuotesPaged([FromQuery] PagedQuery query)
+    {
+        var quotes = await _quoteService.GetPagedAsync(TenantHelpers.GetTenantId(HttpContext), query);
+
+        return Ok(PagedResponse<QuoteResponse>.Create(
+            quotes.Items.Select(ToResponse).ToList(),
+            quotes.Page,
+            quotes.PageSize,
+            quotes.TotalItems));
     }
 
     [HttpGet("{id:int}")]

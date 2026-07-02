@@ -215,6 +215,8 @@ export default function AdminAccountsWorkspace() {
               </div>
 
               <div className="mt-5 grid gap-3 md:grid-cols-4">
+                <Mini label="User ID" value={String(selected.id)} />
+                <Mini label="Tenant ID" value={String(selected.tenantId ?? selected.id)} />
                 <Mini label="Created" value={formatDateTime(selected.createdAt)} />
                 <Mini label="Last login" value={selected.lastLoginAt ? formatDateTime(selected.lastLoginAt) : "Never"} />
                 <Mini label="Trial ends" value={selected.trialEndsAt ? formatDateTime(selected.trialEndsAt) : "None"} />
@@ -269,7 +271,7 @@ export default function AdminAccountsWorkspace() {
                 {timeline.length === 0 ? <p className="p-4 text-sm text-slate-400">No timeline activity yet.</p> : timeline.map(log => (
                   <div key={log.id} className="p-4">
                     <p className="text-sm font-semibold text-white">{log.summary}</p>
-                    <p className="mt-1 text-xs text-slate-500">{log.action} · {formatDateTime(log.createdAt)}</p>
+                    <p className="mt-1 text-xs text-slate-500">{log.action} - {formatDateTime(log.createdAt)}</p>
                   </div>
                 ))}
               </div>

@@ -1,6 +1,7 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 using Microsoft.EntityFrameworkCore;
 using TradeLike.Api.Contracts.Jobs;
+using TradeLike.Api.Contracts.Pagination;
 using TradeLike.Api.Data;
 using TradeLike.Api.Models;
 
@@ -40,6 +41,69 @@ public class JobService : IJobService
             .Where(job => job.TenantId == tenantId)
             .OrderBy(job => job.ScheduledDate)
             .ToListAsync();
+    }
+
+    public async Task<PagedResponse<Job>> GetPagedAsync(int tenantId, PagedQuery query)
+    {
+        var page = query.NormalizedPage;
+        var pageSize = query.NormalizedPageSize;
+        IQueryable<Job> jobs = _context.Jobs
+            .AsNoTracking()
+            .Include(job => job.Quote)
+                .ThenInclude(quote => quote!.LineItems)
+            .Where(job => job.TenantId == tenantId);
+
+        if (!string.IsNullOrWhiteSpace(query.Search))
+        {
+            var search = query.Search.Trim();
+            jobs = jobs.Where(job =>
+                job.Customer.Contains(search) ||
+                job.Phone.Contains(search) ||
+                job.JobTitle.Contains(search) ||
+                job.Address.Contains(search));
+        }
+
+        if (!string.IsNullOrWhiteSpace(query.Status))
+        {
+            var status = Canonicalise(query.Status, AllowedStatuses);
+            jobs = jobs.Where(job => job.Status == status);
+        }
+
+        if (query.DateFrom.HasValue)
+        {
+            var dateFrom = query.DateFrom.Value.Date;
+            jobs = jobs.Where(job => job.ScheduledDate >= dateFrom);
+        }
+
+        if (query.DateTo.HasValue)
+        {
+            var dateTo = query.DateTo.Value.Date.AddDays(1);
+            jobs = jobs.Where(job => job.ScheduledDate < dateTo);
+        }
+
+        jobs = (query.SortBy?.Trim().ToLowerInvariant(), query.SortDescending) switch
+        {
+            ("status", true) => jobs.OrderByDescending(job => job.Status).ThenByDescending(job => job.ScheduledDate),
+            ("status", false) => jobs.OrderBy(job => job.Status).ThenBy(job => job.ScheduledDate),
+            ("priority", true) => jobs.OrderByDescending(job => job.Priority).ThenByDescending(job => job.ScheduledDate),
+            ("priority", false) => jobs.OrderBy(job => job.Priority).ThenBy(job => job.ScheduledDate),
+            ("customer", true) => jobs.OrderByDescending(job => job.Customer).ThenByDescending(job => job.ScheduledDate),
+            ("customer", false) => jobs.OrderBy(job => job.Customer).ThenBy(job => job.ScheduledDate),
+            ("title", true) => jobs.OrderByDescending(job => job.JobTitle).ThenByDescending(job => job.ScheduledDate),
+            ("title", false) => jobs.OrderBy(job => job.JobTitle).ThenBy(job => job.ScheduledDate),
+            ("id", true) => jobs.OrderByDescending(job => job.Id),
+            ("id", false) => jobs.OrderBy(job => job.Id),
+            (_, true) => jobs.OrderByDescending(job => job.ScheduledDate),
+            _ => jobs.OrderBy(job => job.ScheduledDate)
+        };
+
+        var totalItems = await jobs.CountAsync();
+        var items = await jobs
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        return PagedResponse<Job>.Create(items, page, pageSize, totalItems);
     }
 
     public async Task<Job?> GetByIdAsync(int id, int tenantId)
@@ -151,6 +215,7 @@ public class JobService : IJobService
             return null;
         }
 
+        // TODO: Move job removal to soft delete when a retention model is introduced.
         _context.Jobs.Remove(job);
         await _context.SaveChangesAsync();
 
@@ -320,9 +385,19 @@ public class JobService : IJobService
             throw new ValidationException("Customer is required.");
         }
 
+        if (job.Customer.Length > 180)
+        {
+            throw new ValidationException("Customer must be 180 characters or fewer.");
+        }
+
         if (string.IsNullOrWhiteSpace(job.Phone))
         {
             throw new ValidationException("Phone number is required.");
+        }
+
+        if (job.Phone.Length > 40)
+        {
+            throw new ValidationException("Phone number must be 40 characters or fewer.");
         }
 
         if (string.IsNullOrWhiteSpace(job.JobTitle))
@@ -330,9 +405,19 @@ public class JobService : IJobService
             throw new ValidationException("Job title is required.");
         }
 
+        if (job.JobTitle.Length > 220)
+        {
+            throw new ValidationException("Job title must be 220 characters or fewer.");
+        }
+
         if (string.IsNullOrWhiteSpace(job.Address))
         {
             throw new ValidationException("Address is required.");
+        }
+
+        if (job.Address.Length > 500)
+        {
+            throw new ValidationException("Address must be 500 characters or fewer.");
         }
 
         if (!AllowedStatuses.Contains(job.Status, StringComparer.OrdinalIgnoreCase))

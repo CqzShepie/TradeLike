@@ -1,4 +1,5 @@
 using TradeLike.Api.Contracts.Customers;
+using TradeLike.Api.Contracts.Pagination;
 using TradeLike.Api.Models;
 
 namespace TradeLike.Api.Services;
@@ -6,6 +7,8 @@ namespace TradeLike.Api.Services;
 public interface ICustomerService
 {
     Task<IReadOnlyList<Customer>> GetAllAsync(int tenantId);
+
+    Task<PagedResponse<Customer>> GetPagedAsync(int tenantId, PagedQuery query);
 
     Task<Customer?> GetByIdAsync(int id, int tenantId);
 

@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import { authService } from "../../services/authService";
 import type { AdminAuditLog, AdminUser } from "../../types/admin";
 import { permissionDefinitions } from "./adminPortalConstants";
 import {
@@ -200,12 +199,6 @@ export function AdminNavButton({
   onClick: () => void;
   children: ReactNode;
 }) {
-  const currentUser = authService.getUser();
-
-  if (children === "Overview" && currentUser?.role !== "Director") {
-    return null;
-  }
-
   return (
     <button
       type="button"
@@ -267,7 +260,7 @@ export function StatCard({ label, value }: { label: string; value: number }) {
 
 export function Badge({ children }: { children: ReactNode }) {
   return (
-    <span className="inline-flex h-fit w-fit items-center rounded-full bg-slate-800 px-2 py-1 text-xs font-semibold text-slate-300">
+    <span className="inline-flex h-fit w-fit items-center justify-center rounded-full bg-slate-800 px-2 py-1 text-center text-xs font-semibold leading-tight text-slate-300">
       {children}
     </span>
   );
@@ -361,11 +354,13 @@ export function DarkTextarea({
   onChange,
   placeholder,
   rows = 4,
+  className = "",
 }: {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
   rows?: number;
+  className?: string;
 }) {
   return (
     <textarea
@@ -373,7 +368,7 @@ export function DarkTextarea({
       rows={rows}
       placeholder={placeholder}
       onChange={event => onChange(event.target.value)}
-      className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-blue-500"
+      className={`w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-blue-500 ${className}`}
     />
   );
 }

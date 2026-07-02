@@ -33,7 +33,6 @@ function Quotes() {
     error,
     addQuote,
     updateQuote,
-    startEdit,
     editingQuote,
     cancelEdit,
     reloadQuotes,
@@ -192,10 +191,6 @@ function Quotes() {
                           <QuoteRow
                             key={quote.id}
                             quote={quote}
-                            onEdit={() => {
-                              startEdit(quote);
-                              setShowForm(true);
-                            }}
                           />
                         ))}
                       </tbody>
@@ -207,10 +202,6 @@ function Quotes() {
                       <QuoteMobileCard
                         key={quote.id}
                         quote={quote}
-                        onEdit={() => {
-                          startEdit(quote);
-                          setShowForm(true);
-                        }}
                       />
                     ))}
                   </div>
@@ -227,10 +218,8 @@ function Quotes() {
 
 function QuoteRow({
   quote,
-  onEdit,
 }: {
   quote: Quote;
-  onEdit: () => void;
 }) {
   return (
     <tr className="align-top text-slate-200 transition hover:bg-white/[0.03]">
@@ -246,7 +235,6 @@ function QuoteRow({
         <div className="flex justify-end gap-2">
           <Link to={`/quotes/${quote.id}`} className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-slate-100 hover:bg-white/10">View</Link>
           <button type="button" onClick={() => emailQuote(quote)} className="rounded-lg border border-blue-400/30 px-3 py-1.5 text-xs font-semibold text-blue-200 hover:bg-blue-500/10">Send</button>
-          <button type="button" onClick={onEdit} className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-slate-100 hover:bg-white/10">Edit</button>
           {quote.status === "Accepted" && (
             <Link to={`/quotes/${quote.id}`} className="rounded-lg border border-green-400/30 px-3 py-1.5 text-xs font-semibold text-green-200 hover:bg-green-500/10">Convert</Link>
           )}
@@ -258,10 +246,8 @@ function QuoteRow({
 
 function QuoteMobileCard({
   quote,
-  onEdit,
 }: {
   quote: Quote;
-  onEdit: () => void;
 }) {
   return (
     <article className="rounded-2xl border border-white/10 bg-slate-950/50 p-5">
@@ -283,7 +269,7 @@ function QuoteMobileCard({
         <button type="button" onClick={() => emailQuote(quote)} className="rounded-lg border border-blue-400/30 px-3 py-2 text-xs font-semibold text-blue-200 hover:bg-blue-500/10">
           <span className="inline-flex items-center gap-2"><Mail className="h-3.5 w-3.5" /> Send</span>
         </button>
-        <button type="button" onClick={onEdit} className="rounded-lg border border-white/10 px-3 py-2 text-xs font-semibold text-slate-100 hover:bg-white/10">Edit</button>
+        <Link to={`/quotes/${quote.id}`} className="rounded-lg border border-white/10 px-3 py-2 text-xs font-semibold text-slate-100 hover:bg-white/10">View</Link>
         {quote.status === "Accepted" && (
           <Link to={`/quotes/${quote.id}`} className="rounded-lg border border-green-400/30 px-3 py-2 text-xs font-semibold text-green-200 hover:bg-green-500/10">Convert</Link>
         )}

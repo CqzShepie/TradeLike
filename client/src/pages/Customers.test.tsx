@@ -66,4 +66,39 @@ describe("Customers", () => {
 
     expect(screen.getByRole("heading", { name: /add customer/i })).toBeInTheDocument();
   });
+
+  it("renders View rather than Edit in the customer list", () => {
+    vi.mocked(useCustomers).mockReturnValue({
+      customers: [
+        {
+          id: 7,
+          name: "Sarah Johnson",
+          phone: "07981 125031",
+          email: "sarah@example.com",
+          address: "1 Trade Street",
+          notes: null,
+        },
+      ],
+      loading: false,
+      error: null,
+      reloadCustomers: vi.fn(),
+      editingCustomer: null,
+      addCustomer: vi.fn(),
+      deleteCustomer: vi.fn(),
+      updateCustomer: vi.fn(),
+      startEdit: vi.fn(),
+      cancelEdit: vi.fn(),
+    });
+
+    render(
+      <MemoryRouter>
+        <GlobalSearchProvider>
+          <Customers />
+        </GlobalSearchProvider>
+      </MemoryRouter>
+    );
+
+    expect(screen.getAllByRole("link", { name: /view/i }).length).toBeGreaterThan(0);
+    expect(screen.queryByRole("button", { name: /^edit$/i })).not.toBeInTheDocument();
+  });
 });

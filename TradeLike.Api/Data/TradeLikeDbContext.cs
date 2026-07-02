@@ -52,6 +52,18 @@ public class TradeLikeDbContext : DbContext
 
     public DbSet<JobAssignmentStaff> JobAssignmentStaff => Set<JobAssignmentStaff>();
 
+    public override int SaveChanges()
+    {
+        ValidateBusinessRecordChanges();
+        return base.SaveChanges();
+    }
+
+    public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        ValidateBusinessRecordChanges();
+        return base.SaveChangesAsync(cancellationToken);
+    }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -272,21 +284,27 @@ public class TradeLikeDbContext : DbContext
                 j.ScheduledDate
             });
 
+            entity.HasIndex(j => new
+            {
+                j.TenantId,
+                j.Status
+            });
+
             entity.Property(j => j.Customer)
                 .IsRequired()
-                .HasMaxLength(100);
+                .HasMaxLength(180);
 
             entity.Property(j => j.Phone)
                 .IsRequired()
-                .HasMaxLength(30);
+                .HasMaxLength(40);
 
             entity.Property(j => j.JobTitle)
                 .IsRequired()
-                .HasMaxLength(150);
+                .HasMaxLength(220);
 
             entity.Property(j => j.Address)
                 .IsRequired()
-                .HasMaxLength(250);
+                .HasMaxLength(500);
 
             entity.Property(j => j.Status)
                 .IsRequired()
@@ -321,6 +339,18 @@ public class TradeLikeDbContext : DbContext
             {
                 q.TenantId,
                 q.CreatedAt
+            });
+
+            entity.HasIndex(q => new
+            {
+                q.TenantId,
+                q.CustomerId
+            });
+
+            entity.HasIndex(q => new
+            {
+                q.TenantId,
+                q.Status
             });
 
             entity.Property(q => q.Amount)
@@ -359,6 +389,37 @@ public class TradeLikeDbContext : DbContext
         modelBuilder.Entity<Customer>(entity =>
         {
             entity.HasIndex(customer => customer.TenantId);
+
+            entity.HasIndex(customer => new
+            {
+                customer.TenantId,
+                customer.Name
+            });
+
+            entity.HasIndex(customer => new
+            {
+                customer.TenantId,
+                customer.Email
+            });
+
+            entity.Property(customer => customer.Name)
+                .IsRequired()
+                .HasMaxLength(180);
+
+            entity.Property(customer => customer.Email)
+                .IsRequired()
+                .HasMaxLength(255);
+
+            entity.Property(customer => customer.Phone)
+                .IsRequired()
+                .HasMaxLength(40);
+
+            entity.Property(customer => customer.Address)
+                .IsRequired()
+                .HasMaxLength(500);
+
+            entity.Property(customer => customer.Notes)
+                .HasMaxLength(4000);
         });
 
         modelBuilder.Entity<Invoice>(entity =>
@@ -631,5 +692,51 @@ public class TradeLikeDbContext : DbContext
                 .HasForeignKey(staff => staff.StaffMemberId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
+    }
+
+    private void ValidateBusinessRecordChanges()
+    {
+        foreach (var entry in ChangeTracker.Entries<Invoice>())
+        {
+            if (entry.State is EntityState.Added or EntityState.Modified &&
+                entry.Entity.TotalPence < 0)
+            {
+                throw new InvalidOperationException("Invoice total cannot be negative.");
+            }
+
+            if (entry.State == EntityState.Deleted &&
+                IsPaidOrVoid(entry.Entity.Status))
+            {
+                throw new InvalidOperationException("Paid or void invoices cannot be deleted.");
+            }
+
+            if (entry.State != EntityState.Modified)
+            {
+                continue;
+            }
+
+            var originalStatus = entry.Property(invoice => invoice.Status).OriginalValue;
+            if (!IsPaidOrVoid(originalStatus))
+            {
+                continue;
+            }
+
+            if (entry.Property(invoice => invoice.TotalPence).IsModified ||
+                entry.Property(invoice => invoice.CustomerId).IsModified ||
+                entry.Property(invoice => invoice.JobId).IsModified ||
+                entry.Property(invoice => invoice.QuoteId).IsModified ||
+                entry.Property(invoice => invoice.CustomerName).IsModified ||
+                entry.Property(invoice => invoice.Title).IsModified)
+            {
+                throw new InvalidOperationException("Paid or void invoice financial details cannot be edited.");
+            }
+        }
+    }
+
+    private static bool IsPaidOrVoid(string? status)
+    {
+        return
+            string.Equals(status, "Paid", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(status, "Void", StringComparison.OrdinalIgnoreCase);
     }
 }

@@ -50,6 +50,7 @@ describe("Invoices", () => {
     );
 
     expect(await screen.findByText("INV-00001 - Boiler service")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /refresh invoices/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /pay now/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^delete$/i })).not.toBeInTheDocument();
     expect(screen.getAllByText("Paid").length).toBeGreaterThan(0);
@@ -68,7 +69,7 @@ describe("Invoices", () => {
     expect(await screen.findByText("INV-00001 - Boiler service")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^delete$/i })).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /view\/edit/i }));
+    fireEvent.click(screen.getByRole("button", { name: /view details/i }));
 
     expect(screen.getByRole("button", { name: /delete draft invoice/i })).toBeInTheDocument();
 
@@ -87,7 +88,7 @@ describe("Invoices", () => {
 
     expect(await screen.findByText("INV-00001 - Boiler service")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /view\/edit/i }));
+    fireEvent.click(screen.getByRole("button", { name: /view details/i }));
 
     expect(screen.getByRole("button", { name: /void invoice/i })).toBeInTheDocument();
 

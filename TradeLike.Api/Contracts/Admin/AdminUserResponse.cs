@@ -4,6 +4,8 @@ public sealed class AdminUserResponse
 {
     public int Id { get; init; }
 
+    public int TenantId { get; init; }
+
     public string FirstName { get; init; } = string.Empty;
 
     public string LastName { get; init; } = string.Empty;

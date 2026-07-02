@@ -1,7 +1,8 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import Jobs from "./Jobs";
 import { useJobs } from "../hooks/useJobs";
+import { customersService } from "../services/customersService";
 
 vi.mock("../components/layout/Sidebar", () => ({
   default: () => <aside>Sidebar</aside>,
@@ -23,9 +24,18 @@ vi.mock("../services/jobAssignmentsService", () => ({
   },
 }));
 
+vi.mock("../services/customersService", () => ({
+  customersService: {
+    getAll: vi.fn().mockResolvedValue([]),
+    create: vi.fn(),
+  },
+}));
+
 describe("Jobs", () => {
   beforeEach(() => {
     localStorage.clear();
+    vi.mocked(customersService.getAll).mockResolvedValue([]);
+    vi.mocked(customersService.create).mockReset();
   });
 
   it("renders an empty state when no jobs are returned", () => {
@@ -104,7 +114,7 @@ describe("Jobs", () => {
     expect(previousJobs).toHaveClass("bg-white/5");
   });
 
-  it("uses Job needed wording while submitting the existing jobTitle field", () => {
+  it("uses Job needed wording while submitting the existing jobTitle field", async () => {
     setStoredUser("Solo", "CustomerDirector");
     const addJob = vi.fn();
     vi.mocked(useJobs).mockReturnValue({
@@ -127,7 +137,9 @@ describe("Jobs", () => {
     );
 
     fireEvent.click(screen.getAllByRole("button", { name: /add new job/i })[0]);
-    fireEvent.change(screen.getByLabelText("Customer"), { target: { value: "Sarah Johnson" } });
+    const customerInput = await screen.findByLabelText("Customer");
+    await waitFor(() => expect(customerInput).not.toBeDisabled());
+    fireEvent.change(customerInput, { target: { value: "Sarah Johnson" } });
     fireEvent.change(screen.getByLabelText("Phone"), { target: { value: "07981 125031" } });
     fireEvent.change(screen.getByLabelText("Job needed"), { target: { value: "Boiler service" } });
     fireEvent.change(screen.getByLabelText("Scheduled Date"), { target: { value: "2026-07-02T09:00" } });
@@ -135,8 +147,103 @@ describe("Jobs", () => {
     fireEvent.click(screen.getByRole("button", { name: /save job/i }));
 
     expect(addJob).toHaveBeenCalledWith(expect.objectContaining({
+      customer: "Sarah Johnson",
       jobTitle: "Boiler service",
     }));
+  });
+
+  it("renders View rather than Edit in the jobs list", () => {
+    vi.mocked(useJobs).mockReturnValue({
+      jobs: [
+        {
+          id: 1,
+          customer: "Sarah Johnson",
+          phone: "07981 125031",
+          jobTitle: "Boiler service",
+          address: "1 Trade Street",
+          scheduledDate: new Date(Date.now() + 86400000).toISOString(),
+          status: "Scheduled",
+          priority: "Normal",
+        },
+      ],
+      loading: false,
+      error: null,
+      reloadJobs: vi.fn(),
+      addJob: vi.fn(),
+      deleteJob: vi.fn(),
+      updateJob: vi.fn(),
+      editingJob: null,
+      startEdit: vi.fn(),
+      cancelEdit: vi.fn(),
+    });
+
+    render(
+      <MemoryRouter>
+        <Jobs />
+      </MemoryRouter>
+    );
+
+    expect(screen.getAllByText("View").length).toBeGreaterThan(0);
+    expect(screen.queryByRole("button", { name: /^edit$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /edit job/i })).not.toBeInTheDocument();
+  });
+
+  it("creates and selects a customer from the new job form", async () => {
+    setStoredUser("Solo", "CustomerDirector");
+    const addJob = vi.fn();
+    vi.mocked(customersService.getAll).mockResolvedValue([]);
+    vi.mocked(customersService.create).mockResolvedValue({
+      id: 44,
+      name: "New Customer",
+      email: "new@example.com",
+      phone: "07981 125031",
+      address: "44 New Street",
+      notes: null,
+    });
+    vi.mocked(useJobs).mockReturnValue({
+      jobs: [],
+      loading: false,
+      error: null,
+      reloadJobs: vi.fn(),
+      addJob,
+      deleteJob: vi.fn(),
+      updateJob: vi.fn(),
+      editingJob: null,
+      startEdit: vi.fn(),
+      cancelEdit: vi.fn(),
+    });
+
+    render(
+      <MemoryRouter>
+        <Jobs />
+      </MemoryRouter>
+    );
+
+    fireEvent.click(screen.getAllByRole("button", { name: /add new job/i })[0]);
+    const customerInput = await screen.findByLabelText("Customer");
+    await waitFor(() => expect(customerInput).not.toBeDisabled());
+    fireEvent.change(customerInput, { target: { value: "New Customer" } });
+    fireEvent.click(screen.getAllByRole("button", { name: /^add customer$/i }).at(-1)!);
+    fireEvent.change(screen.getByLabelText("New customer name"), { target: { value: "New Customer" } });
+    fireEvent.change(screen.getByLabelText("New customer phone"), { target: { value: "07981 125031" } });
+    fireEvent.change(screen.getByLabelText("New customer email"), { target: { value: "new@example.com" } });
+    fireEvent.change(screen.getByLabelText("New customer address"), { target: { value: "44 New Street" } });
+    fireEvent.click(screen.getByRole("button", { name: /create and select customer/i }));
+
+    expect(await screen.findByText("Selected customer #44")).toBeInTheDocument();
+    expect(screen.getByLabelText("Phone")).toHaveValue("07981 125031");
+    expect(screen.getByLabelText("Address")).toHaveValue("44 New Street");
+
+    fireEvent.change(screen.getByLabelText("Job needed"), { target: { value: "Leak repair" } });
+    fireEvent.change(screen.getByLabelText("Scheduled Date"), { target: { value: "2026-07-02T09:00" } });
+    fireEvent.click(screen.getByRole("button", { name: /save job/i }));
+
+    await waitFor(() => expect(addJob).toHaveBeenCalledWith(expect.objectContaining({
+      customer: "New Customer",
+      phone: "07981 125031",
+      address: "44 New Street",
+      jobTitle: "Leak repair",
+    })));
   });
 
   it("shows the linked quote section inside the job edit form", () => {
@@ -202,6 +309,8 @@ describe("Jobs", () => {
     expect(screen.queryByText(/staff and team/i)).not.toBeInTheDocument();
     expect(screen.queryByRole("combobox", { name: /job team filter/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("combobox", { name: /job engineer filter/i })).not.toBeInTheDocument();
+    expect(screen.queryByText("All teams")).not.toBeInTheDocument();
+    expect(screen.queryByText("All engineers")).not.toBeInTheDocument();
     expect(screen.queryByText("No team")).not.toBeInTheDocument();
     expect(screen.queryByText("No lead engineer")).not.toBeInTheDocument();
     expect(screen.queryByText("Extra staff")).not.toBeInTheDocument();

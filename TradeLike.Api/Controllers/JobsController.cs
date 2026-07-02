@@ -2,6 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TradeLike.Api.Contracts.Jobs;
+using TradeLike.Api.Contracts.Pagination;
 using TradeLike.Api.Contracts.Quotes;
 using TradeLike.Api.Models;
 using TradeLike.Api.Security;
@@ -26,6 +27,18 @@ public class JobsController : ControllerBase
     {
         var jobs = await _jobService.GetAllAsync(TenantHelpers.GetTenantId(HttpContext));
         return Ok(jobs.Select(ToResponse).ToList());
+    }
+
+    [HttpGet("paged")]
+    public async Task<ActionResult<object>> GetJobsPaged([FromQuery] PagedQuery query)
+    {
+        var jobs = await _jobService.GetPagedAsync(TenantHelpers.GetTenantId(HttpContext), query);
+
+        return Ok(PagedResponse<JobResponse>.Create(
+            jobs.Items.Select(ToResponse).ToList(),
+            jobs.Page,
+            jobs.PageSize,
+            jobs.TotalItems));
     }
 
     [HttpGet("{id:int}")]

@@ -19,7 +19,6 @@ describe("CustomerList", () => {
             },
           ]}
           onDeleteCustomer={vi.fn()}
-          onEditCustomer={vi.fn()}
         />
       </MemoryRouter>
     );
@@ -45,7 +44,6 @@ describe("CustomerList", () => {
             },
           ]}
           onDeleteCustomer={vi.fn()}
-          onEditCustomer={vi.fn()}
         />
       </MemoryRouter>
     );
