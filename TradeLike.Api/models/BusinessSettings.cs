@@ -6,6 +6,8 @@ public class BusinessSettings
 {
     public int Id { get; set; }
 
+    public int TenantId { get; set; }
+
     [Required]
     [MaxLength(180)]
     public string BusinessName { get; set; } = "TradeLike";
@@ -46,6 +48,9 @@ public class BusinessSettings
     [MaxLength(60)]
     public string? VatNumber { get; set; }
 
+    [MaxLength(60)]
+    public string? CompanyNumber { get; set; }
+
     public decimal DefaultVatRate { get; set; } = 20m;
 
     [Required]
@@ -58,6 +63,38 @@ public class BusinessSettings
 
     [MaxLength(1000)]
     public string? PaymentTerms { get; set; }
+
+    public int QuoteExpiryDays { get; set; } = 30;
+
+    [MaxLength(2000)]
+    public string? DefaultQuoteNotes { get; set; }
+
+    [MaxLength(2000)]
+    public string? DefaultInvoiceNotes { get; set; }
+
+    [MaxLength(255)]
+    public string? ReplyToEmail { get; set; }
+
+    [Required]
+    [MaxLength(30)]
+    public string DefaultJobPriority { get; set; } = "Normal";
+
+    [Required]
+    [MaxLength(30)]
+    public string DefaultScheduleView { get; set; } = "Week";
+
+    [Required]
+    [MaxLength(40)]
+    public string DefaultReportRange { get; set; } = "30d";
+
+    public bool IncludeCompletedInReports { get; set; } = true;
+
+    public bool IncludeArchivedInReports { get; set; }
+
+    public int LowStockThreshold { get; set; } = 5;
+
+    [MaxLength(20)]
+    public string PurchaseOrderPrefix { get; set; } = "PO";
 
     [MaxLength(120)]
     public string? BankName { get; set; }

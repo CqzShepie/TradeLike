@@ -37,7 +37,7 @@ export default function UpgradeRequired({ featureName, minimumPlan }: UpgradeReq
         </div>
         <h1 className="mt-6 text-3xl font-bold tracking-tight">{featureLabel}</h1>
         <p className="mt-3 text-sm leading-6 text-slate-300">
-          {reasonMessage} This feature unlocks on {planLabel}. Directors can review billing and plan limits from Settings.
+          {reasonMessage} This feature unlocks on {planLabel}. Owners can review billing and plan limits from Settings.
         </p>
         <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
           <Link className="inline-flex rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500" to="/settings/billing">

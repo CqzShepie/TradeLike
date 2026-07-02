@@ -189,6 +189,22 @@ function saveSession(response: LoginResponse) {
   setToken(normalizedResponse.token);
 }
 
+function updateStoredUser(patch: Partial<AuthUser>) {
+  const currentUser = readStoredUser();
+
+  if (!currentUser) {
+    return null;
+  }
+
+  const nextUser = {
+    ...currentUser,
+    ...patch,
+  };
+
+  localStorage.setItem("tradelike_user", JSON.stringify(nextUser));
+  return nextUser;
+}
+
 function readStoredUser() {
   const rawUser = localStorage.getItem("tradelike_user");
 
@@ -334,4 +350,6 @@ export const authService = {
 
     return Boolean(user[permission]);
   },
+
+  updateStoredUser,
 };
