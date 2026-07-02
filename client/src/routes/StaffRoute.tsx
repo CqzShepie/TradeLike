@@ -1,4 +1,5 @@
 import { Navigate, useLocation } from "react-router-dom";
+import AccessDenied from "../pages/AccessDenied";
 import { authService } from "../services/authService";
 
 export default function StaffRoute({ children }: { children: React.ReactNode }) {
@@ -17,7 +18,7 @@ export default function StaffRoute({ children }: { children: React.ReactNode }) 
   }
 
   if (!authService.isStaffUser(user)) {
-    return <Navigate to="/dashboard" replace />;
+    return <AccessDenied />;
   }
 
   return <>{children}</>;

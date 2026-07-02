@@ -2,9 +2,14 @@ import { apiClient } from "./apiClient";
 import type {
   AdminAuditLog,
   AdminUser,
+  AddCustomerSupportNoteRequest,
   CreateAdminUserRequest,
   CreateStaffUserRequest,
   ResetAdminUserPasswordRequest,
+  UpdateCustomerDiscountRequest,
+  UpdateCustomerFreeMonthsRequest,
+  UpdateCustomerPlanRequest,
+  UpdateCustomerStatusRequest,
   UpdateAdminUserAccountRequest,
   UpdateStaffPermissionsRequest,
 } from "../types/admin";
@@ -19,7 +24,6 @@ async function copyInviteLink(inviteLink?: string) {
   }
 
   await navigator.clipboard?.writeText(inviteLink).catch(() => undefined);
-  window.alert(`Invite link copied if your browser allowed it:\n\n${inviteLink}`);
 }
 
 export const adminService = {
@@ -76,7 +80,57 @@ export const adminService = {
       accountSource: request.accountSource.trim(),
       cancelReason: request.cancelReason.trim(),
       adminNotes: request.adminNotes.trim(),
+      reason: request.reason.trim(),
     })) as AdminUser;
+  },
+
+  async updateCustomerPlan(userId: number, request: UpdateCustomerPlanRequest) {
+    return (await apiClient.put(`/admin/customers/${userId}/plan`, {
+      plan: request.plan,
+      seatsPurchased: Number(request.seatsPurchased || 0),
+      billingStatus: request.billingStatus,
+      reason: request.reason.trim(),
+    })) as AdminUser;
+  },
+
+  async updateCustomerDiscount(userId: number, request: UpdateCustomerDiscountRequest) {
+    return (await apiClient.put(`/admin/customers/${userId}/discount`, {
+      discountType: request.discountType,
+      discountValue: Number(request.discountValue || 0),
+      expiresAtUtc: cleanDate(request.expiresAtUtc),
+      reason: request.reason.trim(),
+    })) as AdminUser;
+  },
+
+  async updateCustomerFreeMonths(userId: number, request: UpdateCustomerFreeMonthsRequest) {
+    return (await apiClient.put(`/admin/customers/${userId}/free-months`, {
+      freeMonths: Number(request.freeMonths || 0),
+      expiresAtUtc: cleanDate(request.expiresAtUtc),
+      reason: request.reason.trim(),
+    })) as AdminUser;
+  },
+
+  async updateCustomerStatus(userId: number, request: UpdateCustomerStatusRequest) {
+    return (await apiClient.put(`/admin/customers/${userId}/status`, {
+      accountStatus: request.accountStatus,
+      billingStatus: request.billingStatus,
+      reason: request.reason.trim(),
+    })) as AdminUser;
+  },
+
+  async addCustomerSupportNote(userId: number, request: AddCustomerSupportNoteRequest) {
+    return (await apiClient.post(`/admin/customers/${userId}/support-notes`, {
+      note: request.note.trim(),
+      tags: request.tags ?? [],
+    })) as AdminUser;
+  },
+
+  async getCustomerUsers(userId: number) {
+    return (await apiClient.get(`/admin/customers/${userId}/users`)) as AdminUser[];
+  },
+
+  async getCustomerAudit(userId: number) {
+    return (await apiClient.get(`/admin/customers/${userId}/audit`)) as AdminAuditLog[];
   },
 
   async reactivateCustomer(userId: number) {

@@ -170,13 +170,13 @@ export function roleAllowsFeature(role: UserRole | null | undefined, feature: Pl
 export function canUseStaffScheduling(user: Pick<AuthUser, "plan" | "role"> | null | undefined) {
   return Boolean(user) &&
     planIncludesFeature(user?.plan, "staff-scheduling") &&
-    roleAllowsFeature(user?.role, "staff-scheduling");
+    featureRoles["staff-scheduling"].includes(resolveUserRole(user));
 }
 
 export function canViewCustomerHistory(user: Pick<AuthUser, "plan" | "role" | "canViewAuditLogs"> | null | undefined) {
   return Boolean(user) &&
     planIncludesFeature(user?.plan, "team-management") &&
-    (roleAllowsFeature(user?.role, "team-management") || Boolean(user?.canViewAuditLogs));
+    (featureRoles["team-management"].includes(resolveUserRole(user)) || Boolean(user?.canViewAuditLogs));
 }
 
 export function canAccessRoute(user: AuthUser | null, routeConfig: EntitlementRouteConfig): AccessDecision {
@@ -185,7 +185,7 @@ export function canAccessRoute(user: AuthUser | null, routeConfig: EntitlementRo
   }
 
   const allowedRoles = routeConfig.requiredRoles ?? featureRoles[routeConfig.feature];
-  const role = resolveRole(user.role);
+  const role = resolveUserRole(user);
 
   if (!allowedRoles.includes(role)) {
     return "denied";
@@ -202,4 +202,14 @@ export function canAccessRoute(user: AuthUser | null, routeConfig: EntitlementRo
 
 function resolveRole(role: UserRole | null | undefined): UserRole {
   return normalizeUserRole(role);
+}
+
+function resolveUserRole(user: Pick<AuthUser, "plan" | "role"> | null | undefined): UserRole {
+  if (!user) {
+    return "CustomerEmployee";
+  }
+
+  return String(user.plan ?? "").trim().toLowerCase() === "internal"
+    ? user.role
+    : resolveRole(user.role);
 }

@@ -31,6 +31,14 @@ public class AdminUserController : ControllerBase
         "Personal Assistant"
     };
 
+    private static readonly string[] CustomerAccountRoles =
+    {
+        "Customer",
+        "CustomerDirector",
+        "CustomerManager",
+        "CustomerEmployee"
+    };
+
     private static readonly string[] AllowedAccountStatuses =
     {
         "Trial",
@@ -100,7 +108,9 @@ public class AdminUserController : ControllerBase
 
         var query = _context.Users
             .AsNoTracking()
-            .Where(user => user.Role == "Customer");
+            .Where(user =>
+                CustomerAccountRoles.Contains(user.Role) ||
+                (!StaffRoles.Contains(user.Role) && user.SubscriptionPlan != "Internal"));
 
         if (!string.IsNullOrWhiteSpace(search))
         {
@@ -126,6 +136,13 @@ public class AdminUserController : ControllerBase
             .ToListAsync();
 
         return Ok(users.Select(ToResponse).ToList());
+    }
+
+    [HttpGet("customers")]
+    public Task<ActionResult<IReadOnlyList<AdminUserResponse>>> GetCustomers(
+        [FromQuery] string? search)
+    {
+        return GetUsers(search);
     }
 
     [HttpPost("users")]
@@ -192,7 +209,7 @@ public class AdminUserController : ControllerBase
         {
             var user = await _context.Users.FindAsync(id);
 
-            if (user is null || user.Role != "Customer")
+            if (user is null || !IsCustomerAccountUser(user))
             {
                 return NotFound();
             }
@@ -204,21 +221,57 @@ public class AdminUserController : ControllerBase
             }
 
             var before = BuildCustomerDetails(user);
+            var reason = CleanRequiredReason(request.Reason);
 
-            user.AccountStatus = Canonicalise(request.AccountStatus, AllowedAccountStatuses);
-            user.DiscountType = Canonicalise(request.DiscountType, AllowedDiscountTypes);
+            var accountStatus = Canonicalise(request.AccountStatus, AllowedAccountStatuses);
+            var discountType = CanonicaliseDiscountType(request.DiscountType);
+            var subscriptionPlan = Canonicalise(request.SubscriptionPlan, AllowedSubscriptionPlans);
+            var billingStatus = Canonicalise(request.BillingStatus, AllowedBillingStatuses);
+            var healthStatus = Canonicalise(request.HealthStatus, AllowedHealthStatuses);
+
+            if ((!string.Equals(user.SubscriptionPlan, subscriptionPlan, StringComparison.OrdinalIgnoreCase) ||
+                    !string.Equals(user.BillingStatus, billingStatus, StringComparison.OrdinalIgnoreCase) ||
+                    user.TrialEndsAt != request.TrialEndsAt) &&
+                !CanManageSubscriptions(actor))
+            {
+                return Forbid();
+            }
+
+            if ((!string.Equals(user.DiscountType, discountType, StringComparison.OrdinalIgnoreCase) ||
+                    user.DiscountValue != RoundMoney(request.DiscountValue)) &&
+                !CanManageDiscounts(actor))
+            {
+                return Forbid();
+            }
+
+            if ((user.FreeMonths != request.FreeMonths ||
+                    user.FreeMonthsExpireAt != request.FreeMonthsExpireAt) &&
+                !CanManageFreeMonths(actor))
+            {
+                return Forbid();
+            }
+
+            if ((!string.Equals(user.AccountStatus, accountStatus, StringComparison.OrdinalIgnoreCase) ||
+                    !string.Equals(user.HealthStatus, healthStatus, StringComparison.OrdinalIgnoreCase)) &&
+                !CanManageAccounts(actor))
+            {
+                return Forbid();
+            }
+
+            user.AccountStatus = accountStatus;
+            user.DiscountType = discountType;
             user.DiscountValue = RoundMoney(request.DiscountValue);
             user.FreeMonths = request.FreeMonths;
             user.FreeMonthsExpireAt = request.FreeMonthsExpireAt;
             user.BusinessName = CleanOptional(request.BusinessName);
             user.OwnerName = CleanOptional(request.OwnerName);
             user.OwnerPhone = CleanOptional(request.OwnerPhone);
-            user.SubscriptionPlan = Canonicalise(request.SubscriptionPlan, AllowedSubscriptionPlans);
-            user.BillingStatus = Canonicalise(request.BillingStatus, AllowedBillingStatuses);
+            user.SubscriptionPlan = subscriptionPlan;
+            user.BillingStatus = billingStatus;
             user.TrialEndsAt = request.TrialEndsAt;
             user.AdminTags = CleanOptional(request.AdminTags);
             user.SupportNotes = CleanOptional(request.SupportNotes);
-            user.HealthStatus = Canonicalise(request.HealthStatus, AllowedHealthStatuses);
+            user.HealthStatus = healthStatus;
             user.AccountSource = CleanOptional(request.AccountSource);
             user.CancelReason = CleanOptional(request.CancelReason);
             user.AdminNotes = CleanOptional(request.AdminNotes);
@@ -240,7 +293,7 @@ public class AdminUserController : ControllerBase
                 user.Id,
                 user.Email,
                 $"Updated customer account for {user.Email}.",
-                $"Before: {before}. After: {after}.");
+                $"Reason: {reason}. Before: {before}. After: {after}.");
 
             await _context.SaveChangesAsync();
 
@@ -262,14 +315,14 @@ public class AdminUserController : ControllerBase
             return Forbid();
         }
 
-        if (!CanEditCustomers(actor))
+        if (!CanManageAccounts(actor))
         {
             return Forbid();
         }
 
         var user = await _context.Users.FindAsync(id);
 
-        if (user is null || user.Role != "Customer")
+        if (user is null || !IsCustomerAccountUser(user))
         {
             return NotFound();
         }
@@ -296,6 +349,318 @@ public class AdminUserController : ControllerBase
         return Ok(ToResponse(user));
     }
 
+    [HttpPut("customers/{id:int}/plan")]
+    public async Task<ActionResult<AdminUserResponse>> UpdateCustomerPlan(
+        int id,
+        [FromBody] UpdateCustomerPlanRequest request)
+    {
+        var actor = await GetCurrentStaffUserAsync();
+
+        if (actor is null)
+        {
+            return Forbid();
+        }
+
+        if (!CanManageSubscriptions(actor))
+        {
+            return Forbid();
+        }
+
+        try
+        {
+            var user = await FindCustomerAccountAsync(id);
+
+            if (user is null)
+            {
+                return NotFound();
+            }
+
+            var reason = CleanRequiredReason(request.Reason);
+            var plan = Canonicalise(request.Plan, new[] { "Solo", "Team", "Business", "Enterprise" });
+            var billingStatus = string.IsNullOrWhiteSpace(request.BillingStatus)
+                ? user.BillingStatus
+                : Canonicalise(request.BillingStatus, AllowedBillingStatuses);
+
+            ValidateSeats(plan, request.SeatsPurchased);
+
+            var before = BuildCustomerDetails(user);
+
+            user.SubscriptionPlan = plan;
+            user.BillingStatus = billingStatus;
+            user.UpdatedAt = DateTime.UtcNow;
+
+            await UpsertSubscriptionAsync(user, plan, request.SeatsPurchased, billingStatus);
+            ValidateAccount(user);
+
+            await LogAsync(
+                actor,
+                "PlanChanged",
+                "User",
+                user.Id,
+                user.Email,
+                $"Changed plan for {user.Email} to {plan}.",
+                $"Reason: {reason}. Seats={request.SeatsPurchased}. Before: {before}. After: {BuildCustomerDetails(user)}.");
+
+            await _context.SaveChangesAsync();
+
+            return Ok(ToResponse(user));
+        }
+        catch (ValidationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    [HttpPut("customers/{id:int}/discount")]
+    public async Task<ActionResult<AdminUserResponse>> UpdateCustomerDiscount(
+        int id,
+        [FromBody] UpdateCustomerDiscountRequest request)
+    {
+        var actor = await GetCurrentStaffUserAsync();
+
+        if (actor is null)
+        {
+            return Forbid();
+        }
+
+        if (!CanManageDiscounts(actor))
+        {
+            return Forbid();
+        }
+
+        try
+        {
+            var user = await FindCustomerAccountAsync(id);
+
+            if (user is null)
+            {
+                return NotFound();
+            }
+
+            var reason = CleanRequiredReason(request.Reason);
+            var before = BuildCustomerDetails(user);
+
+            user.DiscountType = CanonicaliseDiscountType(request.DiscountType);
+            user.DiscountValue = user.DiscountType == "None" ? 0 : RoundMoney(request.DiscountValue);
+            user.AdminNotes = MergeAdminNote(user.AdminNotes, request.ExpiresAtUtc.HasValue ? $"Discount expires {request.ExpiresAtUtc:u}" : null);
+            user.UpdatedAt = DateTime.UtcNow;
+
+            ValidateAccount(user);
+
+            await LogAsync(
+                actor,
+                "DiscountChanged",
+                "User",
+                user.Id,
+                user.Email,
+                $"Changed discount for {user.Email}.",
+                $"Reason: {reason}. Before: {before}. After: {BuildCustomerDetails(user)}.");
+
+            await _context.SaveChangesAsync();
+
+            return Ok(ToResponse(user));
+        }
+        catch (ValidationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    [HttpPut("customers/{id:int}/free-months")]
+    public async Task<ActionResult<AdminUserResponse>> UpdateCustomerFreeMonths(
+        int id,
+        [FromBody] UpdateCustomerFreeMonthsRequest request)
+    {
+        var actor = await GetCurrentStaffUserAsync();
+
+        if (actor is null)
+        {
+            return Forbid();
+        }
+
+        if (!CanManageFreeMonths(actor))
+        {
+            return Forbid();
+        }
+
+        try
+        {
+            var user = await FindCustomerAccountAsync(id);
+
+            if (user is null)
+            {
+                return NotFound();
+            }
+
+            var reason = CleanRequiredReason(request.Reason);
+            var before = BuildCustomerDetails(user);
+
+            user.FreeMonths = request.FreeMonths;
+            user.FreeMonthsExpireAt = request.ExpiresAtUtc;
+            user.UpdatedAt = DateTime.UtcNow;
+
+            ValidateAccount(user);
+
+            await LogAsync(
+                actor,
+                "FreeMonthsChanged",
+                "User",
+                user.Id,
+                user.Email,
+                $"Changed free months for {user.Email}.",
+                $"Reason: {reason}. Before: {before}. After: {BuildCustomerDetails(user)}.");
+
+            await _context.SaveChangesAsync();
+
+            return Ok(ToResponse(user));
+        }
+        catch (ValidationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    [HttpPut("customers/{id:int}/status")]
+    public async Task<ActionResult<AdminUserResponse>> UpdateCustomerStatus(
+        int id,
+        [FromBody] UpdateCustomerStatusRequest request)
+    {
+        var actor = await GetCurrentStaffUserAsync();
+
+        if (actor is null)
+        {
+            return Forbid();
+        }
+
+        if (!CanManageAccounts(actor))
+        {
+            return Forbid();
+        }
+
+        try
+        {
+            var user = await FindCustomerAccountAsync(id);
+
+            if (user is null)
+            {
+                return NotFound();
+            }
+
+            var status = Canonicalise(request.AccountStatus, AllowedAccountStatuses);
+
+            if (status == "Cancelled" && !CanCancelCustomers(actor))
+            {
+                return Forbid();
+            }
+
+            var reason = CleanRequiredReason(request.Reason);
+            var before = BuildCustomerDetails(user);
+
+            user.AccountStatus = status;
+
+            if (!string.IsNullOrWhiteSpace(request.BillingStatus))
+            {
+                user.BillingStatus = Canonicalise(request.BillingStatus, AllowedBillingStatuses);
+            }
+
+            if (status == "Active")
+            {
+                user.CancelReason = null;
+            }
+            else if (status is "Suspended" or "Cancelled")
+            {
+                user.CancelReason = reason;
+            }
+
+            user.UpdatedAt = DateTime.UtcNow;
+
+            ValidateAccount(user);
+
+            var action = status switch
+            {
+                "Suspended" => "AccountSuspended",
+                "Cancelled" => "AccountCancelled",
+                "Active" => "AccountReactivated",
+                _ => "AccountStatusChanged"
+            };
+
+            await LogAsync(
+                actor,
+                action,
+                "User",
+                user.Id,
+                user.Email,
+                $"Changed account status for {user.Email} to {status}.",
+                $"Reason: {reason}. Before: {before}. After: {BuildCustomerDetails(user)}.");
+
+            await _context.SaveChangesAsync();
+
+            return Ok(ToResponse(user));
+        }
+        catch (ValidationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    [HttpPost("customers/{id:int}/support-notes")]
+    public async Task<ActionResult<AdminUserResponse>> AddCustomerSupportNote(
+        int id,
+        [FromBody] AddCustomerSupportNoteRequest request)
+    {
+        var actor = await GetCurrentStaffUserAsync();
+
+        if (actor is null)
+        {
+            return Forbid();
+        }
+
+        if (!CanEditCustomerNotes(actor))
+        {
+            return Forbid();
+        }
+
+        try
+        {
+            var user = await FindCustomerAccountAsync(id);
+
+            if (user is null)
+            {
+                return NotFound();
+            }
+
+            var note = CleanRequired(request.Note, "Support note");
+            var tags = request.Tags
+                .Where(tag => !string.IsNullOrWhiteSpace(tag))
+                .Select(tag => tag.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+
+            user.SupportNotes = AppendSupportNote(user.SupportNotes, actor, note, tags);
+            user.AdminTags = MergeTags(user.AdminTags, tags);
+            user.UpdatedAt = DateTime.UtcNow;
+
+            ValidateAccount(user);
+
+            await LogAsync(
+                actor,
+                "SupportNoteAdded",
+                "User",
+                user.Id,
+                user.Email,
+                $"Added support note for {user.Email}.",
+                $"Note: {note}. Tags: {string.Join(", ", tags)}");
+
+            await _context.SaveChangesAsync();
+
+            return Ok(ToResponse(user));
+        }
+        catch (ValidationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
     [HttpGet("users/{id:int}/timeline")]
     public async Task<ActionResult<IReadOnlyList<AdminAuditLogResponse>>> GetCustomerTimeline(
         int id)
@@ -314,9 +679,9 @@ public class AdminUserController : ControllerBase
 
         var user = await _context.Users
             .AsNoTracking()
-            .FirstOrDefaultAsync(existingUser => existingUser.Id == id && existingUser.Role == "Customer");
+            .FirstOrDefaultAsync(existingUser => existingUser.Id == id);
 
-        if (user is null)
+        if (user is null || !IsCustomerAccountUser(user))
         {
             return NotFound();
         }
@@ -331,6 +696,49 @@ public class AdminUserController : ControllerBase
             .ToListAsync();
 
         return Ok(logs.Select(ToAuditLogResponse).ToList());
+    }
+
+    [HttpGet("customers/{id:int}/audit")]
+    public Task<ActionResult<IReadOnlyList<AdminAuditLogResponse>>> GetCustomerAudit(
+        int id)
+    {
+        return GetCustomerTimeline(id);
+    }
+
+    [HttpGet("customers/{id:int}/users")]
+    public async Task<ActionResult<IReadOnlyList<AdminUserResponse>>> GetCustomerTenantUsers(
+        int id)
+    {
+        var actor = await GetCurrentStaffUserAsync();
+
+        if (actor is null)
+        {
+            return Forbid();
+        }
+
+        if (!CanSeeCustomerAccounts(actor))
+        {
+            return Forbid();
+        }
+
+        var customer = await FindCustomerAccountAsync(id, asNoTracking: true);
+
+        if (customer is null)
+        {
+            return NotFound();
+        }
+
+        var users = await _context.Users
+            .AsNoTracking()
+            .Where(user =>
+                user.TenantId == customer.TenantId &&
+                CustomerAccountRoles.Contains(user.Role))
+            .OrderBy(user => user.Role == "CustomerDirector" || user.Role == "Customer" ? 0 : 1)
+            .ThenBy(user => user.FirstName)
+            .ThenBy(user => user.LastName)
+            .ToListAsync();
+
+        return Ok(users.Select(ToResponse).ToList());
     }
 
     [HttpPost("users/{id:int}/reset-password")]
@@ -502,7 +910,7 @@ public class AdminUserController : ControllerBase
 
         var user = await _context.Users.FindAsync(id);
 
-        if (user is null || user.Role != "Customer")
+        if (user is null || !IsCustomerAccountUser(user))
         {
             return NotFound();
         }
@@ -1026,9 +1434,9 @@ public class AdminUserController : ControllerBase
             throw new ValidationException("Free months cannot be negative.");
         }
 
-        if (user.FreeMonths > 120)
+        if (user.FreeMonths > 24)
         {
-            throw new ValidationException("Free months cannot be more than 120.");
+            throw new ValidationException("Free months cannot be more than 24.");
         }
 
         if ((user.AccountStatus == "Cancelled" || user.BillingStatus == "Cancelled") &&
@@ -1069,6 +1477,140 @@ public class AdminUserController : ControllerBase
         ValidateMaxLength(staff.AdminNotes, 4000, "Admin notes");
     }
 
+    private async Task<User?> FindCustomerAccountAsync(int id, bool asNoTracking = false)
+    {
+        var query = asNoTracking
+            ? _context.Users.AsNoTracking()
+            : _context.Users.AsQueryable();
+
+        var user = await query.FirstOrDefaultAsync(existingUser => existingUser.Id == id);
+
+        return user is not null && IsCustomerAccountUser(user) ? user : null;
+    }
+
+    private static bool IsCustomerAccountUser(User user)
+    {
+        return
+            CustomerAccountRoles.Contains(user.Role, StringComparer.OrdinalIgnoreCase) ||
+            (!StaffRoles.Contains(user.Role, StringComparer.OrdinalIgnoreCase) &&
+                !string.Equals(user.SubscriptionPlan, "Internal", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static string CleanRequiredReason(string? value)
+    {
+        return CleanRequired(value, "Reason");
+    }
+
+    private static string CleanRequired(string? value, string label)
+    {
+        var cleaned = CleanOptional(value);
+
+        if (string.IsNullOrWhiteSpace(cleaned))
+        {
+            throw new ValidationException($"{label} is required.");
+        }
+
+        return cleaned;
+    }
+
+    private static string CanonicaliseDiscountType(string value)
+    {
+        if (string.Equals(value, "FixedAmount", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Amount";
+        }
+
+        return Canonicalise(value, AllowedDiscountTypes);
+    }
+
+    private static void ValidateSeats(string plan, int seatsPurchased)
+    {
+        switch (plan)
+        {
+            case "Solo" when seatsPurchased != 1:
+                throw new ValidationException("Solo plan must have exactly 1 seat.");
+            case "Team" when seatsPurchased < 2 || seatsPurchased > 10:
+                throw new ValidationException("Team plan seats must be between 2 and 10.");
+            case "Business" when seatsPurchased < 11 || seatsPurchased > 25:
+                throw new ValidationException("Business plan seats must be between 11 and 25.");
+            case "Enterprise" when seatsPurchased < 1:
+                throw new ValidationException("Enterprise plan must have at least 1 seat.");
+        }
+    }
+
+    private async Task UpsertSubscriptionAsync(
+        User user,
+        string planName,
+        int seatsPurchased,
+        string billingStatus)
+    {
+        var plan = await _context.Plans.FirstOrDefaultAsync(existingPlan => existingPlan.Name == planName);
+
+        if (plan is null)
+        {
+            throw new ValidationException("Subscription plan is not configured.");
+        }
+
+        var subscription = await _context.Subscriptions
+            .FirstOrDefaultAsync(existingSubscription => existingSubscription.TenantId == user.TenantId);
+
+        if (subscription is null)
+        {
+            subscription = new Subscription
+            {
+                TenantId = user.TenantId,
+                BillingStartUtc = DateTime.UtcNow,
+                NextInvoiceDateUtc = DateTime.UtcNow.AddMonths(1)
+            };
+
+            await _context.Subscriptions.AddAsync(subscription);
+        }
+
+        subscription.PlanId = plan.Id;
+        subscription.SeatsPurchased = seatsPurchased;
+        subscription.Status = billingStatus;
+    }
+
+    private static string? MergeAdminNote(string? existing, string? note)
+    {
+        if (string.IsNullOrWhiteSpace(note))
+        {
+            return existing;
+        }
+
+        return string.IsNullOrWhiteSpace(existing)
+            ? note
+            : $"{existing.Trim()}\n{note}";
+    }
+
+    private static string? MergeTags(string? existingTags, IEnumerable<string> tags)
+    {
+        var merged = (existingTags ?? string.Empty)
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Concat(tags)
+            .Where(tag => !string.IsNullOrWhiteSpace(tag))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        return merged.Length == 0 ? null : string.Join(", ", merged);
+    }
+
+    private static string AppendSupportNote(
+        string? existing,
+        User actor,
+        string note,
+        IReadOnlyCollection<string> tags)
+    {
+        var author = $"{actor.FirstName} {actor.LastName}".Trim();
+        var stamp = DateTime.UtcNow.ToString("u");
+        var tagText = tags.Count == 0 ? string.Empty : $" Tags: {string.Join(", ", tags)}.";
+        var entry = $"[{stamp}] {author}: {note}{tagText}";
+
+        return string.IsNullOrWhiteSpace(existing)
+            ? entry
+            : $"{entry}\n\n{existing.Trim()}";
+    }
+
     private async Task<User?> GetCurrentStaffUserAsync()
     {
         var email =
@@ -1089,7 +1631,7 @@ public class AdminUserController : ControllerBase
             return null;
         }
 
-        if (user.AccountStatus is "Suspended" or "Cancelled")
+        if (user.AccountStatus is "Suspended" or "Cancelled" or "InvitePending")
         {
             return null;
         }

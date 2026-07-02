@@ -10,6 +10,9 @@ export type AdminDiscountType = "None" | "Amount" | "Percentage";
 
 export type AdminRole =
   | "Customer"
+  | "CustomerDirector"
+  | "CustomerManager"
+  | "CustomerEmployee"
   | "Director"
   | "Admin"
   | "Support"
@@ -21,7 +24,10 @@ export type AdminRole =
   | "Operations Coordinator"
   | "Personal Assistant";
 
-export type StaffRole = Exclude<AdminRole, "Customer">;
+export type StaffRole = Exclude<
+  AdminRole,
+  "Customer" | "CustomerDirector" | "CustomerManager" | "CustomerEmployee"
+>;
 
 export type SubscriptionPlan =
   | "Solo"
@@ -143,6 +149,7 @@ export type UpdateAdminUserAccountRequest = {
   accountSource: string;
   cancelReason: string;
   adminNotes: string;
+  reason: string;
 };
 
 export type ResetAdminUserPasswordRequest = {
@@ -190,8 +197,40 @@ export type CreateStaffUserRequest = {
 
 export type StaffInviteResponse = {
   message: string;
+  inviteLink?: string;
   inviteExpiresAt?: string | null;
   user: AdminUser;
+};
+
+export type UpdateCustomerPlanRequest = {
+  plan: SubscriptionPlan;
+  seatsPurchased: number;
+  billingStatus?: BillingStatus;
+  reason: string;
+};
+
+export type UpdateCustomerDiscountRequest = {
+  discountType: AdminDiscountType | "FixedAmount";
+  discountValue: number;
+  expiresAtUtc?: string | null;
+  reason: string;
+};
+
+export type UpdateCustomerFreeMonthsRequest = {
+  freeMonths: number;
+  expiresAtUtc?: string | null;
+  reason: string;
+};
+
+export type UpdateCustomerStatusRequest = {
+  accountStatus: AdminAccountStatus;
+  billingStatus?: BillingStatus;
+  reason: string;
+};
+
+export type AddCustomerSupportNoteRequest = {
+  note: string;
+  tags?: string[];
 };
 
 export type UpdateStaffPermissionsRequest = {

@@ -93,11 +93,22 @@ export function normalizeUserRole(role: UserRole | string | null | undefined): U
   }
 }
 
+function normalizeStoredUserRole(user: Pick<AuthUser, "role" | "plan">): UserRole {
+  const rawRole = String(user.role ?? "").trim();
+  const normalizedPlan = String(user.plan ?? "").trim().toLowerCase();
+
+  if (normalizedPlan === "internal" && rawRole) {
+    return rawRole as UserRole;
+  }
+
+  return normalizeUserRole(rawRole);
+}
+
 function saveSession(response: LoginResponse) {
   localStorage.setItem("tradelike_token", response.token);
   localStorage.setItem("tradelike_user", JSON.stringify({
     ...response.user,
-    role: normalizeUserRole(response.user.role),
+    role: normalizeStoredUserRole(response.user),
   }));
 
   setToken(response.token);
@@ -114,7 +125,7 @@ function readStoredUser() {
     const user = JSON.parse(rawUser) as AuthUser;
     return {
       ...user,
-      role: normalizeUserRole(user.role),
+      role: normalizeStoredUserRole(user),
     };
   } catch {
     localStorage.removeItem("tradelike_user");
@@ -203,7 +214,9 @@ export const authService = {
       return false;
     }
 
-    return !["CustomerDirector", "CustomerManager", "CustomerEmployee"].includes(normalizeUserRole(user.role));
+    return !["CustomerDirector", "CustomerManager", "CustomerEmployee"].includes(
+      normalizeStoredUserRole(user)
+    );
   },
 
   isDirector(user = readStoredUser()) {

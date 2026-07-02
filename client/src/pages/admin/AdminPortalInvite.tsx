@@ -210,12 +210,12 @@ export default function AdminPortalInvite() {
             <Link to="/" className="text-xl font-bold text-blue-400">TradeLike</Link>
             <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-slate-500">{role}</p>
           </div>
-          <Link to="/dashboard" className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700">Open App</Link>
+          <Link to="/dashboard" className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700">Open customer app</Link>
         </div>
       </header>
 
       <section className="mx-auto max-w-7xl px-6 py-8">
-        <p className="text-xs font-semibold uppercase tracking-wide text-blue-400">Staff Admin Portal</p>
+        <p className="text-xs font-semibold uppercase tracking-wide text-blue-400">TradeLike Studio</p>
         <h1 className="mt-1 text-3xl font-bold text-white">Hello {firstName}</h1>
 
         {error && <div className="mt-6 rounded-xl border border-red-400/30 bg-red-400/10 p-4 text-sm font-medium text-red-100">{error}</div>}
@@ -282,7 +282,7 @@ export default function AdminPortalInvite() {
                     <form onSubmit={saveStaffPermissions} className="rounded-xl border border-slate-800 bg-slate-900 p-5 shadow-sm">
                       <h2 className="text-lg font-bold text-white">Staff permissions</h2>
                       <p className="mt-1 truncate text-sm text-slate-400">{selectedStaff.email}</p>
-                      {selectedStaff.email.toLowerCase() === permanentDirectorEmail && <div className="mt-4 rounded-lg border border-blue-500/40 bg-blue-500/10 p-3 text-sm text-blue-100">This is Thomas Kennington’s permanent Director account. It always keeps full permissions.</div>}
+                      {selectedStaff.email.toLowerCase() === permanentDirectorEmail && <div className="mt-4 rounded-lg border border-blue-500/40 bg-blue-500/10 p-3 text-sm text-blue-100">Permanent Director account. Full access is protected.</div>}
                       <div className="mt-5 grid gap-4">
                         <Field label="Role"><DarkSelect value={selectedStaff.email.toLowerCase() === permanentDirectorEmail ? "Director" : editRole} onChange={value => setEditRole(value as StaffRole)} disabled={selectedStaff.email.toLowerCase() === permanentDirectorEmail}>{staffRoles.map(item => <option key={item} value={item}>{item}</option>)}</DarkSelect></Field>
                         {editRole === "Personal Assistant" && <Field label="PA to"><DarkInput value={editPaTo} onChange={setEditPaTo} disabled={selectedStaff.email.toLowerCase() === permanentDirectorEmail} /></Field>}
