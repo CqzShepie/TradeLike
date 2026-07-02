@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Badge, EmptyState } from "../ui";
+import { Badge } from "../ui";
 import type { DashboardActivity } from "../../types/dashboard";
 
 type DashboardActivityListProps = {
@@ -11,10 +11,10 @@ export default function DashboardActivityList({
 }: DashboardActivityListProps) {
   if (activity.length === 0) {
     return (
-      <EmptyState
-        title="No recent activity"
-        description="Completed jobs, updates and changes will appear here once your team starts moving through the day."
-      />
+      <div className="rounded-lg border border-dashed border-white/15 bg-slate-950/45 p-4">
+        <p className="text-sm font-bold text-white">No recent activity yet</p>
+        <p className="mt-2 text-sm leading-6 text-slate-400">Completed jobs, updates and changes will appear here once work starts moving.</p>
+      </div>
     );
   }
 

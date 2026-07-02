@@ -10,7 +10,6 @@ import {
   Badge,
   Card,
   ErrorState,
-  EmptyState,
   LoadingState,
   PageHeader,
   PageLayout,
@@ -31,7 +30,8 @@ type DashboardWidgetKey =
   | "actionItems"
   | "quickActions"
   | "teamWorkload"
-  | "reportsPreview";
+  | "reportsPreview"
+  | "inventoryAlerts";
 
 const preferenceKey = "tradelike_dashboard_widgets";
 const defaultWidgetPreferences: Record<DashboardWidgetKey, boolean> = {
@@ -43,11 +43,13 @@ const defaultWidgetPreferences: Record<DashboardWidgetKey, boolean> = {
   quickActions: true,
   teamWorkload: true,
   reportsPreview: true,
+  inventoryAlerts: true,
 };
 
 function Dashboard() {
   const { summary, loading, error, refresh } = useDashboardSummary();
   const [widgetPreferences, setWidgetPreferences] = useState(defaultWidgetPreferences);
+  const [preferencesOpen, setPreferencesOpen] = useState(false);
   const user = authService.getUser();
   const isTeamPlus = isAtLeastPlan(user?.plan, "Team");
   const isBusinessPlus = isAtLeastPlan(user?.plan, "Business");
@@ -111,118 +113,137 @@ function Dashboard() {
         />
       )}
 
-      {!loading && !error && isEmptySummary && (
-        <EmptyState
-          title="No dashboard activity yet"
-          description="Add customers and schedule jobs to start filling your command centre with live business activity."
-        />
-      )}
+      {!loading && !error && isEmptySummary && <DashboardEmptyWelcome />}
 
       {!loading && !error && summary && !isEmptySummary && (
-        <div className="space-y-8">
-          <Card tone="dark" padding="lg" className="overflow-hidden">
-            <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-              <div className="max-w-2xl">
-                <Badge tone="slate">Live overview</Badge>
-                <h2 className="mt-5 text-3xl font-bold tracking-tight text-white">
-                  Keep today moving without losing sight of the bigger picture.
-                </h2>
-                <p className="mt-3 text-sm leading-6 text-slate-300">
-                  Review schedule pressure, upcoming work and recent updates from one focused workspace.
-                </p>
+        <div className="space-y-5">
+          <section className="rounded-2xl border border-white/10 bg-slate-950 p-4 shadow-xl shadow-slate-950/30 sm:p-6">
+            <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 pb-5">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-blue-300">Customer dashboard</p>
+                <h2 className="mt-1 text-2xl font-bold text-white">Trade business at a glance</h2>
+                <p className="mt-2 text-sm leading-6 text-slate-300">Review today, upcoming work and activity without jumping between pages.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPreferencesOpen(previous => !previous)}
+                className="rounded-full border border-blue-300/30 bg-blue-400/10 px-3 py-1 text-xs font-semibold text-blue-100 hover:bg-blue-400/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400"
+              >
+                Customise
+              </button>
+            </div>
+
+            {preferencesOpen && (
+              <DashboardPreferences
+                preferences={widgetPreferences}
+                showTeamWorkload={isTeamPlus}
+                showReportsPreview={isBusinessPlus}
+                showInventoryAlerts={isBusinessPlus}
+                onChange={updateWidgetPreference}
+              />
+            )}
+
+            <DashboardMetricStrip summary={summary} />
+
+            {widgetPreferences.stats && <DashboardStats summary={summary} />}
+
+            <div className="mt-5 grid gap-5 xl:grid-cols-[1fr_0.9fr]">
+              <div className="space-y-5">
+                {widgetPreferences.today && (
+                  <DashboardPanel
+                    title="Today's schedule"
+                    subtitle="Jobs booked in for today."
+                  >
+                    <DashboardJobList
+                      jobs={summary.todayJobs}
+                      emptyTitle="No jobs scheduled today"
+                      emptyDescription="Create your first job or check the calendar for future bookings."
+                    />
+                  </DashboardPanel>
+                )}
+
+                {widgetPreferences.upcoming && (
+                  <DashboardPanel
+                    title="Upcoming jobs"
+                    subtitle="The next jobs your team needs to prepare for."
+                  >
+                    <DashboardJobList
+                      jobs={summary.upcomingJobs}
+                      emptyTitle="No upcoming jobs"
+                      emptyDescription="Future scheduled jobs will appear here once they are added."
+                    />
+                  </DashboardPanel>
+                )}
+
+                {widgetPreferences.activity && (
+                  <DashboardPanel
+                    title="Recent activity"
+                    subtitle="Recent changes and progress across your jobs."
+                  >
+                    <DashboardActivityList activity={summary.recentActivity} />
+                  </DashboardPanel>
+                )}
               </div>
 
-              <div className="grid grid-cols-3 gap-3 rounded-xl border border-white/10 bg-white/5 p-3 text-center">
-                <HeroMetric label="Today" value={summary.todayJobs.length} />
-                <HeroMetric label="Upcoming" value={summary.upcomingJobs.length} />
-                <HeroMetric label="Activity" value={summary.recentActivity.length} />
+              <div className="space-y-5">
+                {widgetPreferences.quickActions && <QuickActions />}
+                {widgetPreferences.actionItems && <ActionItems />}
+
+                {isTeamPlus && widgetPreferences.teamWorkload && (
+                  <DashboardPanel title="Team workload" subtitle="Team+ scheduling and capacity.">
+                    <PreviewLink to="/team" title="Team scheduling is enabled" description="Open Team to check assignments, leave and daily capacity." />
+                  </DashboardPanel>
+                )}
+
+                {isBusinessPlus && widgetPreferences.reportsPreview && (
+                  <DashboardPanel title="Reports preview" subtitle="Business trends from real job activity.">
+                    <div className="grid gap-3 sm:grid-cols-3">
+                      <MiniInsight label="Completed" value={summary.completedJobs} />
+                      <MiniInsight label="Open" value={summary.scheduledJobs + summary.inProgressJobs} />
+                      <MiniInsight label="Updates" value={summary.recentActivity.length} />
+                    </div>
+                    <Link to="/reports" className="mt-4 inline-flex rounded-lg border border-white/10 px-4 py-2 text-sm font-semibold text-blue-200 hover:bg-white/10">Open Reports</Link>
+                  </DashboardPanel>
+                )}
+
+                {isBusinessPlus && widgetPreferences.inventoryAlerts && (
+                  <DashboardPanel title="Inventory alerts" subtitle="Business+ stock follow-up.">
+                    <PreviewLink to="/inventory" title="Review inventory" description="Open Inventory to check low-stock items, suppliers and purchase orders." />
+                  </DashboardPanel>
+                )}
               </div>
             </div>
-          </Card>
-
-          <DashboardPreferences
-            preferences={widgetPreferences}
-            showTeamWorkload={isTeamPlus}
-            showReportsPreview={isBusinessPlus}
-            onChange={updateWidgetPreference}
-          />
-
-          {widgetPreferences.stats && <DashboardStats summary={summary} />}
-
-          <div className="grid gap-6 xl:grid-cols-2">
-            {widgetPreferences.today && (
-              <DashboardPanel
-                title="Today's schedule"
-                subtitle="Jobs booked in for today."
-              >
-                <DashboardJobList
-                  jobs={summary.todayJobs}
-                  emptyTitle="No jobs scheduled today"
-                  emptyDescription="When jobs are booked for today they will appear here with customer, address and status details."
-                />
-              </DashboardPanel>
-            )}
-
-            {widgetPreferences.upcoming && (
-              <DashboardPanel
-                title="Upcoming jobs"
-                subtitle="The next jobs your team needs to prepare for."
-              >
-                <DashboardJobList
-                  jobs={summary.upcomingJobs}
-                  emptyTitle="No upcoming jobs"
-                  emptyDescription="Future scheduled jobs will appear here once they are added."
-                />
-              </DashboardPanel>
-            )}
-          </div>
-
-          {widgetPreferences.actionItems && <ActionItems />}
-
-          {isTeamPlus && widgetPreferences.teamWorkload && (
-            <DashboardPanel title="Team workload" subtitle="Use the Team workspace to review assignments, leave and daily capacity.">
-              <div className="rounded-xl border border-white/10 bg-slate-950/45 p-4">
-                <p className="text-sm font-semibold text-white">Team scheduling is enabled for your plan.</p>
-                <p className="mt-2 text-sm leading-6 text-slate-300">Open Team to check who is assigned, where capacity is tight and which jobs still need people.</p>
-                <Link to="/team" className="mt-4 inline-flex rounded-lg border border-white/10 px-4 py-2 text-sm font-semibold text-blue-200 hover:bg-white/10">Open Team</Link>
-              </div>
-            </DashboardPanel>
-          )}
-
-          {isBusinessPlus && widgetPreferences.reportsPreview && (
-            <DashboardPanel title="Reports preview" subtitle="Business reporting gives a cleaner view of trends and financial follow-up.">
-              <div className="grid gap-3 md:grid-cols-3">
-                <MiniInsight label="Completed jobs" value={summary.completedJobs} />
-                <MiniInsight label="Open jobs" value={summary.scheduledJobs + summary.inProgressJobs} />
-                <MiniInsight label="Recent updates" value={summary.recentActivity.length} />
-              </div>
-              <Link to="/reports" className="mt-4 inline-flex rounded-lg border border-white/10 px-4 py-2 text-sm font-semibold text-blue-200 hover:bg-white/10">Open Reports</Link>
-            </DashboardPanel>
-          )}
-
-          {widgetPreferences.activity && (
-            <DashboardPanel
-              title="Recent activity"
-              subtitle="Recent changes and progress across your jobs."
-            >
-              <DashboardActivityList activity={summary.recentActivity} />
-            </DashboardPanel>
-          )}
-
-          {widgetPreferences.quickActions && <QuickActions />}
+          </section>
         </div>
       )}
     </PageLayout>
   );
 }
 
-function HeroMetric({ label, value }: { label: string; value: number }) {
+function DashboardMetricStrip({ summary }: { summary: NonNullable<ReturnType<typeof useDashboardSummary>["summary"]> }) {
   return (
-    <div className="min-w-20 rounded-lg bg-slate-950/40 px-3 py-2">
-      <p className="text-2xl font-bold text-white">{value}</p>
-      <p className="mt-1 text-xs font-semibold text-slate-400">{label}</p>
+    <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5" aria-label="Dashboard preview summary">
+      <HeroMetric label="Today" value={String(summary.todayJobs.length)} helper="jobs scheduled today" />
+      <HeroMetric label="Upcoming" value={String(summary.upcomingJobs.length)} helper="future jobs" />
+      <HeroMetric label="Quotes" value="Review" helper="open quote follow-up" to="/quotes" />
+      <HeroMetric label="Invoices" value="Review" helper="open invoice admin" to="/invoices" />
+      <HeroMetric label="Activity" value={String(summary.recentActivity.length)} helper="recent updates" />
     </div>
   );
+}
+
+function HeroMetric({ label, value, helper, to }: { label: string; value: string; helper: string; to?: string }) {
+  const content = (
+    <>
+      <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{label}</p>
+      <p className="mt-2 text-2xl font-bold text-white">{value}</p>
+      <p className="mt-1 text-xs leading-5 text-slate-300">{helper}</p>
+    </>
+  );
+
+  const className = "block rounded-lg border border-white/10 bg-slate-950/60 p-4 transition hover:border-blue-300/50 hover:bg-slate-950/80";
+
+  return to ? <Link to={to} className={className}>{content}</Link> : <div className={className}>{content}</div>;
 }
 
 export default Dashboard;
@@ -231,11 +252,13 @@ function DashboardPreferences({
   preferences,
   showTeamWorkload,
   showReportsPreview,
+  showInventoryAlerts,
   onChange,
 }: {
   preferences: Record<DashboardWidgetKey, boolean>;
   showTeamWorkload: boolean;
   showReportsPreview: boolean;
+  showInventoryAlerts: boolean;
   onChange: (key: DashboardWidgetKey, value: boolean) => void;
 }) {
   const options: Array<{ key: DashboardWidgetKey; label: string; visible: boolean }> = [
@@ -247,13 +270,14 @@ function DashboardPreferences({
     { key: "quickActions", label: "Quick actions", visible: true },
     { key: "teamWorkload", label: "Team workload", visible: showTeamWorkload },
     { key: "reportsPreview", label: "Reports preview", visible: showReportsPreview },
+    { key: "inventoryAlerts", label: "Inventory alerts", visible: showInventoryAlerts },
   ];
 
   return (
-    <Card tone="dark" padding="md" className="border-white/10 bg-slate-900/80">
+    <Card tone="dark" padding="sm" className="mt-5 border-white/10 bg-slate-900/80">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <h2 className="text-lg font-bold text-white">Dashboard preferences</h2>
+          <h2 className="text-base font-bold text-white">Customise dashboard</h2>
           <p className="mt-1 text-sm text-slate-300">Choose which widgets appear on this device.</p>
         </div>
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
@@ -276,7 +300,7 @@ function DashboardPreferences({
 
 function ActionItems() {
   return (
-    <div className="grid gap-6 xl:grid-cols-2">
+    <div className="grid gap-5">
       <DashboardPanel title="Quotes needing action" subtitle="Keep sent, draft and accepted quotes moving.">
         <ActionItemLink to="/quotes" title="Review quotes" description="Open your quote list to chase sent quotes, finish drafts or convert accepted work." />
       </DashboardPanel>
@@ -302,6 +326,31 @@ function MiniInsight({ label, value }: { label: string; value: number }) {
       <p className="text-2xl font-bold text-white">{value}</p>
       <p className="mt-1 text-xs font-semibold text-slate-300">{label}</p>
     </div>
+  );
+}
+
+function PreviewLink({ to, title, description }: { to: string; title: string; description: string }) {
+  return (
+    <Link to={to} className="block rounded-xl border border-white/10 bg-slate-950/45 p-4 hover:border-blue-300/50 hover:bg-slate-950/70">
+      <p className="text-sm font-bold text-white">{title}</p>
+      <p className="mt-2 text-sm leading-6 text-slate-300">{description}</p>
+    </Link>
+  );
+}
+
+function DashboardEmptyWelcome() {
+  return (
+    <section className="rounded-2xl border border-white/10 bg-slate-950 p-6 shadow-xl shadow-slate-950/30">
+      <div className="max-w-2xl">
+        <p className="text-xs font-semibold uppercase tracking-wide text-blue-300">Customer dashboard</p>
+        <h2 className="mt-2 text-2xl font-bold text-white">Create your first job</h2>
+        <p className="mt-2 text-sm leading-6 text-slate-300">No dashboard activity yet. Add customers and schedule jobs to start filling the workspace with real business activity.</p>
+        <div className="mt-5 flex flex-wrap gap-3">
+          <Link to="/jobs" className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-500">Create your first job</Link>
+          <Link to="/customers" className="rounded-lg border border-white/10 px-4 py-2 text-sm font-semibold text-slate-100 hover:bg-white/10">Add customer</Link>
+        </div>
+      </div>
+    </section>
   );
 }
 

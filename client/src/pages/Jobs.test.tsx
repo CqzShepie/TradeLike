@@ -23,6 +23,7 @@ vi.mock("../services/jobAssignmentsService", () => ({
   jobAssignmentsService: {
     getAll: vi.fn().mockResolvedValue([]),
     update: vi.fn().mockResolvedValue([]),
+    clear: vi.fn().mockResolvedValue([]),
   },
 }));
 
@@ -40,6 +41,7 @@ describe("Jobs", () => {
     vi.mocked(customersService.create).mockReset();
     vi.mocked(jobAssignmentsService.getAll).mockResolvedValue([]);
     vi.mocked(jobAssignmentsService.update).mockResolvedValue([]);
+    vi.mocked(jobAssignmentsService.clear).mockResolvedValue([]);
   });
 
   it("renders an empty state when no jobs are returned", () => {

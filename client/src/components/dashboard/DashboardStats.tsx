@@ -32,7 +32,7 @@ export default function DashboardStats({ summary }: DashboardStatsProps) {
   return (
     <section
       aria-label="Dashboard summary"
-      className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"
+      className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
     >
       {statCopy.map(stat => (
         <StatCard

@@ -48,4 +48,9 @@ export const jobAssignmentsService = {
 
     return rows.map(normalizeAssignment);
   },
+
+  async clear(jobId: number) {
+    const rows = (await apiClient.post(`/jobs/${jobId}/assignment/clear`, {})) as JobAssignment[];
+    return rows.map(normalizeAssignment);
+  },
 };

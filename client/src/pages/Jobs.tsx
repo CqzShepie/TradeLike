@@ -488,7 +488,8 @@ function getMemberName(member: CustomerStaffMember) {
 }
 
 function getAssignmentLabel(job: Job, assignment: JobAssignment | undefined, members: CustomerStaffMember[]) {
-  const lead = members.find(member => member.id === assignment?.leadStaffMemberId || member.id === job.engineerId);
+  const leadId = assignment ? assignment.leadStaffMemberId : job.engineerId;
+  const lead = members.find(member => member.id === leadId);
 
   if (lead) {
     return getMemberName(lead);

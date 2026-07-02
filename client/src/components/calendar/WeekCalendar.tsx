@@ -76,7 +76,10 @@ export default function WeekCalendar() {
         return Array.from(map.values()).map(job => {
             const assignment = assignmentMap.get(job.id);
             const firstAssignedStaff = assignment?.assignedStaffMemberIds[0] ?? null;
-            return { ...job, engineerId: assignment?.leadStaffMemberId ?? firstAssignedStaff ?? job.engineerId ?? null };
+            const engineerId = assignment
+                ? assignment.leadStaffMemberId ?? firstAssignedStaff ?? null
+                : job.engineerId ?? null;
+            return { ...job, engineerId };
         });
     }, [assignmentMap, serverJobs, optimisticJobs]);
 
@@ -221,7 +224,8 @@ export default function WeekCalendar() {
             {selectedJob && (() => {
                 const selectedAssignment = assignmentMap.get(selectedJob.id);
                 const selectedTeam = teams.find(team => team.id === selectedAssignment?.assignedTeamId);
-                const leadEngineer = members.find(member => member.id === selectedAssignment?.leadStaffMemberId || member.id === selectedJob.engineerId);
+                const leadEngineerId = selectedAssignment ? selectedAssignment.leadStaffMemberId : selectedJob.engineerId;
+                const leadEngineer = members.find(member => member.id === leadEngineerId);
                 const extraStaff = members.filter(member => selectedAssignment?.assignedStaffMemberIds.includes(member.id));
                 const detailRows = [
                     ["Job number", `#${selectedJob.jobNumber ?? selectedJob.id}`],
@@ -233,7 +237,7 @@ export default function WeekCalendar() {
                     ["Priority", selectedJob.priority],
                     ["Linked quote", selectedJob.quoteId ? `Quote #${selectedJob.quoteId}` : "No quote linked"],
                     ...(showStaffScheduling ? [
-                        ["Lead Engineer", leadEngineer ? `${leadEngineer.firstName} ${leadEngineer.lastName}` : "No lead engineer"],
+                        ["Lead Engineer", leadEngineer ? `${leadEngineer.firstName} ${leadEngineer.lastName}` : "Unassigned"],
                         ["Extra staff", extraStaff.length ? extraStaff.map(member => `${member.firstName} ${member.lastName}`).join(", ") : "No extra staff"],
                         ["Team", selectedTeam?.name ?? selectedJob.assignedTeamName ?? "No team recorded"],
                     ] : []),
@@ -276,7 +280,7 @@ export default function WeekCalendar() {
                                 </label>
                                 <select
                                     id="calendar-job-lead"
-                                    value={selectedAssignment?.leadStaffMemberId ?? selectedJob.engineerId ?? ""}
+                                    value={selectedAssignment ? selectedAssignment.leadStaffMemberId ?? "" : selectedJob.engineerId ?? ""}
                                     onChange={event => void updateJobLead(selectedJob, event.target.value ? Number(event.target.value) : null)}
                                     className="mt-2 w-full rounded-lg border border-white/10 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/40"
                                 >

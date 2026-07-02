@@ -62,6 +62,11 @@ public sealed class JobAssignmentsController : ControllerBase
         }
 
         job.AssignedTeamId = request.AssignedTeamId;
+        job.LeadStaffMemberId = request.LeadStaffMemberId;
+        if (!request.LeadStaffMemberId.HasValue && staffIds.Count == 0)
+        {
+            job.EngineerId = null;
+        }
         job.ScheduledEndDate = request.ScheduledEndDate;
         job.CalendarColour = string.IsNullOrWhiteSpace(request.CalendarColour)
             ? "blue"
@@ -96,6 +101,42 @@ public sealed class JobAssignmentsController : ControllerBase
                 StaffMemberId = staffId
             })
             .ToList();
+
+        await _context.SaveChangesAsync();
+
+        return Ok(await LoadAssignmentsAsync(false, tenantId));
+    }
+
+    [HttpPost("/api/jobs/{jobId:int}/assignment/clear")]
+    public async Task<ActionResult<IReadOnlyList<JobAssignmentResponse>>> ClearAssignment(int jobId)
+    {
+        var tenantId = TenantHelpers.GetTenantId(HttpContext);
+
+        var job = await _context.Jobs
+            .FirstOrDefaultAsync(existingJob => existingJob.Id == jobId && existingJob.TenantId == tenantId);
+
+        if (job is null)
+        {
+            return NotFound();
+        }
+
+        job.AssignedTeamId = null;
+        job.LeadStaffMemberId = null;
+        job.EngineerId = null;
+        job.CalendarColour = "blue";
+
+        var assignment = await _context.JobAssignments
+            .Include(existingAssignment => existingAssignment.StaffMembers)
+            .FirstOrDefaultAsync(existingAssignment =>
+                existingAssignment.JobId == jobId &&
+                existingAssignment.TenantId == tenantId);
+
+        if (assignment is not null)
+        {
+            _context.JobAssignmentStaff.RemoveRange(assignment.StaffMembers);
+            assignment.LeadStaffMemberId = null;
+            assignment.StaffMembers = [];
+        }
 
         await _context.SaveChangesAsync();
 

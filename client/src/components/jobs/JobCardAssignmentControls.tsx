@@ -59,7 +59,7 @@ export default function JobCardAssignmentControls({ job, teams, members, assignm
           {teams.map(team => <option key={team.id} value={team.id}>{team.name} - {getTeamColourLabel(team.colour)}</option>)}
         </select>
         <select value={leadStaffMemberId ?? ""} onChange={event => updateLead(event.target.value ? Number(event.target.value) : null)} className="rounded-lg border border-white/10 bg-slate-950 px-2 py-2 text-xs text-white">
-          <option value="">No lead engineer</option>
+          <option value="">Unassigned</option>
           {members.map(member => <option key={member.id} value={member.id}>{member.firstName} {member.lastName}</option>)}
         </select>
         <div>
@@ -74,7 +74,7 @@ export default function JobCardAssignmentControls({ job, teams, members, assignm
           </div>
         </div>
         <button type="button" onClick={clearAssignment} className="rounded-lg border border-white/10 px-2 py-2 text-xs font-semibold text-slate-100 hover:bg-white/10">
-          Unassign
+          Clear assignment
         </button>
       </div>
     </div>
