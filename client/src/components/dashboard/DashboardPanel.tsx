@@ -15,11 +15,12 @@ export default function DashboardPanel({
   children,
 }: DashboardPanelProps) {
   return (
-    <Card as="section" padding="md" className="h-full">
+    <Card as="section" padding="md" tone="dark" className="h-full">
       <SectionHeader
         title={title}
         subtitle={subtitle}
         action={action}
+        tone="dark"
         className="mb-5"
       />
       {children}

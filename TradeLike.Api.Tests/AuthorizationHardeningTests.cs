@@ -2,9 +2,13 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Controllers;
+using Microsoft.AspNetCore.Mvc.Filters;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.FileProviders;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using TradeLike.Api;
 using TradeLike.Api.Api.Payments;
@@ -13,6 +17,7 @@ using TradeLike.Api.Contracts.Admin;
 using TradeLike.Api.Contracts.Jobs;
 using TradeLike.Api.Controllers;
 using TradeLike.Api.Data;
+using TradeLike.Api.Inventory;
 using TradeLike.Api.Models;
 using TradeLike.Api.Security;
 using TradeLike.Api.Services;
@@ -121,6 +126,54 @@ public sealed class AuthorizationHardeningTests
     }
 
     [Fact]
+    public async Task ReportsSummaryWorksWithEmptyTenantData()
+    {
+        await using var context = CreateContext();
+        var controller = new ReportsController(context)
+        {
+            ControllerContext = new ControllerContext
+            {
+                HttpContext = HttpContextForTenant(1, CustomerRoles.Director)
+            }
+        };
+
+        var result = await controller.GetSummary();
+        var ok = Assert.IsType<OkObjectResult>(result.Result);
+        var summary = Assert.IsType<ReportsSummaryResponse>(ok.Value);
+
+        Assert.Equal(0, summary.JobsCompleted);
+        Assert.Equal(0, summary.JobsScheduled);
+        Assert.Equal(0, summary.OpenJobs);
+    }
+
+    [Fact]
+    public async Task ReportsJobsEndpointGroupsInMemoryWithoutTranslationFailure()
+    {
+        await using var context = CreateContext();
+        var thisMonth = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 10);
+        context.Jobs.AddRange(
+            BuildJob(1, 1, "Scheduled", thisMonth),
+            BuildJob(2, 1, "Scheduled", thisMonth),
+            BuildJob(3, 1, "Completed", thisMonth));
+        await context.SaveChangesAsync();
+
+        var controller = new ReportsController(context)
+        {
+            ControllerContext = new ControllerContext
+            {
+                HttpContext = HttpContextForTenant(1, CustomerRoles.Director)
+            }
+        };
+
+        var result = await controller.GetJobs();
+        var ok = Assert.IsType<OkObjectResult>(result.Result);
+        var rows = Assert.IsAssignableFrom<IReadOnlyList<JobReportRow>>(ok.Value);
+
+        Assert.Contains(rows, row => row.Status == "Scheduled" && row.Count == 2);
+        Assert.Contains(rows, row => row.Status == "Completed" && row.Count == 1);
+    }
+
+    [Fact]
     public async Task BusinessReportRequiresBusinessOrEnterprisePlan()
     {
         await using var context = CreateContext();
@@ -157,6 +210,50 @@ public sealed class AuthorizationHardeningTests
 
         var enterpriseResult = await controller.GetBusiness();
         Assert.IsType<OkObjectResult>(enterpriseResult.Result);
+    }
+
+    [Fact]
+    public async Task TeamPlanGuardAllowsBusinessAndEnterpriseButBlocksSolo()
+    {
+        await using var soloContext = CreateContext();
+        await SeedSubscriptionAsync(soloContext, 1, "Solo", 1);
+        var soloResult = await RunPlanGuardAsync(soloContext, Feature.TeamManagement, 1);
+        var soloBlocked = Assert.IsType<ObjectResult>(soloResult);
+        Assert.Equal(StatusCodes.Status402PaymentRequired, soloBlocked.StatusCode);
+
+        await using var businessContext = CreateContext();
+        await SeedSubscriptionAsync(businessContext, 1, "Business", 3);
+        var businessResult = await RunPlanGuardAsync(businessContext, Feature.TeamManagement, 1);
+        Assert.Null(businessResult);
+
+        await using var enterpriseContext = CreateContext();
+        await SeedSubscriptionAsync(enterpriseContext, 1, "Enterprise", 4);
+        var enterpriseResult = await RunPlanGuardAsync(enterpriseContext, Feature.TeamManagement, 1);
+        Assert.Null(enterpriseResult);
+    }
+
+    [Fact]
+    public async Task InventoryPlanGuardAllowsBusinessAndEnterpriseButBlocksSolo()
+    {
+        Assert.Contains(
+            typeof(InventoryController).GetCustomAttributes(typeof(PlanGuardAttribute), inherit: true).Cast<PlanGuardAttribute>(),
+            attribute => attribute is not null);
+
+        await using var soloContext = CreateContext();
+        await SeedSubscriptionAsync(soloContext, 1, "Solo", 1);
+        var soloResult = await RunPlanGuardAsync(soloContext, Feature.Inventory, 1);
+        var soloBlocked = Assert.IsType<ObjectResult>(soloResult);
+        Assert.Equal(StatusCodes.Status402PaymentRequired, soloBlocked.StatusCode);
+
+        await using var businessContext = CreateContext();
+        await SeedSubscriptionAsync(businessContext, 1, "Business", 3);
+        var businessResult = await RunPlanGuardAsync(businessContext, Feature.Inventory, 1);
+        Assert.Null(businessResult);
+
+        await using var enterpriseContext = CreateContext();
+        await SeedSubscriptionAsync(enterpriseContext, 1, "Enterprise", 4);
+        var enterpriseResult = await RunPlanGuardAsync(enterpriseContext, Feature.Inventory, 1);
+        Assert.Null(enterpriseResult);
     }
 
     [Fact]
@@ -568,6 +665,61 @@ public sealed class AuthorizationHardeningTests
             Status = status,
             Priority = "Normal"
         };
+    }
+
+    private static async Task SeedSubscriptionAsync(
+        TradeLikeDbContext context,
+        int tenantId,
+        string planName,
+        int planId)
+    {
+        context.Plans.Add(new Plan
+        {
+            Id = planId,
+            Name = planName,
+            MonthlyPricePence = planName == "Enterprise" ? null : 7500,
+            MaxIncludedUsers = planName == "Enterprise" ? null : 10,
+            CreatedAt = DateTime.UtcNow
+        });
+        context.Users.Add(BuildUser(tenantId, $"owner-{tenantId}@example.com", CustomerRoles.Director, tenantId, planName));
+        context.Subscriptions.Add(new Subscription
+        {
+            TenantId = tenantId,
+            PlanId = planId,
+            SeatsPurchased = planName == "Solo" ? 1 : 10,
+            BillingStartUtc = DateTime.UtcNow,
+            NextInvoiceDateUtc = DateTime.UtcNow.AddMonths(1),
+            Status = "Active"
+        });
+        await context.SaveChangesAsync();
+    }
+
+    private static async Task<IActionResult?> RunPlanGuardAsync(
+        TradeLikeDbContext context,
+        Feature feature,
+        int tenantId)
+    {
+        var services = new ServiceCollection()
+            .AddSingleton(context)
+            .BuildServiceProvider();
+        var httpContext = HttpContextForTenant(tenantId, CustomerRoles.Director);
+        httpContext.RequestServices = services;
+        var actionContext = new ActionContext(
+            httpContext,
+            new RouteData(),
+            new ControllerActionDescriptor());
+        var executingContext = new ActionExecutingContext(
+            actionContext,
+            [],
+            new Dictionary<string, object?>(),
+            controller: null!);
+        var guard = new PlanGuardAttribute(feature);
+
+        await guard.OnActionExecutionAsync(
+            executingContext,
+            () => Task.FromResult(new ActionExecutedContext(actionContext, [], controller: null!)));
+
+        return executingContext.Result;
     }
 
     private static PasswordResetService CreatePasswordResetService(

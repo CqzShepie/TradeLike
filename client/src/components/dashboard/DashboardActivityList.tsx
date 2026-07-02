@@ -24,23 +24,23 @@ export default function DashboardActivityList({
         <Link
           key={`${item.jobId}-${item.timestamp}-${item.type}`}
           to={`/jobs/${item.jobId}`}
-          className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 transition hover:border-blue-300 hover:bg-blue-50/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 sm:flex-row sm:items-center sm:justify-between"
+          className="flex flex-col gap-3 rounded-xl border border-white/10 bg-slate-950/45 p-4 transition hover:border-blue-300/50 hover:bg-slate-950/70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 sm:flex-row sm:items-center sm:justify-between"
         >
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <h3 className="text-sm font-bold text-slate-950">
+              <h3 className="text-sm font-bold text-white">
                 {item.title}
               </h3>
               <Badge tone="slate">{formatActivityType(item.type)}</Badge>
             </div>
-            <p className="mt-2 text-sm leading-6 text-slate-600">
+            <p className="mt-2 text-sm leading-6 text-slate-300">
               {item.description}
             </p>
           </div>
 
           <time
             dateTime={item.timestamp}
-            className="shrink-0 text-xs font-semibold text-slate-500"
+            className="shrink-0 text-xs font-semibold text-slate-300"
           >
             {formatDateTime(item.timestamp)}
           </time>

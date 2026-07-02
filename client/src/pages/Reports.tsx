@@ -22,6 +22,7 @@ import type { CustomerStaffMember, CustomerStaffWorkspace, CustomerTeam } from "
 import type { Job } from "../types/job";
 import { useAuth } from "../hooks/useAuth";
 import { hasFeature, isAtLeastPlan } from "../routes/planEntitlements";
+import { friendlyErrorMessage } from "../utils/errorMessages";
 import AccessDenied from "./AccessDenied";
 import UpgradeRequired from "./UpgradeRequired";
 
@@ -182,7 +183,7 @@ export default function Reports() {
       {!loading && error && (
         <ErrorState
           title="Unable to load reports"
-          description={error.message}
+          description={friendlyErrorMessage(error, "Reports could not be loaded. Please try again.")}
           action={
             <SecondaryButton type="button" onClick={() => void loadReports()} className="border-white/10 bg-white/5 text-slate-100 hover:bg-white/10">
               Retry

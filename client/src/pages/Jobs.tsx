@@ -25,6 +25,7 @@ import type { JobAssignment } from "../services/jobAssignmentsService";
 import { canUseStaffScheduling } from "../routes/planEntitlements";
 import { useAuth } from "../hooks/useAuth";
 import { useJobs } from "../hooks/useJobs";
+import { friendlyErrorMessage } from "../utils/errorMessages";
 import AccessDenied from "./AccessDenied";
 import UpgradeRequired from "./UpgradeRequired";
 
@@ -199,7 +200,7 @@ function Jobs() {
       {!loading && error && (
         <ErrorState
           title="Unable to load jobs"
-          description={error.message}
+          description={friendlyErrorMessage(error, "Jobs could not be loaded. Please try again.")}
           action={
             <SecondaryButton type="button" onClick={reloadJobs} className="border-white/10 bg-white/5 text-slate-100 hover:bg-white/10">
               Try again

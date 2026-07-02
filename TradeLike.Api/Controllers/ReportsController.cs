@@ -63,18 +63,20 @@ public sealed class ReportsController : ControllerBase
         var tenantId = TenantHelpers.GetTenantId(HttpContext);
         var dateRange = ResolveRange(range);
 
-        var rows = await _context.Jobs
+        var statuses = await _context.Jobs
             .AsNoTracking()
             .Where(job =>
                 job.TenantId == tenantId &&
                 job.ScheduledDate >= dateRange.FromUtc &&
                 job.ScheduledDate < dateRange.ToUtc)
-            .GroupBy(job => job.Status)
-            .Select(group => new JobReportRow(group.Key, group.Count()))
-            .OrderBy(row => row.Status)
+            .Select(job => job.Status)
             .ToListAsync();
 
-        return Ok(rows);
+        return Ok(statuses
+            .GroupBy(status => status)
+            .Select(group => new JobReportRow(group.Key, group.Count()))
+            .OrderBy(row => row.Status)
+            .ToList());
     }
 
     [HttpGet("team")]
@@ -99,14 +101,16 @@ public sealed class ReportsController : ControllerBase
                 assignment.Job.ScheduledDate < dateRange.ToUtc)
             .ToListAsync();
 
-        var assignedJobIds = assignments.Select(assignment => assignment.JobId).Distinct().ToList();
-        var unassignedJobs = await _context.Jobs
+        var assignedJobIds = assignments.Select(assignment => assignment.JobId).Distinct().ToHashSet();
+        var jobIds = await _context.Jobs
             .AsNoTracking()
-            .CountAsync(job =>
+            .Where(job =>
                 job.TenantId == tenantId &&
                 job.ScheduledDate >= dateRange.FromUtc &&
-                job.ScheduledDate < dateRange.ToUtc &&
-                !assignedJobIds.Contains(job.Id));
+                job.ScheduledDate < dateRange.ToUtc)
+            .Select(job => job.Id)
+            .ToListAsync();
+        var unassignedJobs = jobIds.Count(jobId => !assignedJobIds.Contains(jobId));
 
         var rows = members
             .Select(member =>

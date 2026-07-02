@@ -40,6 +40,7 @@ export default function DashboardStats({ summary }: DashboardStatsProps) {
           title={stat.title}
           value={String(summary[stat.key])}
           description={stat.description}
+          tone="dark"
         />
       ))}
     </section>

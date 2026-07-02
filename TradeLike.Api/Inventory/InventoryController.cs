@@ -9,7 +9,8 @@ namespace TradeLike.Api.Inventory;
 
 [ApiController]
 [Route("api/inventory")]
-[Authorize(Policy = "RequireEmployeeRole")]
+[Authorize(Policy = "RequireManagerRole")]
+[PlanGuard(Feature.Inventory)]
 public class InventoryController : ControllerBase
 {
     private readonly TradeLikeDbContext _db;

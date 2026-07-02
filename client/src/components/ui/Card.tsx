@@ -22,7 +22,7 @@ const paddingClasses: Record<CardPadding, string> = {
 const toneClasses: Record<CardTone, string> = {
   surface: "border-slate-200 bg-white text-slate-950 shadow-sm",
   subtle: "border-slate-200 bg-slate-50 text-slate-950",
-  dark: "border-slate-800 bg-slate-900 text-white shadow-sm shadow-slate-950/20",
+  dark: "border-white/10 bg-slate-900/90 text-white shadow-lg shadow-slate-950/30",
 };
 
 function Card({

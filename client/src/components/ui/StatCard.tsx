@@ -21,19 +21,19 @@ function StatCard({
       className={classNames(
         "rounded-xl border p-5 shadow-sm",
         tone === "dark"
-          ? "border-slate-800 bg-slate-900 text-white"
+          ? "border-white/10 bg-slate-900/90 text-white shadow-lg shadow-slate-950/20"
           : "border-slate-200 bg-white text-slate-950"
       )}
     >
       <div className="flex items-start justify-between gap-4">
-        <p className={classNames("text-sm font-medium", tone === "dark" ? "text-slate-300" : "text-slate-500")}>
+        <p className={classNames("text-sm font-semibold", tone === "dark" ? "text-slate-100" : "text-slate-500")}>
           {title}
         </p>
-        {icon && <div className="text-blue-600">{icon}</div>}
+        {icon && <div className={tone === "dark" ? "text-blue-300" : "text-blue-600"}>{icon}</div>}
       </div>
       <p className="mt-2 text-3xl font-bold">{value}</p>
       {description && (
-        <p className={classNames("mt-2 text-xs leading-5", tone === "dark" ? "text-slate-400" : "text-slate-500")}>
+        <p className={classNames("mt-2 text-xs leading-5", tone === "dark" ? "text-slate-300" : "text-slate-500")}>
           {description}
         </p>
       )}
