@@ -53,6 +53,16 @@ public class TradeLikeDbContext : DbContext
 
     public DbSet<JobAssignmentStaff> JobAssignmentStaff => Set<JobAssignmentStaff>();
 
+    public DbSet<TenantStorageAccount> TenantStorageAccounts => Set<TenantStorageAccount>();
+
+    public DbSet<StorageObject> StorageObjects => Set<StorageObject>();
+
+    public DbSet<StorageUsageEvent> StorageUsageEvents => Set<StorageUsageEvent>();
+
+    public DbSet<StorageAddOnPlan> StorageAddOnPlans => Set<StorageAddOnPlan>();
+
+    public DbSet<TenantStorageAddOn> TenantStorageAddOns => Set<TenantStorageAddOn>();
+
     public override int SaveChanges()
     {
         ValidateBusinessRecordChanges();
@@ -177,10 +187,10 @@ public class TradeLikeDbContext : DbContext
                 .IsUnique();
 
             entity.HasData(
-                new Plan { Id = 1, Name = "Solo", MonthlyPricePence = PlanPricing.SoloMonthlyPricePence, MaxIncludedUsers = 1, AdditionalUserCostPence = null, CreatedAt = new DateTime(2026, 7, 1, 0, 0, 0, DateTimeKind.Utc) },
-                new Plan { Id = 2, Name = "Team", MonthlyPricePence = PlanPricing.TeamMonthlyPricePence, MaxIncludedUsers = 10, AdditionalUserCostPence = null, CreatedAt = new DateTime(2026, 7, 1, 0, 0, 0, DateTimeKind.Utc) },
-                new Plan { Id = 3, Name = "Business", MonthlyPricePence = PlanPricing.BusinessMonthlyPricePence, MaxIncludedUsers = 25, AdditionalUserCostPence = 500, CreatedAt = new DateTime(2026, 7, 1, 0, 0, 0, DateTimeKind.Utc) },
-                new Plan { Id = 4, Name = "Enterprise", MonthlyPricePence = null, MaxIncludedUsers = null, AdditionalUserCostPence = null, CreatedAt = new DateTime(2026, 7, 1, 0, 0, 0, DateTimeKind.Utc) });
+                new Plan { Id = 1, Name = "Solo", MonthlyPricePence = PlanPricing.SoloMonthlyPricePence, MaxIncludedUsers = 1, AdditionalUserCostPence = null, IncludedStorageBytes = PlanPricing.SoloIncludedStorageBytes, CreatedAt = new DateTime(2026, 7, 1, 0, 0, 0, DateTimeKind.Utc) },
+                new Plan { Id = 2, Name = "Team", MonthlyPricePence = PlanPricing.TeamMonthlyPricePence, MaxIncludedUsers = 10, AdditionalUserCostPence = null, IncludedStorageBytes = PlanPricing.TeamIncludedStorageBytes, CreatedAt = new DateTime(2026, 7, 1, 0, 0, 0, DateTimeKind.Utc) },
+                new Plan { Id = 3, Name = "Business", MonthlyPricePence = PlanPricing.BusinessMonthlyPricePence, MaxIncludedUsers = 25, AdditionalUserCostPence = 500, IncludedStorageBytes = PlanPricing.BusinessIncludedStorageBytes, CreatedAt = new DateTime(2026, 7, 1, 0, 0, 0, DateTimeKind.Utc) },
+                new Plan { Id = 4, Name = "Enterprise", MonthlyPricePence = null, MaxIncludedUsers = null, AdditionalUserCostPence = null, IncludedStorageBytes = null, CreatedAt = new DateTime(2026, 7, 1, 0, 0, 0, DateTimeKind.Utc) });
         });
 
         modelBuilder.Entity<Subscription>(entity =>
@@ -757,6 +767,93 @@ public class TradeLikeDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(staff => staff.StaffMemberId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<TenantStorageAccount>(entity =>
+        {
+            entity.HasIndex(account => account.TenantId)
+                .IsUnique();
+
+            entity.Property(account => account.WarningLevel)
+                .IsRequired()
+                .HasMaxLength(20)
+                .HasDefaultValue("OK");
+
+            entity.Property(account => account.UpdatedAtUtc)
+                .HasDefaultValueSql("SYSUTCDATETIME()");
+
+            entity.Property(account => account.RowVersion)
+                .IsRowVersion();
+
+            entity.HasOne(account => account.Tenant)
+                .WithOne()
+                .HasForeignKey<TenantStorageAccount>(account => account.TenantId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<StorageObject>(entity =>
+        {
+            entity.HasIndex(item => new { item.TenantId, item.Status });
+            entity.HasIndex(item => item.BlobKey).IsUnique();
+            entity.HasIndex(item => new { item.TenantId, item.LinkedEntityType, item.LinkedEntityId });
+            entity.HasIndex(item => item.ParentStorageObjectId);
+
+            entity.Property(item => item.BlobKey).IsRequired().HasMaxLength(500);
+            entity.Property(item => item.FileName).IsRequired().HasMaxLength(255);
+            entity.Property(item => item.ContentType).IsRequired().HasMaxLength(120);
+            entity.Property(item => item.Category).IsRequired().HasMaxLength(60);
+            entity.Property(item => item.LinkedEntityType).HasMaxLength(80);
+            entity.Property(item => item.Status).IsRequired().HasMaxLength(30).HasDefaultValue("Active");
+            entity.Property(item => item.CreatedAtUtc).HasDefaultValueSql("SYSUTCDATETIME()");
+
+            entity.HasOne(item => item.ParentStorageObject)
+                .WithMany()
+                .HasForeignKey(item => item.ParentStorageObjectId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<StorageUsageEvent>(entity =>
+        {
+            entity.HasIndex(item => new { item.TenantId, item.CreatedAtUtc });
+            entity.HasIndex(item => item.StorageObjectId);
+            entity.Property(item => item.Reason).IsRequired().HasMaxLength(80);
+            entity.Property(item => item.CreatedAtUtc).HasDefaultValueSql("SYSUTCDATETIME()");
+
+            entity.HasOne(item => item.StorageObject)
+                .WithMany()
+                .HasForeignKey(item => item.StorageObjectId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<StorageAddOnPlan>(entity =>
+        {
+            entity.HasIndex(plan => plan.Code).IsUnique();
+            entity.Property(plan => plan.Code).IsRequired().HasMaxLength(40);
+            entity.Property(plan => plan.Label).IsRequired().HasMaxLength(80);
+            entity.Property(plan => plan.StripePriceId).HasMaxLength(160);
+            entity.HasData(
+                new StorageAddOnPlan { Id = 1, Code = "extra-50gb", Label = "Extra 50GB", ExtraStorageBytes = 50 * PlanPricing.GigabyteBytes, MonthlyPricePence = 495, StripePriceId = null, IsActive = true },
+                new StorageAddOnPlan { Id = 2, Code = "extra-100gb", Label = "Extra 100GB", ExtraStorageBytes = 100 * PlanPricing.GigabyteBytes, MonthlyPricePence = 895, StripePriceId = null, IsActive = true },
+                new StorageAddOnPlan { Id = 3, Code = "extra-250gb", Label = "Extra 250GB", ExtraStorageBytes = 250 * PlanPricing.GigabyteBytes, MonthlyPricePence = 1795, StripePriceId = null, IsActive = true },
+                new StorageAddOnPlan { Id = 4, Code = "extra-500gb", Label = "Extra 500GB", ExtraStorageBytes = 500 * PlanPricing.GigabyteBytes, MonthlyPricePence = 2995, StripePriceId = null, IsActive = true },
+                new StorageAddOnPlan { Id = 5, Code = "extra-1tb", Label = "Extra 1TB", ExtraStorageBytes = 1_000 * PlanPricing.GigabyteBytes, MonthlyPricePence = 4995, StripePriceId = null, IsActive = true });
+        });
+
+        modelBuilder.Entity<TenantStorageAddOn>(entity =>
+        {
+            entity.HasIndex(item => new { item.TenantId, item.Status });
+            entity.HasIndex(item => item.StripeSubscriptionId);
+            entity.Property(item => item.Status).IsRequired().HasMaxLength(30).HasDefaultValue("Pending");
+            entity.Property(item => item.StripeSubscriptionId).HasMaxLength(160);
+            entity.Property(item => item.StripeSubscriptionItemId).HasMaxLength(160);
+            entity.Property(item => item.StripePriceId).HasMaxLength(160);
+            entity.Property(item => item.CreatedAtUtc).HasDefaultValueSql("SYSUTCDATETIME()");
+            entity.Property(item => item.UpdatedAtUtc).HasDefaultValueSql("SYSUTCDATETIME()");
+
+            entity.HasOne(item => item.StorageAddOnPlan)
+                .WithMany()
+                .HasForeignKey(item => item.StorageAddOnPlanId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
     }
 

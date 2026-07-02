@@ -36,7 +36,7 @@ describe("access diagnostics pages", () => {
 
     expect(screen.getAllByText(/stored session has no recognised plan/i)[0]).toBeInTheDocument();
     expect(screen.getByText(/Business plan/i)).toBeInTheDocument();
-    expect(screen.getByText("£44.95/month")).toBeInTheDocument();
+    expect(screen.getByText("£32.95/month")).toBeInTheDocument();
     expect(screen.getByText("£119.95/month")).toBeInTheDocument();
     expect(screen.getByText("£229.95/month")).toBeInTheDocument();
     expect(screen.getByText("Contact Sales")).toBeInTheDocument();
@@ -44,6 +44,7 @@ describe("access diagnostics pages", () => {
     const pageText = document.body.textContent ?? "";
     [
       ["39", "95/month"],
+      ["44", "95/month"],
       ["99", "95/month"],
       ["159", "95/month"],
       ["40", "/month"],

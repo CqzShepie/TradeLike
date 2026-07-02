@@ -15,7 +15,7 @@ namespace TradeLike.Api.Migrations
                 keyColumn: "Id",
                 keyValue: 1,
                 column: "MonthlyPricePence",
-                value: 4495);
+                value: 3295);
 
             migrationBuilder.UpdateData(
                 table: "Plans",
@@ -47,7 +47,7 @@ namespace TradeLike.Api.Migrations
                 keyColumn: "Id",
                 keyValue: 1,
                 column: "MonthlyPricePence",
-                value: 3995);
+                value: 3500);
 
             migrationBuilder.UpdateData(
                 table: "Plans",

@@ -16,5 +16,7 @@ public class Plan
 
     public int? AdditionalUserCostPence { get; set; }
 
+    public long? IncludedStorageBytes { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }

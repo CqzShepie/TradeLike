@@ -10,6 +10,7 @@ import { accessibilityService } from "../../services/accessibilityService";
 import type { AccessibilityPreferences } from "../../services/accessibilityService";
 import { authService } from "../../services/authService";
 import { billingService } from "../../services/billingService";
+import StoragePanel from "./StoragePanel";
 import type {
   CustomerSettings,
   UpdateAccountSettingsRequest,
@@ -29,6 +30,7 @@ type SectionId =
   | "security"
   | "accessibility"
   | "billing"
+  | "storage"
   | "team"
   | "documents"
   | "reports"
@@ -79,6 +81,7 @@ export default function CustomerSettingsWorkspace({ focusSectionId }: { focusSec
       { id: "security", title: "Security", description: "Password, verification status and active session details." },
       { id: "accessibility", title: "Accessibility", description: "Display, motion and keyboard preferences." },
       { id: "billing", title: "Plan & billing", description: "Plan limits, seats and billing status." },
+      { id: "storage", title: "Storage", description: "Usage, account allowance and paid storage add-ons." },
       { id: "team", title: "Team members", description: "Owner, manager and team member access for your company." },
       { id: "documents", title: "Quotes & invoices", description: "Document defaults, VAT, notes and reply-to email." },
       { id: "reports", title: "Reports", description: "Default reporting range and included data." },
@@ -125,6 +128,7 @@ export default function CustomerSettingsWorkspace({ focusSectionId }: { focusSec
               {section.id === "security" && <SecurityPanel settings={settings} />}
               {section.id === "accessibility" && <AccessibilityPanel onSave={() => setMessage("Settings saved.")} />}
               {section.id === "billing" && <BillingPanel settings={settings} onPlanChanged={planBilling => { setSettings(previous => previous ? { ...previous, planBilling } : previous); authService.updateStoredUser({ plan: planBilling.planName }); }} />}
+              {section.id === "storage" && <StoragePanel />}
               {section.id === "team" && <TeamPanel settings={settings} saving={savingSection === "team"} onUpdate={(id, payload) => saveSection("team", async () => { const updated = await settingsService.updateTeamMember(id, payload); return { teamMembers: settings.teamMembers.map(member => member.id === id ? updated : member) }; })} />}
               {section.id === "documents" && <DocumentsPanel form={documentForm} saving={savingSection === "documents"} onChange={setDocumentForm} onSave={() => saveSection("documents", async () => ({ documentDefaults: await settingsService.updateDocumentDefaults(documentForm), businessProfile: { ...settings.businessProfile, defaultVatRate: documentForm.defaultVatRate, quoteExpiryDays: documentForm.quoteExpiryDays, defaultQuoteNotes: documentForm.defaultQuoteNotes, defaultInvoiceNotes: documentForm.defaultInvoiceNotes, replyToEmail: documentForm.replyToEmail, paymentTerms: documentForm.paymentTerms, emailFooter: documentForm.emailFooter } }))} />}
               {section.id === "reports" && <ReportsPanel form={reportForm} saving={savingSection === "reports"} onChange={setReportForm} onSave={() => saveSection("reports", async () => ({ reportDefaults: await settingsService.updateReportDefaults(reportForm) }))} />}

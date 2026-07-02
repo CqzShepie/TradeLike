@@ -22,6 +22,7 @@ using TradeLike.Api.Inventory;
 using TradeLike.Api.Models;
 using TradeLike.Api.Security;
 using TradeLike.Api.Services;
+using TradeLike.Api.Services.Storage;
 using Xunit;
 
 namespace TradeLike.Api.Tests;
@@ -588,7 +589,8 @@ public sealed class AuthorizationHardeningTests
         var controller = new BillingController(
             context,
             new ConfigurationBuilder().Build(),
-            NullLogger<BillingController>.Instance)
+            NullLogger<BillingController>.Instance,
+            new StorageQuotaService(context, new ConfigurationBuilder().Build()))
         {
             ControllerContext = new ControllerContext
             {
@@ -623,7 +625,8 @@ public sealed class AuthorizationHardeningTests
         var controller = new BillingController(
             context,
             new ConfigurationBuilder().Build(),
-            NullLogger<BillingController>.Instance)
+            NullLogger<BillingController>.Instance,
+            new StorageQuotaService(context, new ConfigurationBuilder().Build()))
         {
             ControllerContext = new ControllerContext
             {

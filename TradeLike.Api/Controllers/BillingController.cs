@@ -10,6 +10,7 @@ using TradeLike.Api.Data;
 using TradeLike.Api.Models;
 using TradeLike.Api.Security;
 using TradeLike.Api.Services.Plans;
+using TradeLike.Api.Services.Storage;
 
 namespace TradeLike.Api.Controllers;
 
@@ -20,12 +21,18 @@ public sealed class BillingController : ControllerBase
     private readonly TradeLikeDbContext _context;
     private readonly IConfiguration _configuration;
     private readonly ILogger<BillingController> _logger;
+    private readonly StorageQuotaService _storageQuotaService;
 
-    public BillingController(TradeLikeDbContext context, IConfiguration configuration, ILogger<BillingController> logger)
+    public BillingController(
+        TradeLikeDbContext context,
+        IConfiguration configuration,
+        ILogger<BillingController> logger,
+        StorageQuotaService storageQuotaService)
     {
         _context = context;
         _configuration = configuration;
         _logger = logger;
+        _storageQuotaService = storageQuotaService;
     }
 
     [Authorize(Policy = "RequireDirectorRole")]
@@ -172,6 +179,11 @@ public sealed class BillingController : ControllerBase
             }
         }
 
+        if (tenantId.HasValue)
+        {
+            await HandleStorageAddOnWebhookAsync(tenantId.Value, eventType, document.RootElement);
+        }
+
         return Ok(new { received = true });
     }
 
@@ -202,6 +214,119 @@ public sealed class BillingController : ControllerBase
             int.TryParse(tenantIdProperty.GetString(), out var tenantId))
         {
             return tenantId;
+        }
+
+        return null;
+    }
+
+    private async Task HandleStorageAddOnWebhookAsync(int tenantId, string? eventType, JsonElement root)
+    {
+        if (!TryGetStorageAddOnCode(root, out var code))
+        {
+            return;
+        }
+
+        var stripeSubscriptionId = TryGetString(root, "id");
+        var stripeSubscriptionItemId = TryGetNestedString(root, "items", "data", "id");
+        var currentPeriodEndUtc = TryGetCurrentPeriodEndUtc(root);
+
+        switch (eventType)
+        {
+            case "checkout.session.completed":
+            case "customer.subscription.updated":
+            case "invoice.paid":
+                await _storageQuotaService.ApplyStorageAddOnAsync(
+                    tenantId,
+                    code,
+                    stripeSubscriptionId,
+                    stripeSubscriptionItemId,
+                    currentPeriodEndUtc);
+                break;
+            case "customer.subscription.deleted":
+            case "invoice.payment_failed":
+                var activeAddOn = await _context.TenantStorageAddOns
+                    .Include(item => item.StorageAddOnPlan)
+                    .FirstOrDefaultAsync(item =>
+                        item.TenantId == tenantId &&
+                        item.StorageAddOnPlan != null &&
+                        item.StorageAddOnPlan.Code == code &&
+                        item.Status == "Active");
+
+                if (activeAddOn is not null)
+                {
+                    await _storageQuotaService.RemoveStorageAddOnAsync(
+                        tenantId,
+                        activeAddOn.Id,
+                        cancelAtPeriodEnd: eventType == "customer.subscription.deleted");
+                }
+                break;
+        }
+    }
+
+    private static bool TryGetStorageAddOnCode(JsonElement root, out string code)
+    {
+        code = string.Empty;
+        if (!root.TryGetProperty("data", out var data) ||
+            !data.TryGetProperty("object", out var stripeObject) ||
+            !stripeObject.TryGetProperty("metadata", out var metadata))
+        {
+            return false;
+        }
+
+        if (!metadata.TryGetProperty("storageAddOnCode", out var codeElement))
+        {
+            return false;
+        }
+
+        code = codeElement.GetString() ?? string.Empty;
+        return !string.IsNullOrWhiteSpace(code);
+    }
+
+    private static string? TryGetString(JsonElement root, string propertyName)
+    {
+        if (root.TryGetProperty("data", out var data) &&
+            data.TryGetProperty("object", out var stripeObject) &&
+            stripeObject.TryGetProperty(propertyName, out var property))
+        {
+            return property.GetString();
+        }
+
+        return null;
+    }
+
+    private static string? TryGetNestedString(JsonElement root, params string[] path)
+    {
+        if (!root.TryGetProperty("data", out var data) ||
+            !data.TryGetProperty("object", out var current))
+        {
+            return null;
+        }
+
+        foreach (var part in path)
+        {
+            if (current.ValueKind == JsonValueKind.Array)
+            {
+                current = current.EnumerateArray().FirstOrDefault();
+            }
+
+            if (current.ValueKind == JsonValueKind.Undefined ||
+                !current.TryGetProperty(part, out current))
+            {
+                return null;
+            }
+        }
+
+        return current.ValueKind == JsonValueKind.String ? current.GetString() : null;
+    }
+
+    private static DateTime? TryGetCurrentPeriodEndUtc(JsonElement root)
+    {
+        if (root.TryGetProperty("data", out var data) &&
+            data.TryGetProperty("object", out var stripeObject) &&
+            stripeObject.TryGetProperty("current_period_end", out var currentPeriodEnd) &&
+            currentPeriodEnd.TryGetInt64(out var unixSeconds))
+        {
+            return DateTimeOffset.FromUnixTimeSeconds(unixSeconds).UtcDateTime;
         }
 
         return null;

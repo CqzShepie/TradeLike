@@ -13,11 +13,11 @@ export type PricingPlan = {
 export const pricingPlans: PricingPlan[] = [
   {
     name: "Solo",
-    pricePence: 4495,
-    displayPrice: "£44.95/month",
+    pricePence: 3295,
+    displayPrice: "£32.95/month",
     includedUsers: 1,
     userLimitLabel: "1 user",
-    perUserDisplay: "£44.95/user",
+    perUserDisplay: "£32.95/user",
     features: ["1 user", "Email support", "Basic reporting"],
   },
   {
@@ -56,4 +56,4 @@ export const planMixAssumptions = {
   Enterprise: 1,
 } satisfies Record<PricingPlanName, number>;
 
-export const selfServeMonthlyPlanPriceSumPence = 39485;
+export const selfServeMonthlyPlanPriceSumPence = 38285;

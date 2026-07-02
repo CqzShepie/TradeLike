@@ -7,11 +7,11 @@ describe("Home", () => {
   it("shows current monthly pricing and Enterprise sales contact", () => {
     renderHome();
 
-    expect(screen.getByText("£44.95/month")).toBeInTheDocument();
+    expect(screen.getByText("£32.95/month")).toBeInTheDocument();
     expect(screen.getByText("£119.95/month")).toBeInTheDocument();
     expect(screen.getByText("£229.95/month")).toBeInTheDocument();
     expect(screen.getByText("Contact Sales")).toBeInTheDocument();
-    expect(screen.getByText("£44.95/user")).toBeInTheDocument();
+    expect(screen.getByText("£32.95/user")).toBeInTheDocument();
     expect(screen.getByText("£12.00/user")).toBeInTheDocument();
     expect(screen.getByText("£9.20/user")).toBeInTheDocument();
     expect(screen.getByText("Custom")).toBeInTheDocument();
@@ -20,6 +20,7 @@ describe("Home", () => {
     const pageText = document.body.textContent ?? "";
     [
       ["39", "95/month"],
+      ["44", "95/month"],
       ["99", "95/month"],
       ["159", "95/month"],
       ["40", "/month"],

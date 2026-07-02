@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import type { AuthUser } from "../../services/authService";
 import type { AdminUser } from "../../types/admin";
@@ -6,13 +6,25 @@ import AdminDashboard from "./AdminDashboard";
 import StudioDiagnostics from "./StudioDiagnostics";
 import StudioGlobalSearch from "./StudioGlobalSearch";
 import StudioPermissionsMatrix from "./StudioPermissionsMatrix";
+import StudioStorageTools from "./StudioStorageTools";
 import StudioSupportNotes from "./StudioSupportNotes";
+import { adminStorageService } from "../../services/adminStorageService";
 
 vi.mock("../../services/adminService", () => ({
   adminService: {
     addCustomerSupportNote: vi.fn(),
   },
 }));
+
+vi.mock("../../services/adminStorageService", () => ({
+  adminStorageService: {
+    getTenantStorage: vi.fn(),
+    recalculateTenantStorage: vi.fn(),
+    setManualOverride: vi.fn(),
+  },
+}));
+
+const mockedAdminStorageService = vi.mocked(adminStorageService);
 
 describe("Studio portal sections", () => {
   beforeEach(() => {
@@ -96,6 +108,37 @@ describe("Studio portal sections", () => {
 
     expect(screen.getByText("Present, hidden")).toBeInTheDocument();
     expect(screen.queryByText("secret.jwt.value")).not.toBeInTheDocument();
+  });
+
+  it("loads Studio storage usage tools", async () => {
+    mockedAdminStorageService.getTenantStorage.mockResolvedValue({
+      tenantId: 7,
+      businessName: "Acme Plumbing",
+      email: "owner@acme.test",
+      usage: {
+        includedStorageBytes: 50_000_000_000,
+        purchasedStorageBytes: 0,
+        manualStorageOverrideBytes: null,
+        effectiveLimitBytes: 50_000_000_000,
+        usedStorageBytes: 12_000_000_000,
+        availableBytes: 38_000_000_000,
+        usedPercent: 24,
+        warningLevel: "OK",
+        canUpload: true,
+        addOnPlans: [],
+        activeAddOns: [],
+      },
+    });
+
+    render(<StudioStorageTools />);
+
+    fireEvent.change(screen.getByPlaceholderText(/tenant id/i), { target: { value: "7" } });
+    fireEvent.click(screen.getByRole("button", { name: /load storage/i }));
+
+    await waitFor(() => expect(mockedAdminStorageService.getTenantStorage).toHaveBeenCalledWith(7));
+    expect(await screen.findByText("Acme Plumbing")).toBeInTheDocument();
+    expect(screen.getByText("12GB")).toBeInTheDocument();
+    expect(screen.getByText("50GB")).toBeInTheDocument();
   });
 });
 
