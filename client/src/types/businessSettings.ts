@@ -1,5 +1,6 @@
 export type BusinessSettings = {
   id: number;
+  tenantId: number;
   businessName: string;
   legalName?: string | null;
   logoUrl?: string | null;
@@ -13,10 +14,22 @@ export type BusinessSettings = {
   email?: string | null;
   website?: string | null;
   vatNumber?: string | null;
+  companyNumber?: string | null;
   defaultVatRate: number;
   quotePrefix: string;
   invoicePrefix: string;
   paymentTerms?: string | null;
+  quoteExpiryDays: number;
+  defaultQuoteNotes?: string | null;
+  defaultInvoiceNotes?: string | null;
+  replyToEmail?: string | null;
+  defaultJobPriority: string;
+  defaultScheduleView: string;
+  defaultReportRange: string;
+  includeCompletedInReports: boolean;
+  includeArchivedInReports: boolean;
+  lowStockThreshold: number;
+  purchaseOrderPrefix: string;
   bankName?: string | null;
   bankAccountName?: string | null;
   bankSortCode?: string | null;

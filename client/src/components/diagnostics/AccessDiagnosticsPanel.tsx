@@ -9,6 +9,7 @@ import {
   shouldShowAccessDiagnostics,
   type AccessDiagnostic,
 } from "./accessDiagnostics";
+import { formatRequiredCustomerRoles, getCustomerRoleLabel } from "../../utils/customerRoleLabels";
 
 type AccessDiagnosticsPanelProps = {
   diagnostic: AccessDiagnostic;
@@ -80,14 +81,14 @@ export default function AccessDiagnosticsPanel({ diagnostic }: AccessDiagnostics
 function diagnosticRows(diagnostic: AccessDiagnostic) {
   return [
     { label: "Email", value: diagnostic.email },
-    { label: "Role", value: diagnostic.role },
+    { label: "Role", value: diagnostic.role ? getCustomerRoleLabel(diagnostic.role, { role: diagnostic.role, plan: diagnostic.plan }) : null },
     { label: "Plan", value: diagnostic.plan },
     { label: "Billing status", value: diagnostic.billingStatus },
     { label: "Account status", value: diagnostic.accountStatus },
     { label: "Tenant", value: diagnostic.tenantId == null ? null : String(diagnostic.tenantId) },
     { label: "Feature", value: diagnostic.requiredFeature },
     { label: "Minimum plan", value: diagnostic.requiredMinimumPlan },
-    { label: "Required roles", value: diagnostic.requiredRoles.join(", ") },
+    { label: "Required roles", value: diagnostic.requiredRoles.length === 0 ? null : formatRequiredCustomerRoles(diagnostic.requiredRoles, { role: diagnostic.role ?? undefined, plan: diagnostic.plan }) },
     { label: "Reason", value: diagnostic.reasonBlocked },
     { label: "Route", value: diagnostic.currentRoute },
   ];

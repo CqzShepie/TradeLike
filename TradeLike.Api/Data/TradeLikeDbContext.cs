@@ -204,9 +204,15 @@ public class TradeLikeDbContext : DbContext
 
         modelBuilder.Entity<BusinessSettings>(entity =>
         {
+            entity.HasIndex(settings => settings.TenantId)
+                .IsUnique();
+
             entity.Property(settings => settings.BusinessName)
                 .IsRequired()
                 .HasMaxLength(180);
+
+            entity.Property(settings => settings.CompanyNumber)
+                .HasMaxLength(60);
 
             entity.Property(settings => settings.DefaultVatRate)
                 .HasPrecision(5, 2)
@@ -221,6 +227,47 @@ public class TradeLikeDbContext : DbContext
                 .IsRequired()
                 .HasMaxLength(20)
                 .HasDefaultValue("INV");
+
+            entity.Property(settings => settings.QuoteExpiryDays)
+                .HasDefaultValue(30);
+
+            entity.Property(settings => settings.DefaultQuoteNotes)
+                .HasMaxLength(2000);
+
+            entity.Property(settings => settings.DefaultInvoiceNotes)
+                .HasMaxLength(2000);
+
+            entity.Property(settings => settings.ReplyToEmail)
+                .HasMaxLength(255);
+
+            entity.Property(settings => settings.DefaultJobPriority)
+                .IsRequired()
+                .HasMaxLength(30)
+                .HasDefaultValue("Normal");
+
+            entity.Property(settings => settings.DefaultScheduleView)
+                .IsRequired()
+                .HasMaxLength(30)
+                .HasDefaultValue("Week");
+
+            entity.Property(settings => settings.DefaultReportRange)
+                .IsRequired()
+                .HasMaxLength(40)
+                .HasDefaultValue("30d");
+
+            entity.Property(settings => settings.IncludeCompletedInReports)
+                .HasDefaultValue(true);
+
+            entity.Property(settings => settings.IncludeArchivedInReports)
+                .HasDefaultValue(false);
+
+            entity.Property(settings => settings.LowStockThreshold)
+                .HasDefaultValue(5);
+
+            entity.Property(settings => settings.PurchaseOrderPrefix)
+                .IsRequired()
+                .HasMaxLength(20)
+                .HasDefaultValue("PO");
         });
 
         modelBuilder.Entity<AdminAuditLog>(entity =>

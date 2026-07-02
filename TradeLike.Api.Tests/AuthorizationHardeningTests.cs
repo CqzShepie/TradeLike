@@ -15,6 +15,7 @@ using TradeLike.Api.Api.Payments;
 using TradeLike.Api.Api.RoutePlanner;
 using TradeLike.Api.Contracts.Admin;
 using TradeLike.Api.Contracts.Jobs;
+using TradeLike.Api.Contracts.Settings;
 using TradeLike.Api.Controllers;
 using TradeLike.Api.Data;
 using TradeLike.Api.Inventory;
@@ -316,6 +317,227 @@ public sealed class AuthorizationHardeningTests
 
         var objectResult = Assert.IsType<ObjectResult>(result.Result);
         Assert.Equal(StatusCodes.Status402PaymentRequired, objectResult.StatusCode);
+    }
+
+    [Fact]
+    public async Task GetSettingsReturnsTenantScopedSettings()
+    {
+        await using var context = CreateContext();
+        context.Users.AddRange(
+            BuildUser(1, "owner-one@example.com", CustomerRoles.Director, 1, "Business"),
+            BuildUser(2, "owner-two@example.com", CustomerRoles.Director, 2, "Business"));
+        context.BusinessSettings.AddRange(
+            new BusinessSettings
+            {
+                Id = 1,
+                TenantId = 1,
+                BusinessName = "Tenant One",
+                QuotePrefix = "Q1",
+                InvoicePrefix = "I1",
+                DefaultJobPriority = "High",
+                DefaultScheduleView = "Week",
+                DefaultReportRange = "30d",
+                LowStockThreshold = 4,
+                PurchaseOrderPrefix = "PO1"
+            },
+            new BusinessSettings
+            {
+                Id = 2,
+                TenantId = 2,
+                BusinessName = "Tenant Two",
+                QuotePrefix = "Q2",
+                InvoicePrefix = "I2",
+                DefaultJobPriority = "Low",
+                DefaultScheduleView = "Day",
+                DefaultReportRange = "90d",
+                LowStockThreshold = 8,
+                PurchaseOrderPrefix = "PO2"
+            });
+        await SeedSubscriptionRowAsync(context, 1, "Business", 10, 10);
+        await SeedSubscriptionRowAsync(context, 2, "Business", 11, 10);
+
+        var controller = new SettingsController(context)
+        {
+            ControllerContext = new ControllerContext
+            {
+                HttpContext = HttpContextForUser(1, 1, CustomerRoles.Director)
+            }
+        };
+
+        var result = await controller.Get();
+        var ok = Assert.IsType<OkObjectResult>(result.Result);
+        var payload = Assert.IsType<CustomerSettingsResponse>(ok.Value);
+
+        Assert.Equal("Tenant One", payload.BusinessProfile.BusinessName);
+        Assert.Equal(1, payload.BusinessProfile.TenantId);
+        Assert.DoesNotContain(payload.TeamMembers, member => member.Email == "owner-two@example.com");
+    }
+
+    [Fact]
+    public async Task UpdateAccountSavesOnlyCurrentTenant()
+    {
+        await using var context = CreateContext();
+        context.Users.AddRange(
+            BuildUser(1, "owner-one@example.com", CustomerRoles.Director, 1, "Team"),
+            BuildUser(2, "manager-one@example.com", CustomerRoles.Manager, 1, "Team"),
+            BuildUser(3, "owner-two@example.com", CustomerRoles.Director, 2, "Team"));
+        await context.SaveChangesAsync();
+
+        var controller = new SettingsController(context)
+        {
+            ControllerContext = new ControllerContext
+            {
+                HttpContext = HttpContextForUser(1, 1, CustomerRoles.Director)
+            }
+        };
+
+        var result = await controller.UpdateAccount(new UpdateAccountSettingsRequest(
+            "Alex",
+            "Owner",
+            "Tenant One Updated",
+            "Alex Owner",
+            "07123456789"));
+
+        Assert.IsType<OkObjectResult>(result.Result);
+        var tenantOneUsers = await context.Users.Where(user => user.TenantId == 1).ToListAsync();
+        var tenantTwoUser = await context.Users.SingleAsync(user => user.TenantId == 2);
+
+        Assert.All(tenantOneUsers, user => Assert.Equal("Tenant One Updated", user.BusinessName));
+        Assert.Equal("Alex Owner", tenantOneUsers[0].OwnerName);
+        Assert.Null(tenantTwoUser.BusinessName);
+        Assert.Null(tenantTwoUser.OwnerName);
+    }
+
+    [Fact]
+    public async Task UpdateBusinessProfileSavesCorrectly()
+    {
+        await using var context = CreateContext();
+        var owner = BuildUser(1, "owner@example.com", CustomerRoles.Director, 1, "Business");
+        context.Users.Add(owner);
+        await SeedSubscriptionRowAsync(context, 1, "Business", 1, 10);
+        await context.SaveChangesAsync();
+
+        var controller = new SettingsController(context)
+        {
+            ControllerContext = new ControllerContext
+            {
+                HttpContext = HttpContextForUser(1, 1, CustomerRoles.Director)
+            }
+        };
+
+        var result = await controller.UpdateBusinessProfile(new UpdateBusinessProfileSettingsRequest(
+            "Acme Heating",
+            "Acme Heating Ltd",
+            "Alex Owner",
+            "07123456789",
+            "02070000000",
+            "office@acme.test",
+            "1 Trade Street",
+            null,
+            "London",
+            null,
+            "E1 1AA",
+            "United Kingdom",
+            "https://acme.test",
+            "GB123",
+            "12345678"));
+
+        var ok = Assert.IsType<OkObjectResult>(result.Result);
+        var payload = Assert.IsType<BusinessSettingsResponse>(ok.Value);
+
+        Assert.Equal("Acme Heating", payload.BusinessName);
+        Assert.Equal("office@acme.test", payload.Email);
+        Assert.Equal("12345678", payload.CompanyNumber);
+        Assert.Equal("Alex Owner", owner.OwnerName);
+    }
+
+    [Fact]
+    public async Task TeamMemberListExcludesInternalStaff()
+    {
+        await using var context = CreateContext();
+        context.Users.AddRange(
+            BuildUser(1, "owner@example.com", CustomerRoles.Director, 1, "Team"),
+            BuildUser(2, "manager@example.com", CustomerRoles.Manager, 1, "Team"),
+            BuildUser(3, "staff@example.com", CustomerRoles.LegacyDirector, 1, "Internal"));
+        await SeedSubscriptionRowAsync(context, 1, "Team", 1, 5);
+        await context.SaveChangesAsync();
+
+        var controller = new SettingsController(context)
+        {
+            ControllerContext = new ControllerContext
+            {
+                HttpContext = HttpContextForUser(1, 1, CustomerRoles.Director)
+            }
+        };
+
+        var result = await controller.GetTeam();
+        var ok = Assert.IsType<OkObjectResult>(result.Result);
+        var team = Assert.IsAssignableFrom<IReadOnlyList<CustomerSettingsTeamMemberResponse>>(ok.Value);
+
+        Assert.Equal(2, team.Count);
+        Assert.DoesNotContain(team, member => member.Email == "staff@example.com");
+    }
+
+    [Fact]
+    public async Task CustomerCannotAssignInternalStaffRole()
+    {
+        await using var context = CreateContext();
+        context.Users.AddRange(
+            BuildUser(1, "owner@example.com", CustomerRoles.Director, 1, "Team"),
+            BuildUser(2, "member@example.com", CustomerRoles.Employee, 1, "Team"));
+        await context.SaveChangesAsync();
+
+        var controller = new SettingsController(context)
+        {
+            ControllerContext = new ControllerContext
+            {
+                HttpContext = HttpContextForUser(1, 1, CustomerRoles.Director)
+            }
+        };
+
+        var result = await controller.UpdateTeamMember(
+            2,
+            new UpdateCustomerSettingsTeamMemberRequest("Director", "Active"));
+
+        var badRequest = Assert.IsType<BadRequestObjectResult>(result.Result);
+        Assert.Equal("CustomerEmployee", (await context.Users.SingleAsync(user => user.Id == 2)).Role);
+        Assert.Contains("CustomerManager or CustomerEmployee", badRequest.Value!.ToString());
+    }
+
+    [Fact]
+    public async Task EmployeeCannotUpdateRestrictedBusinessProfileSettings()
+    {
+        await using var context = CreateContext();
+        context.Users.Add(BuildUser(1, "employee@example.com", CustomerRoles.Employee, 1, "Solo"));
+        await context.SaveChangesAsync();
+
+        var controller = new SettingsController(context)
+        {
+            ControllerContext = new ControllerContext
+            {
+                HttpContext = HttpContextForUser(1, 1, CustomerRoles.Employee)
+            }
+        };
+
+        var result = await controller.UpdateBusinessProfile(new UpdateBusinessProfileSettingsRequest(
+            "Blocked",
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null));
+
+        var forbidden = Assert.IsType<ObjectResult>(result.Result);
+        Assert.Equal(StatusCodes.Status403Forbidden, forbidden.StatusCode);
     }
 
     [Fact]
@@ -694,6 +916,41 @@ public sealed class AuthorizationHardeningTests
         await context.SaveChangesAsync();
     }
 
+    private static async Task SeedSubscriptionRowAsync(
+        TradeLikeDbContext context,
+        int tenantId,
+        string planName,
+        int planId,
+        int seatsPurchased)
+    {
+        if (!await context.Plans.AnyAsync(plan => plan.Id == planId))
+        {
+            context.Plans.Add(new Plan
+            {
+                Id = planId,
+                Name = planName,
+                MonthlyPricePence = planName == "Enterprise" ? null : 7500,
+                MaxIncludedUsers = planName == "Enterprise" ? null : 10,
+                CreatedAt = DateTime.UtcNow
+            });
+        }
+
+        if (!await context.Subscriptions.AnyAsync(subscription => subscription.TenantId == tenantId))
+        {
+            context.Subscriptions.Add(new Subscription
+            {
+                TenantId = tenantId,
+                PlanId = planId,
+                SeatsPurchased = seatsPurchased,
+                BillingStartUtc = DateTime.UtcNow,
+                NextInvoiceDateUtc = DateTime.UtcNow.AddMonths(1),
+                Status = "Active"
+            });
+        }
+
+        await context.SaveChangesAsync();
+    }
+
     private static async Task<IActionResult?> RunPlanGuardAsync(
         TradeLikeDbContext context,
         Feature feature,
@@ -764,6 +1021,21 @@ public sealed class AuthorizationHardeningTests
         {
             new Claim("tid", tenantId.ToString()),
             new Claim(ClaimTypes.NameIdentifier, "1"),
+            new Claim(ClaimTypes.Role, role)
+        }, "Test");
+
+        return new DefaultHttpContext
+        {
+            User = new ClaimsPrincipal(identity)
+        };
+    }
+
+    private static HttpContext HttpContextForUser(int tenantId, int userId, string role)
+    {
+        var identity = new ClaimsIdentity(new[]
+        {
+            new Claim("tid", tenantId.ToString()),
+            new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
             new Claim(ClaimTypes.Role, role)
         }, "Test");
 
